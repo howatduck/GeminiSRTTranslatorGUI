@@ -30,9 +30,9 @@ a = Analysis(
         'tkinter',
         'unittest',
         'pydoc',
-        'email',
-        'http',
-        'xml',
+        # 'email',      # <-- 삭제! gemini-srt-translator가 필요함
+        # 'http',       # <-- 삭제! google-genai가 필요함
+        # 'xml',        # <-- 삭제! 일부 라이브러리가 필요함
         'html',
         'lib2to3',
         'multiprocessing.popen_spawn_win32',
