@@ -36,19 +36,23 @@ jobs:
         run: |
           pyinstaller --clean --noconfirm GeminiSRTTranslator.spec
 
-      - name: Upload build artifact
+      - name: Package into ZIP
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "dist\GeminiSRTTranslator.exe" -DestinationPath "GeminiSRTTranslator-Windows.zip"
+
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: GeminiSRTTranslator-Windows
-          path: dist/GeminiSRTTranslator.exe
+          path: GeminiSRTTranslator-Windows.zip
           if-no-files-found: error
-          retention-days: 30
 
-      - name: Upload EXE to GitHub Release
+      - name: Upload to GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/GeminiSRTTranslator.exe
+          files: GeminiSRTTranslator-Windows.zip   # <-- ZIP으로 변경
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
