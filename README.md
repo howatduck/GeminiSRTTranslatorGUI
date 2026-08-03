@@ -31,21 +31,8 @@ pip install PyQt6 pyte gemini-srt-translator google-genai
 ## 실행 방법
 
 ```
-python gemini_srt_translator_gui.py
+python3 gemini_srt_translator_gui.py
 ```
-
-## Windows용 빌드 (PyInstaller 예시)
-
-```
-pip install pyinstaller
-pyinstaller --noconfirm --onefile --windowed ^
-  --name "GeminiSrtTranslatorGUI" ^
-  gemini_srt_translator_gui.py
-```
-
-빌드 후 `dist/GeminiSrtTranslatorGUI.exe` 파일이 생성됩니다.
-
-> 콘솔 창 없이 실행하려면 `--windowed` 옵션을 유지하세요. 실행 중 발생하는 오류를 콘솔에서 확인하고 싶다면 빌드 시 `--windowed`를 빼고 테스트하는 것을 권장합니다.
 
 ## 사용 방법 요약
 
@@ -68,4 +55,5 @@ pyinstaller --noconfirm --onefile --windowed ^
 
 - API 키는 평문(Normal echo mode)으로 입력창에 표시됩니다. 화면 캡처나 공유 시 주의하세요.
 - Enterprise(Vertex AI) 모드 사용 시 별도의 Google Cloud Project / 인증 정보가 필요합니다.
-- 이 GUI는 [gemini-srt-translator](https://pypi.org/project/gemini-srt-translator/) 라이브러리의 v3.6.2 인터페이스에 맞춰 작성되었습니다. 라이브러리 버전이 다르면 일부 옵션이 동작하지 않을 수 있습니다.
+- 이 GUI는 [gemini-srt-translator](https://pypi.org/project/gemini-srt-translator/) 라이브러리의 v3.6.2 인터페이스에 맞춰 작성되었습니다.
+- 라이브러리 버전이 다르면 일부 옵션이 동작하지 않을 수 있습니다.
