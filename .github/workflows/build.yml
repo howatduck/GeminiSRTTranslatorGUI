@@ -9,27 +9,46 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
 
       - name: Build EXE with PyInstaller
-        run: pyinstaller --clean --noconfirm GeminiSRTTranslator.spec
+        run: |
+          pyinstaller --clean --noconfirm GeminiSRTTranslator.spec
 
-      - name: Upload to Release
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: GeminiSRTTranslator-Windows
+          path: dist/GeminiSRTTranslator.exe
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload EXE to GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: dist/GeminiSRTTranslator.exe
+          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
