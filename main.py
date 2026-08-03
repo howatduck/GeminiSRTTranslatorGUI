@@ -2,6 +2,8 @@
 """
 Gemini SRT Translator GUI (v3.6.2 호환, Pyte VT100 터미널)
 v3.5.8 기반 → v3.6.2 최신 변경사항 반영 및 버그 수정
+[패치] 2026-08: 빌드 후 버튼이 안 눌리는 문제 진단용 QMessageBox 추가,
+        자막 파일 목록 X(지우기) 버튼 누락 수정
 """
 
 import sys
@@ -45,17 +47,27 @@ except ImportError:
     print("치명적 오류: 'pyte' 라이브러리를 찾을 수 없습니다.\n'pip install pyte' 명령어로 설치하세요.")
     sys.exit(1)
 
+# =====================================================================
+# [패치] ImportError만 잡으면 하위 의존성이 깨졌을 때(특히 PyInstaller로
+# 빌드했을 때 흔함) 원인을 알 수 없으므로 Exception 전체를 잡고, 에러
+# 내용을 문자열로 저장해뒀다가 앱 시작 시 사용자에게 팝업으로 보여준다.
+# --windowed로 빌드하면 콘솔이 없어서 print()만으로는 원인을 알 수 없다.
+# =====================================================================
+GST_IMPORT_ERROR = None
 try:
     import gemini_srt_translator as gst
-except ImportError:
-    print("경고: 'gemini-srt-translator' 라이브러리를 찾을 수 없거나 오류가 있습니다. 'pip install gemini-srt-translator'로 설치하세요.")
+except Exception as e:
+    print(f"경고: 'gemini-srt-translator' 라이브러리를 찾을 수 없거나 오류가 있습니다. 'pip install gemini-srt-translator'로 설치하세요. ({e})")
     gst = None
+    GST_IMPORT_ERROR = repr(e)
 
+GENAI_IMPORT_ERROR = None
 try:
     from google import genai
-except ImportError:
-    print("경고: 'google-genai' 라이브러리를 찾을 수 없습니다. 'pip install google-genai>=2.8.0' 명령어로 설치하세요.")
+except Exception as e:
+    print(f"경고: 'google-genai' 라이브러리를 찾을 수 없습니다. 'pip install google-genai>=2.8.0' 명령어로 설치하세요. ({e})")
     genai = None
+    GENAI_IMPORT_ERROR = repr(e)
 
 # --- 상수 정의 (v3.6.2 반영) ---
 APP_NAME = "Gemini SRT 번역/전사 GUI (v3.6.2 호환, Pyte VT100 터미널)"
@@ -84,8 +96,6 @@ class CheckableComboBox(QComboBox):
         self.setEditable(True)
         self.lineEdit().setReadOnly(True)
         self.lineEdit().setPlaceholderText("언어를 선택하세요...")
-        # [버그 수정] 고정 최대폭(400px) 때문에 우측 패널 다른 위젯들과
-        # 폭이 안 맞던 문제 → 컨테이너 폭에 맞춰 늘어나도록 변경
         self.setMinimumWidth(200)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
@@ -128,23 +138,7 @@ class CheckableComboBox(QComboBox):
 # [패치 2] Pyte 기반 완벽한 VT100 터미널 에뮬레이터 위젯
 # =====================================================================
 class PyteTerminalWidget(QTextEdit):
-    """pyte 기반 VT100 터미널 에뮬레이터 위젯
-
-    [개선] 기존 구현은 30ms마다 스크롤백 전체(최대 1000줄)를 HTML로
-    다시 그려서 setHtml()로 문서 전체를 매번 교체했다. 출력량이 많을
-    때(스트리밍 응답, 진행률 표시 등) 이 방식은:
-      - 매 프레임마다 전체 문서를 다시 파싱/레이아웃하므로 무겁고,
-      - 큐에 텍스트가 밀리는 동안 중간 상태들이 뭉쳐서 한 번에
-        반영되어 마치 줄이 겹치거나 깨진 것처럼 보이고,
-      - 사용자가 스크롤을 올려 과거 로그를 보고 있어도 매번 문서가
-        통째로 교체되며 스크롤/선택 위치가 흐트러졌다.
-
-    실제 터미널 에뮬레이터들이 하는 방식대로, 스크롤백(이미 확정된
-    과거 줄)은 한 번만 문서에 추가하고 다시 건드리지 않으며, 매 틱마다
-    다시 그리는 대상은 "현재 화면(뷰포트)"에 해당하는 마지막 N줄로
-    한정한다. 그러면 이미 그려진 과거 로그는 절대 재배치되지 않고,
-    다시 그려야 하는 영역도 작아서 자연스럽고 끊김 없이 보인다.
-    """
+    """pyte 기반 VT100 터미널 에뮬레이터 위젯"""
 
     def __init__(self, cols=150, lines=50, history=2000):
         super().__init__()
@@ -170,22 +164,13 @@ class PyteTerminalWidget(QTextEdit):
         self.stream = pyte.Stream(self.screen)
 
         self.text_queue = queue.Queue()
-        # [버그 수정] QTimer에 부모 위젯(self) 설정으로 메모리 안정성 확보
         self._update_timer = QTimer(self)
         self._update_timer.timeout.connect(self._render_terminal)
         self._update_timer.start(30)
         self._dirty = False
 
-        # 스크롤백 중 이미 문서에 "확정 반영"된 줄 수. 이 값 이전 줄들은
-        # 다시 렌더링하지 않는다 (append-only).
         self._flushed_history_len = 0
-        # 마지막으로 확정 반영했던 스크롤백의 맨 끝 줄 텍스트(변조/오버플로우
-        # 감지용 — pyte의 history deque는 maxlen을 넘으면 오래된 줄부터
-        # 자동으로 버려지는데, 그 경우엔 증분 계산이 어긋나므로 감지해서
-        # 통째로 다시 그리는 것으로 안전하게 폴백한다).
         self._last_flushed_signature = None
-        # 현재 "라이브 화면" 영역이 문서에서 시작하는 커서 위치.
-        # None이면 아직 한 번도 그리지 않은 초기 상태.
         self._live_start_pos = None
 
         self._div_style = (
@@ -193,17 +178,8 @@ class PyteTerminalWidget(QTextEdit):
             "font-size: 13px; line-height: 1.25;"
         )
 
-        # ---------------------------------------------------------------
-        # [개선] gemini-srt-translator가 배치(batch)마다 반복 출력하는
-        # "Validating token size..." / "Token size validated. Translating..."
-        # / "✅ Translation completed successfully!" 3줄이 배치 수만큼
-        # (예: 22배치) 그대로 누적되어 로그가 끝없이 길어지는 문제를 막기
-        # 위한 상태 추적 변수. 새 배치의 3줄이 시작될 때 직전 배치의 3줄을
-        # 지우고 그 자리에 덮어써서, 화면에는 "현재 배치"의 상태만 보인다.
-        # ---------------------------------------------------------------
-        self._status_cycle_step = 0      # 지금까지 매칭된 상태줄 개수 (0~2)
-        self._status_pending_erase = False  # 직전 3줄 사이클이 끝나서 다음
-                                             # 사이클 시작 시 지워야 하는 상태
+        self._status_cycle_step = 0
+        self._status_pending_erase = False
 
     _STATUS_LINE_1 = "Validating token size..."
     _STATUS_LINE_2 = "Token size validated. Translating..."
@@ -211,10 +187,6 @@ class PyteTerminalWidget(QTextEdit):
 
     @staticmethod
     def _normalize_for_match(s):
-        """이모지 뒤에 흔히 붙는 변형 선택자(U+FE0F)나 기타 서식 문자
-        (유니코드 Cf 카테고리)처럼 눈에 안 보이는 문자 때문에 완전 일치
-        비교가 실패하는 것을 막기 위해, 그런 문자를 제거하고 소문자로
-        정리한 문자열을 반환한다."""
         cleaned = "".join(ch for ch in s if unicodedata.category(ch) != "Cf")
         return cleaned.strip().lower()
 
@@ -223,10 +195,6 @@ class PyteTerminalWidget(QTextEdit):
         if not text:
             return
 
-        # 라이브러리가 3줄을 한 번의 write 호출로 합쳐서 보내는 경우와
-        # 줄 단위로 나눠 보내는 경우를 모두 대응하기 위해 줄 단위로 분리해
-        # 각 줄마다 상태를 판단한다 (진행률 표시줄처럼 개행이 없는 조각은
-        # split 결과가 한 원소짜리 리스트가 되어 기존과 동일하게 처리됨).
         pieces = text.split("\n")
         out_pieces = []
         for line in pieces:
@@ -237,8 +205,6 @@ class PyteTerminalWidget(QTextEdit):
                 pass
             elif "validating token size" in norm:
                 if self._status_pending_erase:
-                    # 직전 배치의 3줄(Validating/Validated/완료)을 지우고
-                    # 새 배치의 3줄을 그 위치에 덮어쓴다.
                     erase_prefix = "\x1b[3A\r\x1b[0J"
                     self._status_pending_erase = False
                 self._status_cycle_step = 1
@@ -248,8 +214,6 @@ class PyteTerminalWidget(QTextEdit):
                 self._status_cycle_step = 0
                 self._status_pending_erase = True
             else:
-                # 예상 밖의 다른 출력이 섞이면 추적 상태를 리셋해서 엉뚱한
-                # 내용을 실수로 지우지 않도록 한다.
                 self._status_cycle_step = 0
                 self._status_pending_erase = False
 
@@ -260,11 +224,9 @@ class PyteTerminalWidget(QTextEdit):
         self.text_queue.put(text)
 
     def feed_line(self, text):
-        """한 줄을 터미널에 피드"""
         self.feed(text + "\n")
 
     def clear_screen(self):
-        """화면과 pyte 내부 상태 모두 초기화"""
         self.screen.reset()
         if hasattr(self.screen, 'history'):
             self.screen.history.top.clear()
@@ -277,7 +239,6 @@ class PyteTerminalWidget(QTextEdit):
         self.setHtml("")
 
     def _color_to_hex(self, color_name):
-        """pyte 색상 이름을 hex 코드로 변환"""
         if not color_name or color_name == 'default':
             return None
         colors = {
@@ -297,7 +258,6 @@ class PyteTerminalWidget(QTextEdit):
         return None
 
     def _line_last_col(self, line_dict):
-        """줄의 마지막 '의미 있는' 칸 인덱스(뒤쪽 공백 트리밍용)"""
         last_col = self.screen.columns - 1
         while last_col >= 0:
             char_obj = line_dict[last_col]
@@ -309,7 +269,6 @@ class PyteTerminalWidget(QTextEdit):
         return last_col
 
     def _line_to_html(self, line_dict):
-        """pyte 한 줄을 인라인 HTML로 변환"""
         line_html = ""
         last_fg = None
         last_bg = None
@@ -352,12 +311,10 @@ class PyteTerminalWidget(QTextEdit):
         return line_html
 
     def _line_signature(self, line_dict):
-        """중복/오버플로우 감지를 위한 줄 내용의 간단한 서명"""
         last_col = self._line_last_col(line_dict)
         return "".join(line_dict[c].data for c in range(last_col + 1))
 
     def _lines_block_html(self, line_dicts):
-        """여러 줄을 하나의 <div>로 감싸 반환 (white-space:pre로 줄바꿈 유지)"""
         parts = [f"<div style='{self._div_style}'>"]
         for line_dict in line_dicts:
             parts.append(self._line_to_html(line_dict) + "\n")
@@ -365,7 +322,6 @@ class PyteTerminalWidget(QTextEdit):
         return "".join(parts)
 
     def _render_terminal(self):
-        """타이머에 의해 주기적으로 호출되는 렌더링 함수"""
         while not self.text_queue.empty():
             try:
                 self.stream.feed(self.text_queue.get_nowait())
@@ -383,9 +339,6 @@ class PyteTerminalWidget(QTextEdit):
         history_top = self.screen.history.top
         history_len = len(history_top)
 
-        # [안전장치] deque가 maxlen(2000)에 도달해 오래된 줄이 자동으로
-        # 잘려나가면 증분 계산 기준이 어긋난다. 그런 드문 경우엔 스크롤백
-        # 전체를 한 번만 다시 그려서 안전하게 복구한다.
         needs_full_rebuild = self._live_start_pos is None
         if not needs_full_rebuild and self._flushed_history_len > 0:
             check_idx = self._flushed_history_len - 1
@@ -399,19 +352,10 @@ class PyteTerminalWidget(QTextEdit):
         cursor = QTextCursor(self.document())
 
         def insert_block_html(html):
-            """새 <div> 블록을 삽입하기 전에 필요하면 명시적으로 새
-            QTextBlock을 먼저 만든다. 그렇지 않으면 이전에 insertHtml()로
-            넣은 블록의 마지막 줄과 새 블록의 첫 줄이 줄바꿈 없이 붙어버리는
-            문제가 있다 (white-space:pre 안의 '\\n'만으로는 별개의
-            insertHtml() 호출 사이의 경계를 나눠주지 못함)."""
             if not self.document().isEmpty():
                 cursor.insertBlock()
             cursor.insertHtml(html)
 
-        # ---- 0단계: 지난 틱에 그렸던 "라이브 화면" 영역을 먼저 지운다 ----
-        # (반드시 스크롤백에 새 줄을 追加하기 *전에* 지워야 한다. 순서가
-        #  바뀌면 새로 追加한 스크롤백 줄이 라이브 영역 뒤쪽에 잘못 붙었다가
-        #  곧이어 통째로 지워지는 버그가 생긴다.)
         if needs_full_rebuild:
             self.setHtml("")
             self._live_start_pos = None
@@ -420,15 +364,12 @@ class PyteTerminalWidget(QTextEdit):
             cursor.movePosition(QTextCursor.MoveOperation.End, QTextCursor.MoveMode.KeepAnchor)
             cursor.removeSelectedText()
 
-        # ---- 1단계: 확정된 스크롤백 줄들을 반영한다 ----
         if needs_full_rebuild:
             if history_len:
                 cursor.movePosition(QTextCursor.MoveOperation.End)
                 insert_block_html(self._lines_block_html(history_top))
             self._flushed_history_len = history_len
         elif history_len > self._flushed_history_len:
-            # 화면 밖으로 새로 스크롤되어 확정된 줄만 문서 끝에 追加(append)한다.
-            # 이미 그려둔 과거 줄들은 전혀 건드리지 않는다.
             new_lines = list(itertools.islice(history_top, self._flushed_history_len, history_len))
             cursor.movePosition(QTextCursor.MoveOperation.End)
             insert_block_html(self._lines_block_html(new_lines))
@@ -437,9 +378,7 @@ class PyteTerminalWidget(QTextEdit):
         if history_len:
             self._last_flushed_signature = self._line_signature(history_top[self._flushed_history_len - 1])
 
-        # ---- 2단계: 라이브 화면(뷰포트) 영역을 문서 끝에 새로 그린다 ----
         buffer_lines = [self.screen.buffer[i] for i in range(self.screen.lines)]
-        # 화면 맨 아래쪽의 완전히 빈 줄들은 굳이 그리지 않아도 되므로 트리밍
         while buffer_lines:
             last_line = buffer_lines[-1]
             if self._line_last_col(last_line) < 0:
@@ -465,7 +404,6 @@ class ForceAbortException(BaseException):
 
 
 class WorkerStream(QObject):
-    """워커 스레드의 stdout/stderr을 GUI 터미널로 리다이렉트"""
     text_written = pyqtSignal(str)
 
     def __init__(self, worker_thread):
@@ -545,10 +483,6 @@ class TranslationWorker(QThread):
         self.gui_stream_out = WorkerStream(self)
         self.gui_stream_out.text_written.connect(self.raw_output_update.emit)
 
-        # [리소스 보호] 연속 실패를 추적해 폭주성 재시도를 막기 위한 상태값.
-        # 실패가 계속되면(할당량 소진/인증 오류/네트워크 문제 등) 즉시
-        # 다음 작업으로 재시도하지 않고 점증하는 대기 시간을 두며,
-        # 임계치를 넘으면 전체 작업을 안전하게 중단한다.
         self._consecutive_failures = 0
         self._max_consecutive_failures = 5
         self._base_backoff_seconds = 3.0
@@ -600,11 +534,6 @@ class TranslationWorker(QThread):
                     )
                     base_name = os.path.basename(job_input_source)
 
-                    # [버그 수정] 비디오 파일을 여러 개 선택했을 때, 각 작업이
-                    # 자기 자신의 비디오/오디오 경로를 사용하도록 job 단위로
-                    # video_file/audio_file을 결정한다. 미디어 전용 소스가
-                    # 아닐 때(자막 번역 시 참고용 컨텍스트)는 기존처럼
-                    # base_config에 저장된 단일 컨텍스트 파일을 사용한다.
                     if source_is_media_only and media_type == 'video':
                         video_file_for_job = job_input_source
                         audio_file_for_job = None
@@ -633,7 +562,6 @@ class TranslationWorker(QThread):
                     original_signal = signal.signal
 
                     try:
-                        # 워커 스레드에서 signal 설정 방지 (라이브러리 내부 signal 호출 무시)
                         signal.signal = lambda *args, **kwargs: None
 
                         translator_args = {
@@ -731,12 +659,6 @@ class TranslationWorker(QThread):
                         self.current_key_index = (self.current_key_index + 1) % len(self.api_keys)
                     self.job_queue.task_done()
 
-                    # ==========================================================
-                    # [리소스 보호] 연속 실패 시 즉시 재시도하지 않고
-                    # 점증(exponential) 백오프를 준다. 임계치를 넘으면
-                    # (모든 API 키가 동시에 quota/인증 오류인 상황 등)
-                    # 남은 작업을 무의미하게 폭주시키지 않도록 전체 중단한다.
-                    # ==========================================================
                     if job_successful:
                         self._consecutive_failures = 0
                     else:
@@ -759,7 +681,7 @@ class TranslationWorker(QThread):
                             f"→ {backoff:.0f}초 대기 후 재시도 (자원 과부하 방지)\x1b[0m\n"
                         )
                         try:
-                            time.sleep(backoff)  # patched_sleep이라 중단 요청 시 즉시 빠져나옴
+                            time.sleep(backoff)
                         except ForceAbortException:
                             break
 
@@ -813,9 +735,29 @@ class TranslatorApp(QWidget):
         self.init_ui()
         self.load_settings()
 
+        # =============================================================
+        # [패치] 빌드 후 "모델 가져오기"/"작업 시작" 버튼이 계속 비활성화
+        # 상태로 남아 있다면 대부분 gemini-srt-translator 또는
+        # google-genai 라이브러리 로드 실패가 원인이다. --windowed로
+        # 빌드하면 콘솔이 없어 print() 경고를 볼 수 없으므로, 여기서
+        # 팝업으로 정확한 원인을 사용자에게 보여준다.
+        # =============================================================
+        if GST_IMPORT_ERROR or GENAI_IMPORT_ERROR:
+            msg = ""
+            if GST_IMPORT_ERROR:
+                msg += (
+                    "gemini-srt-translator 로드 실패 → '작업 시작' 버튼이 비활성화됩니다.\n"
+                    f"오류 내용: {GST_IMPORT_ERROR}\n\n"
+                )
+            if GENAI_IMPORT_ERROR:
+                msg += (
+                    "google-genai 로드 실패 → '모델 가져오기' 버튼이 비활성화됩니다.\n"
+                    f"오류 내용: {GENAI_IMPORT_ERROR}\n"
+                )
+            QMessageBox.warning(self, "라이브러리 로드 경고", msg)
+
     def init_ui(self):
         self.setWindowTitle(APP_NAME)
-        # [개선] 창 크기 축소
         self.setGeometry(100, 100, 1000, 700)
         main_layout = QVBoxLayout(self)
 
@@ -824,8 +766,6 @@ class TranslatorApp(QWidget):
         self._create_api_group(left_layout)
         self._create_main_options_group(left_layout)
         self._create_options_group(left_layout)
-        # [버그 수정] 접이식 옵션 박스 아래에 남는 빈 공간이 위/아래 다른
-        # 위젯을 밀어내지 않도록 좌측 레이아웃 하단에 stretch를 추가
         left_layout.addStretch(1)
 
         right_layout = QVBoxLayout()
@@ -844,10 +784,6 @@ class TranslatorApp(QWidget):
         self.api_key_inputs = []
         self.api_key_labels = []
 
-        # [변경] API 키를 최대 10개까지 등록할 수 있게 되면서 인라인 폼에
-        # 10줄을 모두 늘어놓으면 좌측 패널이 지나치게 길어지므로,
-        # 실제 입력창들은 별도의 팝업(QDialog) 안에 두고 메인 화면에는
-        # 그 팝업을 여는 버튼과 등록 현황 요약만 표시한다.
         self._build_api_keys_dialog()
 
         api_keys_row = QHBoxLayout()
@@ -896,12 +832,6 @@ class TranslatorApp(QWidget):
         parent_layout.addWidget(api_group)
 
     def _build_api_keys_dialog(self):
-        """API 키 최대 10개를 입력받는 팝업 다이얼로그를 생성한다.
-
-        [변경] 키 값을 QLineEdit.EchoMode.Password로 가리지 않고
-        일반(Normal) 모드로 그대로 노출한다. (사용자 요청: 여러 개의
-        무료 API 키를 돌려쓰면서 눈으로 바로 확인/복사하기 편하도록)
-        """
         dialog = QDialog(self)
         dialog.setWindowTitle("API 키 관리 (최대 10개)")
         dialog.setModal(True)
@@ -930,7 +860,6 @@ class TranslatorApp(QWidget):
                 placeholder += " (gemini_api_key2로 사용)"
             label = QLabel(label_text)
             line_edit = QLineEdit()
-            # 키 값을 숨기지 않고 평문으로 그대로 표시
             line_edit.setEchoMode(QLineEdit.EchoMode.Normal)
             line_edit.setPlaceholderText(placeholder)
             line_edit.textChanged.connect(self._update_api_keys_summary)
@@ -991,14 +920,22 @@ class TranslatorApp(QWidget):
         task_mode_layout.addWidget(self.cmb_task_mode, 1)
         layout.addLayout(task_mode_layout)
 
+        # ---------------------------------------------------------------
+        # [버그 수정] 비디오 파일 선택에는 있던 "X"(목록 지우기) 버튼이
+        # 자막(SRT/ASS) 파일 선택 줄에는 누락되어 있었다. 동일한 형태로
+        # btn_clear_files를 추가하고 clear_input_files와 연결한다.
+        # ---------------------------------------------------------------
         input_layout = QHBoxLayout()
         self.btn_files = QPushButton("입력 SRT/ASS 파일 선택 (번역용)")
         self.btn_files.clicked.connect(self.select_input_files)
         input_layout.addWidget(self.btn_files)
+        self.btn_clear_files = QPushButton("X")
+        self.btn_clear_files.clicked.connect(self.clear_input_files)
+        self.btn_clear_files.setFixedWidth(30)
+        input_layout.addWidget(self.btn_clear_files)
         layout.addLayout(input_layout)
 
         self.lst_files = QListWidget()
-        # [버그 수정] 파일 목록이 너무 작아 잘리는 문제 개선
         self.lst_files.setMinimumHeight(40)
         self.lst_files.setMaximumHeight(80)
         layout.addWidget(self.lst_files)
@@ -1023,8 +960,6 @@ class TranslatorApp(QWidget):
         layout.addLayout(video_file_layout)
 
         self.lst_video_files = QListWidget()
-        # [신규] 비디오 파일을 여러 개 선택해 순차적으로 처리할 수 있도록
-        # 단일 QLineEdit 대신 목록 위젯 사용 (자막 파일 목록과 동일한 형태)
         self.lst_video_files.setMinimumHeight(40)
         self.lst_video_files.setMaximumHeight(80)
         self.lst_video_files.setToolTip("전사 타겟(순차 처리) 또는 번역 컨텍스트로 사용될 비디오 파일 목록")
@@ -1049,7 +984,6 @@ class TranslatorApp(QWidget):
         line.setFrameShadow(QFrame.Shadow.Sunken)
         layout.addWidget(line)
 
-        # [개선] 언어 선택을 다중 선택 드롭다운으로 교체
         lang_header_layout = QHBoxLayout()
         lang_header_layout.addWidget(QLabel("출력 대상 언어:"))
         lang_header_layout.addStretch()
@@ -1072,6 +1006,7 @@ class TranslatorApp(QWidget):
         is_transcribe = (index == 1)
         self.btn_files.setEnabled(not is_transcribe)
         self.lst_files.setEnabled(not is_transcribe)
+        self.btn_clear_files.setEnabled(not is_transcribe)
         if is_transcribe:
             self.btn_video_file.setStyleSheet("font-weight: bold; color: #4CAF50;")
             self.btn_audio_file.setStyleSheet("font-weight: bold; color: #4CAF50;")
@@ -1080,8 +1015,6 @@ class TranslatorApp(QWidget):
             self.btn_audio_file.setStyleSheet("")
 
     def _create_main_options_group(self, parent_layout):
-        """[개선] 사용모델 / 접미사 추가 / 배치 크기 / 프롬프트는 항상 보이도록
-        고급 설정(CollapsibleBox) 밖으로 꺼낸 그룹."""
         group = QGroupBox("기본 설정")
         form_layout = QFormLayout()
 
@@ -1110,7 +1043,6 @@ class TranslatorApp(QWidget):
 
         label_prompt = QLabel("프롬프트/지침 입력 (선택):")
         self.txt_desc = QTextEdit()
-        # [버그 수정] 프롬프트 창이 너무 작아 불편한 문제 개선
         self.txt_desc.setMinimumHeight(60)
         self.txt_desc.setMaximumHeight(80)
         self.txt_desc.setPlaceholderText("번역/전사 시 AI가 참고할 문맥을 입력하세요.")
@@ -1121,10 +1053,6 @@ class TranslatorApp(QWidget):
         parent_layout.addWidget(group)
 
     def _create_options_group(self, parent_layout):
-        # [개선] 인라인 접이식 박스 대신 별도의 팝업창(QDialog)으로 분리.
-        # 기존 CollapsibleBox 방식은 펼칠 때마다 메인 창 크기 계산이 꼬여
-        # 우측 패널이 짓눌리는 문제가 있었는데, 팝업창은 메인 창과
-        # 완전히 독립된 크기를 가지므로 그 문제 자체가 발생하지 않는다.
         btn_layout = QHBoxLayout()
         self.btn_advanced = QPushButton("⚙ 고급 설정 및 튜닝 (v3.6.2 기능) 열기")
         self.btn_advanced.clicked.connect(self.open_advanced_settings)
@@ -1255,8 +1183,6 @@ class TranslatorApp(QWidget):
         dialog_layout.addLayout(dialog_btn_layout)
 
     def open_advanced_settings(self):
-        # 팝업창은 메인 창 크기에 전혀 영향을 주지 않으므로
-        # 예전 CollapsibleBox 방식의 창 크기 뒤틀림 문제가 원천적으로 없다.
         self.advanced_dialog.exec()
 
     def _create_action_log_group(self, parent_layout):
@@ -1289,11 +1215,17 @@ class TranslatorApp(QWidget):
         layout.addLayout(button_layout)
 
         self.log_output = PyteTerminalWidget()
-        # [개선] 터미널 높이 축소로 전체 창 크기 감소
         self.log_output.setMinimumHeight(250)
         layout.addWidget(self.log_output)
         group.setLayout(layout)
         parent_layout.addWidget(group)
+
+    # ---------------------------------------------------------------
+    # [버그 수정] 자막 파일 목록 지우기 메서드 (video/audio와 동일한 패턴)
+    # ---------------------------------------------------------------
+    def clear_input_files(self):
+        self.input_files = []
+        self.lst_files.clear()
 
     def clear_video_file(self):
         self.video_file_paths = []
@@ -1426,7 +1358,6 @@ class TranslatorApp(QWidget):
                 self.settings.value("token_report", False, type=bool)
             )
 
-            # [개선] 다중 선택 콤보박스에 맞게 설정 로드 수정
             saved_languages_str = self.settings.value("selected_languages", "")
             saved_languages = saved_languages_str.split(',') if saved_languages_str else []
             self.cmb_langs.set_checked_items([lang for lang in saved_languages if lang in TARGET_LANGUAGES])
@@ -1515,7 +1446,6 @@ class TranslatorApp(QWidget):
             self.settings.setValue("token_stats", self.chk_token_stats.isChecked())
             self.settings.setValue("token_report", self.chk_token_report.isChecked())
 
-            # [개선] 다중 선택 콤보박스에 맞게 설정 저장 수정
             selected_languages = self.cmb_langs.checked_items()
             self.settings.setValue("selected_languages", ','.join(selected_languages))
             self.settings.setValue("temperature", self.spin_temp.value())
@@ -1645,9 +1575,6 @@ class TranslatorApp(QWidget):
 
         append_lang = self.chk_append_lang.isChecked()
 
-        # [신규] 비디오 파일 여러 개를 순차적으로 전사/번역할 수 있도록
-        # 언어 x 소스파일 조합으로 작업을 생성. media_type은 각 작업이
-        # 실제로 어떤 미디어(video/audio)에서 왔는지 워커에게 알려준다.
         for lang in target_languages:
             for src_file_path in source_files_to_process:
                 try:
@@ -1665,7 +1592,11 @@ class TranslatorApp(QWidget):
 
     def start_translation(self):
         if not gst:
-            QMessageBox.critical(self, "오류", "'gemini-srt-translator' 필요")
+            QMessageBox.critical(
+                self, "오류",
+                "'gemini-srt-translator' 라이브러리를 불러올 수 없습니다.\n"
+                f"{GST_IMPORT_ERROR or ''}"
+            )
             return
 
         valid_api_keys_from_ui = [
@@ -1684,8 +1615,6 @@ class TranslatorApp(QWidget):
 
         if is_transcribe_mode:
             if valid_video_paths:
-                # [신규] 비디오 파일이 여러 개면 큐에 각각 별도 작업으로 들어가
-                # 워커가 하나씩 순차적으로 전사/번역을 처리한다.
                 primary_input_source_for_jobs = valid_video_paths
                 source_is_media_only_for_jobs = True
                 media_type_for_jobs = 'video'
@@ -1725,7 +1654,6 @@ class TranslatorApp(QWidget):
             QMessageBox.warning(self, "모델 선택", "사용할 모델을 선택하세요.")
             return
 
-        # [개선] 다중 선택 콤보박스에서 선택된 언어 가져오기
         selected_languages = self.cmb_langs.checked_items()
         if not selected_languages:
             QMessageBox.warning(self, "언어 선택", "대상 언어를 하나 이상 선택하세요.")
@@ -1875,6 +1803,7 @@ class TranslatorApp(QWidget):
             *self.api_key_inputs, *self.api_key_labels, self.btn_save_api,
             self.btn_manage_api_keys,
             self.cmb_task_mode, self.btn_out, self.lbl_out,
+            self.btn_clear_files,
             self.btn_video_file, self.lst_video_files, self.btn_clear_video_file,
             self.btn_audio_file, self.lbl_audio_file, self.btn_clear_audio_file,
             self.cmb_langs, self.btn_all_lang, self.btn_none_lang,
