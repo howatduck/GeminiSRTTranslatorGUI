@@ -1,0 +1,5 @@
+PyQt6>=6.6.0
+pyte>=0.8.2
+google-genai>=2.8.0
+gemini-srt-translator
+pyinstaller>=6.0
