@@ -1,13 +1,11 @@
 name: Build Windows EXE
 
 on:
-  workflow_dispatch:
+  workflow_dispatch:      # ← 수동 버튼으로만 실행
 
   push:
-    branches:
-      - main
     tags:
-      - 'v*'
+      - 'v*'              # ← Release 태그(v1.0.0 등) 만들 때만 실행
 
 permissions:
   contents: write
