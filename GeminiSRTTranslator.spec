@@ -18,6 +18,11 @@ a = Analysis(
         'PyQt6.QtCore',
         'PyQt6.QtGui',
         'PyQt6.QtWidgets',
+        'email',           # <-- 추가
+        'email.mime',      # <-- 추가
+        'email.mime.text', # <-- 추가
+        'http.client',     # <-- 추가
+        'xml.etree',       # <-- 추가
     ],
     hookspath=[],
     hooksconfig={},
