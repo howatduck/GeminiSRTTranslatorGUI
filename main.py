@@ -7,6 +7,13 @@ v3.5.8 기반 → v3.6.2 최신 변경사항 반영 및 버그 수정
 """
 
 import sys
+import builtins
+# [패치] PyInstaller windowed 모드에서 exit()가 없는 문제 방지
+try:
+    exit
+except NameError:
+    builtins.exit = sys.exit
+
 import os
 import queue
 import threading
