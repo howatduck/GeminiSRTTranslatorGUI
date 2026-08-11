@@ -1,29 +1,44 @@
 # -*- mode: python ; coding: utf-8 -*-
 import sys
 from PyInstaller.building.build_main import Analysis, PYZ, EXE, COLLECT, BUNDLE
+from PyInstaller.utils.hooks import collect_all, collect_submodules, collect_data_files
 
 block_cipher = None
+
+datas = []
+hiddenimports = [
+    'google.genai',
+    'google.genai.types',
+    'gemini_srt_translator',
+    'pyte',
+    'PyQt6.sip',
+    'PyQt6.QtCore',
+    'PyQt6.QtGui',
+    'PyQt6.QtWidgets',
+    'email',
+    'email.mime',
+    'email.mime.text',
+    'http.client',
+    'xml.etree',
+]
+
+# collect submodules & data for google.genai, gemini_srt_translator, pyte, etc.
+for pkg in ['google.genai', 'gemini_srt_translator', 'pyte', 'pydantic', 'httpx', 'certifi']:
+    try:
+        tmp_datas, tmp_hidden, tmp_binaries = collect_all(pkg)
+        datas.extend(tmp_datas)
+        hiddenimports.extend(tmp_hidden)
+    except Exception:
+        pass
+
+hiddenimports = list(set(hiddenimports))
 
 a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[],
-    hiddenimports=[
-        'google.genai',
-        'google.genai.types',
-        'gemini_srt_translator',
-        'pyte',
-        'PyQt6.sip',
-        'PyQt6.QtCore',
-        'PyQt6.QtGui',
-        'PyQt6.QtWidgets',
-        'email',           # <-- 추가
-        'email.mime',      # <-- 추가
-        'email.mime.text', # <-- 추가
-        'http.client',     # <-- 추가
-        'xml.etree',       # <-- 추가
-    ],
+    datas=datas,
+    hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -35,12 +50,8 @@ a = Analysis(
         'tkinter',
         'unittest',
         'pydoc',
-        # 'email',      # <-- 삭제! gemini-srt-translator가 필요함
-        # 'http',       # <-- 삭제! google-genai가 필요함
-        # 'xml',        # <-- 삭제! 일부 라이브러리가 필요함
         'html',
         'lib2to3',
-        'multiprocessing.popen_spawn_win32',
     ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,

@@ -1,5 +1,3 @@
-WIP...lol
-
 # Gemini SRT Translator GUI
 
 PyQt6 기반 GUI 애플리케이션으로, [gemini-srt-translator](https://github.com/MaKTaiL/gemini-srt-translator) 라이브러리를 활용하여 자막(SRT/ASS) 번역과 비디오/오디오 전사(Transcribe)를 손쉽게 수행할 수 있습니다. Pyte 기반 VT100 터미널 에뮬레이터를 내장하여 콘솔 출력(색상, 진행률 등)을 GUI 안에서 그대로 확인할 수 있습니다.
@@ -19,19 +17,35 @@ PyQt6 기반 GUI 애플리케이션으로, [gemini-srt-translator](https://githu
 
 ## 요구 사항
 
-- Python 3.9 이상 (Windows 빌드 시 PyInstaller 등으로 패키징 가능)
-- 아래 패키지들
+- Windows 10 이상 (64-bit) 또는 Linux/macOS
+- Python 3.10 이상 (소스 코드 실행 시)
 
+## 📦 Windows 10+ 실행파일(.exe) 빌드 방법
+
+### 1. 원클릭 자동 빌드 (추천)
+Windows 환경에서 프로젝트 폴더를 열고 `build_win.bat` 파일 또는 `build_win.ps1`을 실행하면 필요 패키지 설치부터 `.exe` 빌드까지 자동으로 진행됩니다.
+
+```cmd
+build_win.bat
 ```
-pip install PyQt6 pyte gemini-srt-translator google-genai
+
+빌드가 완료되면 `dist\GeminiSRTTranslator.exe` 단일 실행 파일이 생성됩니다.
+
+### 2. 수동 빌드 (Command Prompt / PowerShell)
+```cmd
+pip install -r requirements.txt
+pyinstaller --clean --noconfirm GeminiSRTTranslator.spec
 ```
+생성된 실행 파일 위치: `dist\GeminiSRTTranslator.exe`
 
-> `google-genai`는 "모델 가져오기" 기능(사용 가능한 Gemini 모델 목록 조회)에 필요합니다. 없어도 프로그램은 실행되지만 해당 버튼은 비활성화됩니다.
+### 3. GitHub Actions 자동 빌드
+GitHub 저장소에 소스를 push하거나 Tag를 생성하면 GitHub Actions가 Windows 10/11 가상 환경에서 자동으로 `.exe` 파일을 빌드하여 Artifact 및 Release에 아카이브(`GeminiSRTTranslator-Windows.zip`)로 제공합니다.
 
-## 실행 방법
+## 소스 코드 직접 실행 방법
 
-```
-python3 gemini_srt_translator_gui.py
+```bash
+pip install -r requirements.txt
+python main.py
 ```
 
 ## 사용 방법 요약
