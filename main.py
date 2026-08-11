@@ -115,7 +115,7 @@ class CheckableComboBox(QComboBox):
 
     def update_text(self):
         texts = [self.model().item(i).text() for i in range(self.model().rowCount())
-                 if self.model().item(i).checkState() == Qt.CheckState.Checked]
+                 if self.model().item(i) and self.model().item(i).checkState() == Qt.CheckState.Checked]
         self.lineEdit().setText(", ".join(texts))
 
     def addItem(self, text, user_data=None):
@@ -128,13 +128,14 @@ class CheckableComboBox(QComboBox):
 
     def checked_items(self):
         return [self.model().item(i).text() for i in range(self.model().rowCount())
-                if self.model().item(i).checkState() == Qt.CheckState.Checked]
+                if self.model().item(i) and self.model().item(i).checkState() == Qt.CheckState.Checked]
 
     def set_checked_items(self, items):
         for i in range(self.model().rowCount()):
             item = self.model().item(i)
-            checked = item.text() in items
-            item.setCheckState(Qt.CheckState.Checked if checked else Qt.CheckState.Unchecked)
+            if item:
+                checked = item.text() in items
+                item.setCheckState(Qt.CheckState.Checked if checked else Qt.CheckState.Unchecked)
         self.update_text()
 
     def clear(self):
@@ -243,11 +244,19 @@ class PyteTerminalWidget(QTextEdit):
         self._live_start_pos = None
         self._status_cycle_step = 0
         self._status_pending_erase = False
+        while not self.text_queue.empty():
+            try:
+                self.text_queue.get_nowait()
+            except queue.Empty:
+                break
+        self._dirty = False
         self.setHtml("")
 
     def _color_to_hex(self, color_name):
         if not color_name or color_name == 'default':
             return None
+        if isinstance(color_name, str) and color_name.startswith('#'):
+            return color_name
         colors = {
             'black': '#0c0c0c', 'red': '#e74856', 'green': '#16c60c',
             'brown': '#f9f1a5', 'blue': '#3b78ff', 'magenta': '#b4009e',
@@ -367,7 +376,9 @@ class PyteTerminalWidget(QTextEdit):
             self.setHtml("")
             self._live_start_pos = None
         elif self._live_start_pos is not None:
-            cursor.setPosition(self._live_start_pos)
+            doc_len = self.document().characterCount()
+            pos = min(self._live_start_pos, max(0, doc_len - 1))
+            cursor.setPosition(pos)
             cursor.movePosition(QTextCursor.MoveOperation.End, QTextCursor.MoveMode.KeepAnchor)
             cursor.removeSelectedText()
 
@@ -510,29 +521,28 @@ class TranslationWorker(QThread):
         sys.stderr = self.gui_stream_out
 
         original_sleep = time.sleep
+        worker_thread_id = threading.get_ident()
 
         def patched_sleep(seconds):
-            end_time = time.time() + seconds
-            while time.time() < end_time:
-                if self.isInterruptionRequested():
-                    raise ForceAbortException("사용자 중단 요청")
-                original_sleep(0.1)
+            if threading.get_ident() == worker_thread_id:
+                end_time = time.time() + seconds
+                while time.time() < end_time:
+                    if self.isInterruptionRequested():
+                        raise ForceAbortException("사용자 중단 요청")
+                    original_sleep(0.1)
+            else:
+                original_sleep(seconds)
 
         time.sleep = patched_sleep
 
         try:
             while not self.isInterruptionRequested():
-                current_primary_api_key = (
-                    self.api_keys[self.current_key_index] if self.api_keys else None
-                )
-                key_display_index = self.current_key_index + 1 if self.api_keys else 0
-
                 try:
                     job = self.job_queue.get_nowait()
                     if job is None:
                         break
 
-                    job_input_source, target_language, output_file_path, source_is_media_only, media_type = job
+                    job_input_source, target_language, output_file_path, source_is_media_only, media_type, job_video_file = job
                     is_transcribe_mode = (task_mode == 'transcribe')
                     actual_input_file_for_lib = (
                         None
@@ -548,13 +558,8 @@ class TranslationWorker(QThread):
                         video_file_for_job = None
                         audio_file_for_job = job_input_source
                     else:
-                        video_file_for_job = self.base_config.get('video_file', None)
+                        video_file_for_job = job_video_file or self.base_config.get('video_file', None)
                         audio_file_for_job = self.base_config.get('audio_file', None)
-
-                    msg_key = f"키 {key_display_index}/{key_count}"
-                    self.progress_update.emit(
-                        f"\x1b[33m\n[작업 시작 ({msg_key})] [{target_language}] {base_name}\x1b[0m\n"
-                    )
 
                     if os.path.exists(output_file_path):
                         try:
@@ -562,113 +567,137 @@ class TranslationWorker(QThread):
                         except OSError:
                             pass
 
+                    max_key_attempts = max(1, len(self.api_keys))
                     job_successful = False
-                    captured_stderr_io_for_lib = io.StringIO()
-                    original_thread_stderr = sys.stderr
-                    sys.stderr = captured_stderr_io_for_lib
-                    original_signal = signal.signal
+                    last_error_msg = ""
 
-                    try:
-                        signal.signal = lambda *args, **kwargs: None
-
-                        translator_args = {
-                            'gemini_api_key': current_primary_api_key,
-                            'gemini_api_key2': self.base_config.get('gemini_api_key2', None),
-                            'target_language': target_language,
-                            'input_file': actual_input_file_for_lib,
-                            'output_file': output_file_path,
-                            'start_line': self.base_config.get('start_line', 1),
-                            'description': self.base_config.get('description', ''),
-                            'model_name': self.base_config.get('model_name', DEFAULT_MODEL),
-                            'batch_size': self.base_config.get('batch_size', DEFAULT_BATCH_SIZE),
-                            'streaming': self.base_config.get('streaming', True),
-                            'thinking': self.base_config.get('thinking', True),
-                            'thinking_budget': self.base_config.get('thinking_budget', 2048),
-                            'temperature': self.base_config.get('temperature'),
-                            'top_p': self.base_config.get('top_p'),
-                            'top_k': self.base_config.get('top_k'),
-                            'free_quota': self.base_config.get('free_quota', True),
-                            'use_colors': True,
-                            'progress_log': self.base_config.get('progress_log', False),
-                            'thoughts_log': self.base_config.get('thoughts_log', False),
-                            'video_file': video_file_for_job,
-                            'audio_file': audio_file_for_job,
-                            'extract_audio': self.base_config.get('extract_audio', False),
-                            'audio_chunk_size': self.base_config.get('audio_chunk_size', 300),
-                            'isolate_voice': self.base_config.get('isolate_voice', True),
-                            'token_stats': self.base_config.get('token_stats', True),
-                            'preserve_context': self.base_config.get('preserve_context', True),
-                            'token_report': self.base_config.get('token_report', False),
-                            'resume_context_size': self.base_config.get('resume_context_size', 0),
-                            'service_tier': self.base_config.get('service_tier', None),
-                            'use_enterprise': self.base_config.get('use_enterprise', False),
-                            'cloud_project': self.base_config.get('cloud_project', None),
-                            'cloud_location': self.base_config.get('cloud_location', None),
-                            'cloud_api_key': self.base_config.get('cloud_api_key', None),
-                            'request_type': self.base_config.get('request_type', None),
-                        }
-
-                        t_level = self.base_config.get('thinking_level', 'Default')
-                        if t_level != 'Default':
-                            translator_args['thinking_level'] = t_level.lower()
-
-                        for key, value in translator_args.items():
-                            setattr(gst, key, value)
-
-                        if is_transcribe_mode:
-                            gst.transcribe()
-                        else:
-                            gst.translate()
-
-                        job_successful = True
-
-                    except ForceAbortException:
-                        break
-
-                    except Exception as e:
+                    for attempt in range(max_key_attempts):
                         if self.isInterruptionRequested():
                             break
 
-                        err_str = str(e).lower()
-                        err_type = type(e).__name__.lower()
-                        err_base = f"작업 실패 ({msg_key}): '{base_name}'"
+                        current_primary_api_key = (
+                            self.api_keys[self.current_key_index] if self.api_keys else None
+                        )
+                        key_display_index = self.current_key_index + 1 if self.api_keys else 0
+                        msg_key = f"키 {key_display_index}/{key_count}"
 
-                        if "blocked" in err_type or "blocked" in err_str:
-                            err_msg = f"{err_base} - AI 안전 설정 차단."
-                        elif "stop" in err_type and "candidate" in err_type:
-                            err_msg = f"{err_base} - AI 응답 생성 중단."
-                        elif 'content' in err_str or 'text' in err_str:
-                            err_msg = f"{err_base} - API 응답 데이터(Schema) 오류."
-                        elif "deadline" in err_str or "504" in err_str:
-                            err_msg = f"{err_base} - 서버 응답 시간 초과."
-                        elif "quota" in err_str or "429" in err_str:
-                            err_msg = f"{err_base} - API 할당량 고갈 (429)."
-                        elif "permission" in err_str or "403" in err_str:
-                            err_msg = f"{err_base} - 권한 없음 (API 인증 오류)."
+                        if attempt > 0:
+                            self.progress_update.emit(
+                                f"\x1b[33m\n[작업 재시도 ({attempt+1}/{max_key_attempts}) ({msg_key})] [{target_language}] {base_name}\x1b[0m\n"
+                            )
                         else:
-                            err_msg = f"{err_base} - 라이브러리 예외: {e}"
+                            self.progress_update.emit(
+                                f"\x1b[33m\n[작업 시작 ({msg_key})] [{target_language}] {base_name}\x1b[0m\n"
+                            )
 
-                        self.progress_update.emit(f"\n\x1b[31m[오류] {err_msg}\x1b[0m\n")
-                        self.job_error.emit(err_msg)
+                        captured_stderr_io_for_lib = io.StringIO()
+                        original_thread_stderr = sys.stderr
+                        sys.stderr = captured_stderr_io_for_lib
 
-                    finally:
-                        signal.signal = original_signal
-                        sys.stderr = original_thread_stderr
-                        captured_stderr_io_for_lib.close()
+                        try:
+                            translator_args = {
+                                'gemini_api_key': current_primary_api_key,
+                                'gemini_api_key2': self.base_config.get('gemini_api_key2', None),
+                                'target_language': target_language,
+                                'input_file': actual_input_file_for_lib,
+                                'output_file': output_file_path,
+                                'start_line': self.base_config.get('start_line', 1),
+                                'description': self.base_config.get('description', ''),
+                                'model_name': self.base_config.get('model_name', DEFAULT_MODEL),
+                                'batch_size': self.base_config.get('batch_size', DEFAULT_BATCH_SIZE),
+                                'streaming': self.base_config.get('streaming', True),
+                                'thinking': self.base_config.get('thinking', True),
+                                'thinking_budget': self.base_config.get('thinking_budget', 2048),
+                                'temperature': self.base_config.get('temperature'),
+                                'top_p': self.base_config.get('top_p'),
+                                'top_k': self.base_config.get('top_k'),
+                                'free_quota': self.base_config.get('free_quota', True),
+                                'use_colors': True,
+                                'progress_log': self.base_config.get('progress_log', False),
+                                'thoughts_log': self.base_config.get('thoughts_log', False),
+                                'video_file': video_file_for_job,
+                                'audio_file': audio_file_for_job,
+                                'extract_audio': self.base_config.get('extract_audio', False),
+                                'audio_chunk_size': self.base_config.get('audio_chunk_size', 300),
+                                'isolate_voice': self.base_config.get('isolate_voice', True),
+                                'token_stats': self.base_config.get('token_stats', True),
+                                'preserve_context': self.base_config.get('preserve_context', True),
+                                'token_report': self.base_config.get('token_report', False),
+                                'resume_context_size': self.base_config.get('resume_context_size', 0),
+                                'service_tier': self.base_config.get('service_tier', None),
+                                'use_enterprise': self.base_config.get('use_enterprise', False),
+                                'cloud_project': self.base_config.get('cloud_project', None),
+                                'cloud_location': self.base_config.get('cloud_location', None),
+                                'cloud_api_key': self.base_config.get('cloud_api_key', None),
+                                'request_type': self.base_config.get('request_type', None),
+                            }
+
+                            t_level = self.base_config.get('thinking_level', 'Default')
+                            if t_level != 'Default':
+                                translator_args['thinking_level'] = t_level.lower()
+
+                            for key, value in translator_args.items():
+                                setattr(gst, key, value)
+
+                            if is_transcribe_mode:
+                                gst.transcribe()
+                            else:
+                                gst.translate()
+
+                            job_successful = True
+
+                        except ForceAbortException:
+                            break
+
+                        except Exception as e:
+                            if self.isInterruptionRequested():
+                                break
+
+                            err_str = str(e).lower()
+                            err_type = type(e).__name__.lower()
+                            err_base = f"작업 실패 ({msg_key}): '{base_name}'"
+
+                            if "blocked" in err_type or "blocked" in err_str:
+                                err_msg = f"{err_base} - AI 안전 설정 차단."
+                            elif "stop" in err_type and "candidate" in err_type:
+                                err_msg = f"{err_base} - AI 응답 생성 중단."
+                            elif 'content' in err_str or 'text' in err_str:
+                                err_msg = f"{err_base} - API 응답 데이터(Schema) 오류."
+                            elif "deadline" in err_str or "504" in err_str:
+                                err_msg = f"{err_base} - 서버 응답 시간 초과."
+                            elif "quota" in err_str or "429" in err_str:
+                                err_msg = f"{err_base} - API 할당량 고갈 (429)."
+                            elif "permission" in err_str or "403" in err_str:
+                                err_msg = f"{err_base} - 권한 없음 (API 인증 오류)."
+                            else:
+                                err_msg = f"{err_base} - 라이브러리 예외: {e}"
+
+                            last_error_msg = err_msg
+                            err_logs = captured_stderr_io_for_lib.getvalue()
+                            if err_logs.strip():
+                                self.progress_update.emit(f"\x1b[33m[라이브러리 로그]\n{err_logs}\x1b[0m\n")
+                            self.progress_update.emit(f"\n\x1b[31m[오류] {err_msg}\x1b[0m\n")
+
+                        finally:
+                            sys.stderr = original_thread_stderr
+                            captured_stderr_io_for_lib.close()
+
+                        if job_successful:
+                            break
+                        else:
+                            if self.api_keys:
+                                self.current_key_index = (self.current_key_index + 1) % len(self.api_keys)
 
                     if self.isInterruptionRequested():
                         break
 
                     if job_successful:
                         self.job_translated.emit(output_file_path, target_language)
-
-                    if self.api_keys:
-                        self.current_key_index = (self.current_key_index + 1) % len(self.api_keys)
-                    self.job_queue.task_done()
-
-                    if job_successful:
                         self._consecutive_failures = 0
+                        if self.api_keys:
+                            self.current_key_index = (self.current_key_index + 1) % len(self.api_keys)
                     else:
+                        self.job_error.emit(last_error_msg or "모든 API 키 시도 실패")
                         self._consecutive_failures += 1
 
                         if self._consecutive_failures >= self._max_consecutive_failures:
@@ -677,6 +706,7 @@ class TranslationWorker(QThread):
                                 f"→ 시스템 보호를 위해 작업을 중단합니다. "
                                 f"(API 키/네트워크/할당량 상태를 확인하세요) ====\x1b[0m\n"
                             )
+                            self.job_queue.task_done()
                             break
 
                         backoff = min(
@@ -690,7 +720,10 @@ class TranslationWorker(QThread):
                         try:
                             time.sleep(backoff)
                         except ForceAbortException:
+                            self.job_queue.task_done()
                             break
+
+                    self.job_queue.task_done()
 
                 except queue.Empty:
                     if not self.isInterruptionRequested():
@@ -1336,7 +1369,7 @@ class TranslatorApp(QWidget):
                 self.settings.value("prompt_desc", "", type=str)
             )
 
-            saved_video_paths_str = self.settings.value("video_file_paths", "")
+            saved_video_paths_str = str(self.settings.value("video_file_paths", "") or "")
             saved_video_paths = saved_video_paths_str.split('\n') if saved_video_paths_str else []
             self.video_file_paths = [p for p in saved_video_paths if p and os.path.exists(p)]
             self.lst_video_files.clear()
@@ -1345,7 +1378,7 @@ class TranslatorApp(QWidget):
                 item.setToolTip(f)
                 self.lst_video_files.addItem(item)
 
-            self.audio_file_path = self.settings.value("audio_file_path", "")
+            self.audio_file_path = str(self.settings.value("audio_file_path", "") or "")
             if self.audio_file_path and os.path.exists(self.audio_file_path):
                 self.lbl_audio_file.setText(os.path.basename(self.audio_file_path))
                 self.lbl_audio_file.setToolTip(self.audio_file_path)
@@ -1365,7 +1398,7 @@ class TranslatorApp(QWidget):
                 self.settings.value("token_report", False, type=bool)
             )
 
-            saved_languages_str = self.settings.value("selected_languages", "")
+            saved_languages_str = str(self.settings.value("selected_languages", "") or "")
             saved_languages = saved_languages_str.split(',') if saved_languages_str else []
             self.cmb_langs.set_checked_items([lang for lang in saved_languages if lang in TARGET_LANGUAGES])
 
@@ -1475,6 +1508,10 @@ class TranslatorApp(QWidget):
             pass
 
     def closeEvent(self, event):
+        if self.model_fetcher_thread and self.model_fetcher_thread.isRunning():
+            self.model_fetcher_thread.quit()
+            self.model_fetcher_thread.wait(2000)
+
         if self.translation_worker and self.translation_worker.isRunning():
             reply = QMessageBox.question(
                 self, '종료 확인',
@@ -1560,7 +1597,8 @@ class TranslatorApp(QWidget):
         self.cmb_model.setCurrentText(DEFAULT_MODEL)
 
     def _create_translation_jobs(self, target_languages, primary_input_source,
-                                  is_media_source_only, is_transcribe_mode, media_type=None):
+                                  is_media_source_only, is_transcribe_mode, media_type=None,
+                                  video_context_paths=None):
         jobs = []
         if not primary_input_source or not target_languages or not self.output_dir:
             return jobs
@@ -1581,9 +1619,10 @@ class TranslatorApp(QWidget):
             return jobs
 
         append_lang = self.chk_append_lang.isChecked()
+        valid_video_contexts = [v for v in (video_context_paths or []) if os.path.exists(v)]
 
         for lang in target_languages:
-            for src_file_path in source_files_to_process:
+            for idx, src_file_path in enumerate(source_files_to_process):
                 try:
                     base_name, ext = os.path.splitext(os.path.basename(src_file_path))
                     tag = "_transcribed" if is_transcribe_mode else ""
@@ -1592,7 +1631,21 @@ class TranslatorApp(QWidget):
                     else:
                         output_filename = f"{base_name}{tag}.srt"
                     output_filepath = os.path.join(self.output_dir, output_filename)
-                    jobs.append((src_file_path, lang, output_filepath, is_media_source_only, media_type))
+
+                    job_video_file = None
+                    if is_media_source_only and media_type == 'video':
+                        job_video_file = src_file_path
+                    elif valid_video_contexts:
+                        stem = base_name.lower()
+                        match = next((v for v in valid_video_contexts if os.path.splitext(os.path.basename(v))[0].lower() == stem), None)
+                        if match:
+                            job_video_file = match
+                        elif len(valid_video_contexts) == len(source_files_to_process):
+                            job_video_file = valid_video_contexts[idx]
+                        else:
+                            job_video_file = valid_video_contexts[0]
+
+                    jobs.append((src_file_path, lang, output_filepath, is_media_source_only, media_type, job_video_file))
                 except Exception:
                     pass
         return jobs
@@ -1673,7 +1726,8 @@ class TranslatorApp(QWidget):
         self.save_settings()
         jobs = self._create_translation_jobs(
             selected_languages, primary_input_source_for_jobs,
-            source_is_media_only_for_jobs, is_transcribe_mode, media_type_for_jobs
+            source_is_media_only_for_jobs, is_transcribe_mode, media_type_for_jobs,
+            video_context_paths=valid_video_paths
         )
         if not jobs:
             QMessageBox.warning(self, "작업 생성 실패", "생성된 작업이 없습니다.")
@@ -1697,6 +1751,10 @@ class TranslatorApp(QWidget):
         if request_type == "Default":
             request_type = None
 
+        temp_val = self.spin_temp.value()
+        top_p_val = self.spin_top_p.value()
+        top_k_val = self.spin_top_k.value()
+
         base_config = {
             'task_mode': 'transcribe' if is_transcribe_mode else 'translate',
             'gemini_api_key2': (
@@ -1709,9 +1767,9 @@ class TranslatorApp(QWidget):
             'batch_size': self.spin_batch.value(),
             'free_quota': self.chk_free.isChecked(),
             'thoughts_log': self.chk_thoughts_log.isChecked(),
-            'temperature': self.spin_temp.value(),
-            'top_p': self.spin_top_p.value(),
-            'top_k': self.spin_top_k.value(),
+            'temperature': temp_val if temp_val > 0.0 else None,
+            'top_p': top_p_val if top_p_val > 0.0 else None,
+            'top_k': top_k_val if top_k_val > 0 else None,
             'streaming': self.chk_streaming.isChecked(),
             'thinking': self.chk_thinking.isChecked(),
             'thinking_budget': self.spin_thinking_budget.value(),
@@ -1808,7 +1866,7 @@ class TranslatorApp(QWidget):
     def set_ui_enabled(self, enabled):
         widgets_to_toggle = [
             *self.api_key_inputs, *self.api_key_labels, self.btn_save_api,
-            self.btn_manage_api_keys,
+            self.btn_manage_api_keys, self.btn_advanced,
             self.cmb_task_mode, self.btn_out, self.lbl_out,
             self.btn_clear_files,
             self.btn_video_file, self.lst_video_files, self.btn_clear_video_file,
