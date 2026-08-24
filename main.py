@@ -2209,21 +2209,46 @@ class TranslatorApp(QWidget):
                 media_type_for_jobs = 'audio'
             else:
                 QMessageBox.warning(
-                    self, "미디어 필요", "전사할 대상 비디오/오디오 파일을 선택하세요."
+                    self, "미디어 필요", "전사(Transcribe)할 대상 비디오/오디오 파일을 선택하세요."
                 )
                 return
         else:
             if self.input_files:
                 primary_input_source_for_jobs = self.input_files
             elif valid_video_paths:
-                primary_input_source_for_jobs = valid_video_paths
-                source_is_media_only_for_jobs = True
-                media_type_for_jobs = 'video'
+                ret = QMessageBox.question(
+                    self,
+                    "전사(Transcribe) 모드 전환 안내",
+                    "자막(.srt/.ass) 파일 없이 비디오 파일만 선택되었습니다.\n\n"
+                    "비디오 음성을 자막으로 변환하려면 [전사(Transcribe)] 모드를 사용해야 합니다.\n"
+                    "전사 모드로 전환하여 작업을 시작할까요?",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    QMessageBox.StandardButton.Yes
+                )
+                if ret == QMessageBox.StandardButton.Yes:
+                    self.cmb_task_mode.setCurrentIndex(1)
+                    is_transcribe_mode = True
+                    primary_input_source_for_jobs = valid_video_paths
+                    source_is_media_only_for_jobs = True
+                    media_type_for_jobs = 'video'
+                else:
+                    return
             else:
                 QMessageBox.warning(
-                    self, "파일 필요", "번역할 SRT/ASS 파일을 선택하세요."
+                    self, "파일 필요", "번역할 SRT/ASS 자막 파일을 선택하세요.\n(비디오 음성을 자막으로 만들려면 상단에서 '전사(Transcribe)' 모드를 선택하세요.)"
                 )
                 return
+
+        # 비디오/오디오 관련 작업 시 ffmpeg 설치 여부 점검
+        if source_is_media_only_for_jobs or valid_video_paths or (self.audio_file_path and os.path.exists(self.audio_file_path)) or self.chk_extract_audio.isChecked():
+            import shutil
+            if not shutil.which("ffmpeg"):
+                QMessageBox.warning(
+                    self,
+                    "FFmpeg 미설치 경고",
+                    "시스템에 FFmpeg가 설치되어 있지 않거나 환경변수 PATH에 등록되지 않았습니다.\n"
+                    "비디오/오디오 처리 중 오류가 발생할 수 있으니 FFmpeg를 설치해 주세요."
+                )
 
         if not self.output_dir or not os.path.isdir(self.output_dir):
             try:
