@@ -144,8 +144,26 @@ if gst is not None:
 
         GeminiSRTTranslator._parse_subtitle_file = _patched_parse_subtitle_file
         GeminiSRTTranslator._save_subtitle_file = _patched_save_subtitle_file
+
+        # [패치] ffmpeg_utils._run_command에서 sys.exit(1) 호출 방지 (GUI 크래시 방지)
+        try:
+            import gemini_srt_translator.ffmpeg_utils as ff_utils
+            def _patched_run_command(cmd, capture_output=True, text=True):
+                import subprocess
+                try:
+                    return subprocess.run(cmd, capture_output=capture_output, text=text, check=True, encoding="utf-8")
+                except FileNotFoundError:
+                    raise RuntimeError(f"FFmpeg 실행 파일을 찾을 수 없습니다: '{cmd[0]}'. FFmpeg를 설치하고 PATH에 추가하세요.")
+                except subprocess.CalledProcessError as e:
+                    err_detail = e.stderr.strip() if getattr(e, 'stderr', None) else str(e)
+                    raise RuntimeError(f"FFmpeg 실행 오류 ({' '.join(cmd[:2])}...): {err_detail}")
+
+            ff_utils._run_command = _patched_run_command
+        except Exception:
+            pass
     except Exception as _patch_err:
         pass
+
 
 
 
