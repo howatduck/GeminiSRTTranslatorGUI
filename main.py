@@ -23,13 +23,27 @@ import itertools
 import unicodedata
 
 # =====================================================================
-# [패치 1] GUI 환경에선 터미널 시그널(Ctrl+C)이 필요 없으므로 무효화
+# [패치 1] GUI 환경/워커 스레드에서 signal 호출 시 발생하는 ValueError 방지
+# (signal only works in main thread of the main interpreter)
 # =====================================================================
-if hasattr(signal, 'SIGINT'):
+_original_signal = signal.signal
+def _safe_signal(signalnum, handler):
     try:
-        signal.signal(signal.SIGINT, lambda *args, **kwargs: None)
-    except (ValueError, OSError):
-        pass
+        return _original_signal(signalnum, handler)
+    except (ValueError, OSError, RuntimeError):
+        return None
+
+signal.signal = _safe_signal
+
+if hasattr(signal, 'raise_signal'):
+    _original_raise_signal = signal.raise_signal
+    def _safe_raise_signal(signum):
+        try:
+            return _original_raise_signal(signum)
+        except (ValueError, OSError, RuntimeError):
+            pass
+    signal.raise_signal = _safe_raise_signal
+
 
 # --- 필수 라이브러리 임포트 및 확인 ---
 try:
