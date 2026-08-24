@@ -188,7 +188,7 @@ if gst is not None:
             def _patched_run_command(cmd, capture_output=True, text=True):
                 import subprocess
                 try:
-                    return subprocess.run(cmd, capture_output=capture_output, text=text, check=True, encoding="utf-8")
+                    return subprocess.run(cmd, capture_output=capture_output, text=text, check=True, encoding="utf-8", errors="replace")
                 except FileNotFoundError:
                     raise RuntimeError(f"FFmpeg 실행 파일을 찾을 수 없습니다: '{cmd[0]}'. FFmpeg를 설치하고 PATH에 추가하세요.")
                 except subprocess.CalledProcessError as e:
@@ -200,6 +200,82 @@ if gst is not None:
             pass
     except Exception as _patch_err:
         pass
+
+
+# =====================================================================
+# [미디어/자막 헬퍼 함수] FFprobe 및 FFmpeg를 통한 자막 트랙 검사 및 추출
+# =====================================================================
+def _get_video_subtitle_streams(video_path: str) -> list:
+    """ffprobe를 통해 비디오 파일 내의 모든 자막 스트림 정보 반환"""
+    import subprocess, json
+    cmd = [
+        "ffprobe", "-v", "error",
+        "-select_streams", "s",
+        "-show_entries", "stream=index,codec_name:stream_tags=language,title",
+        "-of", "json",
+        video_path
+    ]
+    try:
+        startupinfo = None
+        if sys.platform == "win32":
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        res = subprocess.run(
+            cmd, capture_output=True, text=True, check=True,
+            encoding="utf-8", errors="replace", startupinfo=startupinfo
+        )
+        data = json.loads(res.stdout)
+        return data.get("streams", [])
+    except Exception:
+        return []
+
+def _extract_subtitle_track(video_path: str, stream_index: int, output_srt_path: str) -> bool:
+    """ffmpeg를 사용하여 지정된 자막 스트림을 .srt 파일로 추출"""
+    import subprocess
+    cmd = [
+        "ffmpeg", "-y", "-v", "error",
+        "-i", video_path,
+        "-map", f"0:{stream_index}",
+        "-c:s", "srt",
+        output_srt_path
+    ]
+    try:
+        startupinfo = None
+        if sys.platform == "win32":
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        subprocess.run(
+            cmd, capture_output=True, text=True, check=True,
+            encoding="utf-8", errors="replace", startupinfo=startupinfo
+        )
+        return os.path.exists(output_srt_path) and os.path.getsize(output_srt_path) > 0
+    except Exception:
+        return False
+
+def _normalize_lang_name(name: str) -> str:
+    """언어 코드/이름을 소문자 키워드로 정규화"""
+    if not name:
+        return ""
+    n = name.lower().strip()
+    mapping = {
+        "kor": "korean", "ko": "korean", "한국어": "korean", "korean": "korean",
+        "eng": "english", "en": "english", "영어": "english", "english": "english",
+        "fra": "french", "fre": "french", "fr": "french", "french": "french",
+        "deu": "german", "ger": "german", "de": "german", "german": "german",
+        "spa": "spanish", "es": "spanish", "spanish": "spanish",
+        "ita": "italian", "it": "italian", "italian": "italian",
+        "rus": "russian", "ru": "russian", "russian": "russian",
+        "zho": "chinese", "chi": "chinese", "zh": "chinese", "chinese": "chinese", "simplified chinese": "chinese",
+        "jpn": "japanese", "ja": "japanese", "japanese": "japanese",
+        "por": "portuguese", "pt": "portuguese", "portuguese": "portuguese",
+        "ara": "arabic", "ar": "arabic", "arabic": "arabic",
+        "hin": "hindi", "hi": "hindi", "hindi": "hindi",
+        "ind": "indonesian", "id": "indonesian", "indonesian": "indonesian",
+    }
+    for k, v in mapping.items():
+        if k in n:
+            return v
+    return n
 
 
 
@@ -2235,6 +2311,20 @@ class TranslatorApp(QWidget):
 
         valid_video_paths = [p for p in self.video_file_paths if os.path.exists(p)]
 
+        selected_languages = self.cmb_langs.checked_items()
+        if not selected_languages:
+            QMessageBox.warning(self, "언어 선택", "대상 언어를 하나 이상 선택하세요.")
+            return
+
+        if not self.output_dir or not os.path.isdir(self.output_dir):
+            try:
+                os.makedirs(self.output_dir, exist_ok=True)
+            except OSError as e:
+                QMessageBox.critical(
+                    self, "출력 폴더 오류", f"출력 폴더를 생성할 수 없습니다:\n{e}"
+                )
+                return
+
         if is_transcribe_mode:
             if valid_video_paths:
                 primary_input_source_for_jobs = valid_video_paths
@@ -2253,46 +2343,103 @@ class TranslatorApp(QWidget):
             if self.input_files:
                 primary_input_source_for_jobs = self.input_files
             elif valid_video_paths:
-                ret = QMessageBox.question(
-                    self,
-                    "전사(Transcribe) 모드 전환 안내",
-                    "자막(.srt/.ass) 파일 없이 비디오 파일만 선택되었습니다.\n\n"
-                    "비디오 음성을 자막으로 변환하려면 [전사(Transcribe)] 모드를 사용해야 합니다.\n"
-                    "전사 모드로 전환하여 작업을 시작할까요?",
-                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                    QMessageBox.StandardButton.Yes
-                )
-                if ret == QMessageBox.StandardButton.Yes:
-                    self.cmb_task_mode.setCurrentIndex(1)
-                    is_transcribe_mode = True
-                    primary_input_source_for_jobs = valid_video_paths
-                    source_is_media_only_for_jobs = True
-                    media_type_for_jobs = 'video'
-                else:
+                # -------------------------------------------------------------
+                # [신규 워크플로우] 자막 파일 없이 영상 파일만 선택된 경우
+                # 1. 내장 자막 트랙이 있는지 ffprobe로 검사
+                # 2. 자막 트랙이 있으면:
+                #    - 목표 언어와 동일한 트랙 -> 번역 없이 추출하여 바로 저장
+                #    - 그 외: 영어(English) 트랙 우선(없으면 첫 번째 트랙) 추출하여 번역 대상으로 설정
+                # 3. 자막 트랙이 없으면: 오디오 추출 후 전사할지 사용자에게 질문
+                # -------------------------------------------------------------
+                extracted_sub_files = []
+                videos_without_subs = []
+                saved_direct_count = 0
+
+                norm_target_langs = {l: _normalize_lang_name(l) for l in selected_languages}
+
+                for vpath in valid_video_paths:
+                    v_basename = os.path.splitext(os.path.basename(vpath))[0]
+                    streams = _get_video_subtitle_streams(vpath)
+
+                    if not streams:
+                        videos_without_subs.append(vpath)
+                        continue
+
+                    # 1) 목표 언어와 동일한 자막 트랙이 있는지 확인 -> 있으면 번역 없이 바로 추출/저장
+                    same_lang_stream = None
+                    target_matched_lang = None
+                    for s in streams:
+                        s_tags = s.get("tags", {})
+                        s_lang = _normalize_lang_name(s_tags.get("language", "") or s_tags.get("title", ""))
+                        for orig_l, norm_l in norm_target_langs.items():
+                            if s_lang and norm_l and s_lang == norm_l:
+                                same_lang_stream = s
+                                target_matched_lang = orig_l
+                                break
+                        if same_lang_stream:
+                            break
+
+                    if same_lang_stream:
+                        stream_idx = same_lang_stream.get("index", 0)
+                        out_direct = os.path.join(self.output_dir, f"{v_basename}_{target_matched_lang}.srt")
+                        if _extract_subtitle_track(vpath, stream_idx, out_direct):
+                            saved_direct_count += 1
+                            self.append_log(
+                                f"\x1b[32m[내장 자막 추출 완료] '{os.path.basename(vpath)}' 내에 목표 언어({target_matched_lang}) 자막이 내장되어 있어 번역 없이 저장했습니다: {os.path.basename(out_direct)}\x1b[0m"
+                            )
+                        continue
+
+                    # 2) 번역용 자막 트랙 선택: 영어 트랙 우선 검색, 없으면 첫 번째 트랙
+                    best_stream = None
+                    for s in streams:
+                        s_tags = s.get("tags", {})
+                        s_lang = _normalize_lang_name(s_tags.get("language", "") or s_tags.get("title", ""))
+                        if s_lang == "english":
+                            best_stream = s
+                            break
+                    if not best_stream:
+                        best_stream = streams[0]
+
+                    stream_idx = best_stream.get("index", 0)
+                    temp_srt_path = os.path.join(self.output_dir, f"{v_basename}_extracted.srt")
+                    if _extract_subtitle_track(vpath, stream_idx, temp_srt_path):
+                        extracted_sub_files.append((temp_srt_path, vpath))
+                        self.append_log(
+                            f"\x1b[36m[내장 자막 추출] '{os.path.basename(vpath)}'에서 자막 트랙(스트림 #{stream_idx})을 추출하여 번역 대상으로 설정했습니다.\x1b[0m"
+                        )
+                    else:
+                        videos_without_subs.append(vpath)
+
+                if extracted_sub_files:
+                    primary_input_source_for_jobs = [item[0] for item in extracted_sub_files]
+                    valid_video_paths = [item[1] for item in extracted_sub_files]
+                elif saved_direct_count > 0 and not videos_without_subs:
+                    QMessageBox.information(
+                        self, "완료",
+                        f"선택한 영상의 내장 자막({saved_direct_count}개)이 목표 언어와 일치하여 번역 없이 바로 추출/저장되었습니다."
+                    )
                     return
+                else:
+                    # 내장 자막이 없는 경우 -> 오디오 전사 여부 질의
+                    ret = QMessageBox.question(
+                        self,
+                        "오디오 전사(Transcribe) 확인",
+                        "선택한 비디오 파일에 추출 가능한 내장 자막 트랙이 없습니다.\n\n"
+                        "비디오에서 오디오를 추출하여 [전사(Transcribe)] 방식으로 자막을 생성할까요?",
+                        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                        QMessageBox.StandardButton.Yes
+                    )
+                    if ret == QMessageBox.StandardButton.Yes:
+                        self.cmb_task_mode.setCurrentIndex(1)
+                        is_transcribe_mode = True
+                        primary_input_source_for_jobs = valid_video_paths
+                        source_is_media_only_for_jobs = True
+                        media_type_for_jobs = 'video'
+                    else:
+                        return
             else:
                 QMessageBox.warning(
-                    self, "파일 필요", "번역할 SRT/ASS 자막 파일을 선택하세요.\n(비디오 음성을 자막으로 만들려면 상단에서 '전사(Transcribe)' 모드를 선택하세요.)"
-                )
-                return
-
-        # 비디오/오디오 관련 작업 시 ffmpeg 설치 여부 점검
-        if source_is_media_only_for_jobs or valid_video_paths or (self.audio_file_path and os.path.exists(self.audio_file_path)) or self.chk_extract_audio.isChecked():
-            import shutil
-            if not shutil.which("ffmpeg"):
-                QMessageBox.warning(
-                    self,
-                    "FFmpeg 미설치 경고",
-                    "시스템에 FFmpeg가 설치되어 있지 않거나 환경변수 PATH에 등록되지 않았습니다.\n"
-                    "비디오/오디오 처리 중 오류가 발생할 수 있으니 FFmpeg를 설치해 주세요."
-                )
-
-        if not self.output_dir or not os.path.isdir(self.output_dir):
-            try:
-                os.makedirs(self.output_dir, exist_ok=True)
-            except OSError as e:
-                QMessageBox.critical(
-                    self, "출력 폴더 오류", f"출력 폴더를 생성할 수 없습니다:\n{e}"
+                    self, "파일 필요", "번역할 SRT/ASS 자막 파일 또는 비디오 파일을 선택하세요."
                 )
                 return
 
