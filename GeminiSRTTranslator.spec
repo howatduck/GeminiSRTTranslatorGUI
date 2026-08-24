@@ -27,13 +27,22 @@ hiddenimports = [
 ]
 
 # collect submodules, data & binaries for key packages
+# collect_all() returns 3-tuples (src, dest, typecode) internally;
+# Analysis expects 2-tuples (src, dest), so we strip the typecode.
+def _to_2tuple(items):
+    result = []
+    for item in items:
+        if isinstance(item, (list, tuple)) and len(item) >= 2:
+            result.append((item[0], item[1]))
+    return result
+
 for pkg in ['google.genai', 'gemini_srt_translator', 'pyte', 'pysubs2',
             'json_repair', 'pydantic', 'httpx', 'certifi']:
     try:
         tmp_datas, tmp_hidden, tmp_binaries = collect_all(pkg)
-        datas.extend(tmp_datas)
+        datas.extend(_to_2tuple(tmp_datas))
         hiddenimports.extend(tmp_hidden)
-        binaries.extend(tmp_binaries)
+        binaries.extend(_to_2tuple(tmp_binaries))
     except Exception:
         pass
 
