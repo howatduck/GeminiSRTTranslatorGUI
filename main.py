@@ -91,12 +91,53 @@ DEFAULT_BATCH_SIZE = 1000
 
 
 # =====================================================================
+# [패치] gemini-srt-translator의 f-string backslash 문법 오류 몽키패치
+# Python 3.11 이하에서 f"{ev.text.replace('\\N', '\n')}" 구문 오류 방지
+# =====================================================================
+if gst is not None:
+    try:
+        from gemini_srt_translator.main import GeminiSRTTranslator, Subtitle
+        import pysubs2
+        from datetime import timedelta
+
+        def _patched_parse_subtitle_file(self, file_path: str) -> list:
+            subs = pysubs2.load(file_path, encoding="utf-8", keep_html_tags=True)
+            srt_subs = []
+            for i, ev in enumerate(subs):
+                text = ev.text.replace(r"\N", "\n").replace(r"\n", "\n")
+                srt_subs.append(
+                    Subtitle(
+                        index=i + 1,
+                        start=timedelta(milliseconds=ev.start),
+                        end=timedelta(milliseconds=ev.end),
+                        content=text,
+                    )
+                )
+            return srt_subs
+
+        def _patched_save_subtitle_file(self, translated_subtitle: list, output_file: str):
+            subs = pysubs2.load(self.input_file, encoding="utf-8")
+            for sub in translated_subtitle:
+                idx = sub.index - 1
+                if 0 <= idx < len(subs):
+                    subs[idx].text = sub.content.replace("\n", r"\N")
+            subs.save(output_file, encoding="utf-8")
+
+        GeminiSRTTranslator._parse_subtitle_file = _patched_parse_subtitle_file
+        GeminiSRTTranslator._save_subtitle_file = _patched_save_subtitle_file
+    except Exception as _patch_err:
+        pass
+
+
+# =====================================================================
 # [신규] 다중 선택 가능한 체크박스 콤보박스
 # =====================================================================
 class CheckableComboBox(QComboBox):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setModel(QStandardItemModel(self))
+        self._model = QStandardItemModel(self)
+        self.setModel(self._model)
+        self._model.itemChanged.connect(self._on_item_changed)
         self.view().pressed.connect(self.handle_item_pressed)
         self.setEditable(True)
         self.lineEdit().setReadOnly(True)
@@ -105,19 +146,27 @@ class CheckableComboBox(QComboBox):
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
     def handle_item_pressed(self, index):
-        item = self.model().itemFromIndex(index)
-        if item.flags() & Qt.ItemFlag.ItemIsUserCheckable:
+        item = self._model.itemFromIndex(index)
+        if item and (item.flags() & Qt.ItemFlag.ItemIsUserCheckable):
             new_state = Qt.CheckState.Unchecked if item.checkState() == Qt.CheckState.Checked else Qt.CheckState.Checked
             item.setCheckState(new_state)
+
+    def _on_item_changed(self, item):
         self.update_text()
 
     def set_placeholder_text(self, text):
         self.lineEdit().setPlaceholderText(text)
 
     def update_text(self):
-        texts = [self.model().item(i).text() for i in range(self.model().rowCount())
-                 if self.model().item(i) and self.model().item(i).checkState() == Qt.CheckState.Checked]
-        self.lineEdit().setText(", ".join(texts))
+        texts = [
+            self._model.item(i).text()
+            for i in range(self._model.rowCount())
+            if self._model.item(i) and self._model.item(i).checkState() == Qt.CheckState.Checked
+        ]
+        display = ", ".join(texts)
+        self.lineEdit().setText(display)
+        if not display:
+            self.lineEdit().clear()
 
     def addItem(self, text, user_data=None):
         item = QStandardItem(text)
@@ -125,22 +174,29 @@ class CheckableComboBox(QComboBox):
         item.setData(Qt.CheckState.Unchecked, Qt.ItemDataRole.CheckStateRole)
         if user_data is not None:
             item.setData(user_data, Qt.ItemDataRole.UserRole)
-        self.model().appendRow(item)
+        self._model.appendRow(item)
 
     def checked_items(self):
-        return [self.model().item(i).text() for i in range(self.model().rowCount())
-                if self.model().item(i) and self.model().item(i).checkState() == Qt.CheckState.Checked]
+        return [
+            self._model.item(i).text()
+            for i in range(self._model.rowCount())
+            if self._model.item(i) and self._model.item(i).checkState() == Qt.CheckState.Checked
+        ]
 
     def set_checked_items(self, items):
-        for i in range(self.model().rowCount()):
-            item = self.model().item(i)
+        self._model.blockSignals(True)
+        for i in range(self._model.rowCount()):
+            item = self._model.item(i)
             if item:
                 checked = item.text() in items
                 item.setCheckState(Qt.CheckState.Checked if checked else Qt.CheckState.Unchecked)
+        self._model.blockSignals(False)
         self.update_text()
 
     def clear(self):
-        self.model().clear()
+        self._model.clear()
+        self.update_text()
+
 
 
 # =====================================================================
@@ -603,7 +659,7 @@ class TranslationWorker(QThread):
                                 'input_file': actual_input_file_for_lib,
                                 'output_file': output_file_path,
                                 'start_line': self.base_config.get('start_line', 1),
-                                'description': self.base_config.get('description', ''),
+                                'description': self.base_config.get('description', '') or None,
                                 'model_name': self.base_config.get('model_name', DEFAULT_MODEL),
                                 'batch_size': self.base_config.get('batch_size', DEFAULT_BATCH_SIZE),
                                 'streaming': self.base_config.get('streaming', True),
@@ -2186,7 +2242,7 @@ class TranslatorApp(QWidget):
                 if len(self.api_key_inputs) > 1 else None
             ),
             'start_line': self.spin_start.value(),
-            'description': self.txt_desc.toPlainText().strip(),
+            'description': self.txt_desc.toPlainText().strip() or None,
             'model_name': selected_model,
             'batch_size': self.spin_batch.value(),
             'free_quota': self.chk_free.isChecked(),
