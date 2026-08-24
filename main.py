@@ -1754,6 +1754,14 @@ class TranslatorApp(QWidget):
                         self.settings.value(API_KEY_SETTINGS[i], "")
                     )
 
+            # Restore UI language first so all subsequent tr_str() calls are correct
+            saved_lang = self.settings.value("app_lang", "ko", type=str)
+            self.app_lang = saved_lang if saved_lang in I18N else "ko"
+            lang_index = 0 if self.app_lang == "ko" else 1
+            self.cmb_app_lang.blockSignals(True)
+            self.cmb_app_lang.setCurrentIndex(lang_index)
+            self.cmb_app_lang.blockSignals(False)
+
             last_model = self.settings.value("last_model", DEFAULT_MODEL)
             if self.cmb_model.findText(last_model) >= 0:
                 self.cmb_model.setCurrentText(last_model)
@@ -1867,9 +1875,10 @@ class TranslatorApp(QWidget):
                 Qt.CheckState.Checked.value if self.chk_use_enterprise.isChecked() else 0
             )
 
-            self.append_log("\x1b[32m설정이 성공적으로 로드되었습니다.\x1b[0m")
+            self.update_ui_language()
+            self.append_log(f"\x1b[32m{self.tr_str('log_settings_loaded')}\x1b[0m")
         except Exception as e:
-            self.append_log(f"\x1b[33m설정 로드 중 경고: {e}\x1b[0m")
+            self.append_log(f"\x1b[33m[Warning] Settings load error: {e}\x1b[0m")
 
     def save_settings(self):
         try:
@@ -1917,6 +1926,7 @@ class TranslatorApp(QWidget):
             self.settings.setValue("cloud_project", self.cloud_project_input.text())
             self.settings.setValue("cloud_api_key", self.cloud_api_key_input.text())
             self.settings.setValue("cloud_location", self.cloud_location_input.text())
+            self.settings.setValue("app_lang", self.app_lang)
             self.settings.setValue("request_type", self.cmb_request_type.currentText())
         except Exception:
             pass
@@ -1978,7 +1988,7 @@ class TranslatorApp(QWidget):
             self.model_fetcher_thread = None
 
     def update_model_list(self, models):
-        self.append_log(f"\x1b[32m모델 업데이트 완료: {len(models)}개\x1b[0m")
+        self.append_log(f"\x1b[32m{self.tr_str('log_models_fetched', count=len(models))}\x1b[0m")
         current_selection = self.cmb_model.currentText()
         last_saved_model = self.settings.value("last_model", DEFAULT_MODEL)
         self.cmb_model.clear()
@@ -2004,7 +2014,7 @@ class TranslatorApp(QWidget):
         self.save_settings()
 
     def handle_fetch_error(self, error_message):
-        self.append_log(f"\x1b[31m[오류] 모델 로딩 실패: {error_message}\x1b[0m")
+        self.append_log(f"\x1b[31m{self.tr_str('log_models_fetch_err', err=error_message)}\x1b[0m")
         if self.cmb_model.findText(DEFAULT_MODEL) < 0:
             self.cmb_model.clear()
             self.cmb_model.addItem(DEFAULT_MODEL)
@@ -2155,7 +2165,7 @@ class TranslatorApp(QWidget):
 
         self.progress_bar.setRange(0, self.total_jobs)
         self.progress_bar.setValue(0)
-        self.progress_bar.setFormat(f"0 / {self.total_jobs} 완료")
+        self.progress_bar.setFormat(self.tr_str("progress_format", current=0, total=self.total_jobs))
 
         service_tier = self.cmb_service_tier.currentText()
         if service_tier == "Default":
@@ -2237,9 +2247,9 @@ class TranslatorApp(QWidget):
             current = self.completed_jobs
             total = self.total_jobs
         self.progress_bar.setValue(current)
-        self.progress_bar.setFormat(f"{current} / {total} 완료")
+        self.progress_bar.setFormat(self.tr_str("progress_format", current=current, total=total))
         self.append_log(
-            f"\x1b[32m[성공] ({current}/{total}): [{language}] {os.path.basename(output_path)}\x1b[0m"
+            f"\x1b[32m{self.tr_str('log_job_success', current=current, total=total, lang=language, file=os.path.basename(output_path))}\x1b[0m"
         )
 
     def _handle_job_error(self, error_message):
@@ -2248,9 +2258,9 @@ class TranslatorApp(QWidget):
             current = self.completed_jobs
             total = self.total_jobs
         self.progress_bar.setValue(current)
-        self.progress_bar.setFormat(f"{current} / {total} 완료 (오류 발생)")
+        self.progress_bar.setFormat(self.tr_str("progress_format_err", current=current, total=total))
         self.append_log(
-            f"\x1b[31m[실패] ({current}/{total}): {error_message}\x1b[0m"
+            f"\x1b[31m{self.tr_str('log_job_fail', current=current, total=total, err=error_message)}\x1b[0m"
         )
 
     def stop_translation(self):
@@ -2258,7 +2268,7 @@ class TranslatorApp(QWidget):
             return
 
         self.append_log(
-            "\x1b[33m==== 🛑 사용자 중단 요청 (현재 진행 중인 배치 마무리 후 안전하게 종료됩니다) ====\x1b[0m"
+            f"\x1b[33m{self.tr_str('log_user_stop')}\x1b[0m"
         )
         self._stop_requested = True
 
@@ -2318,21 +2328,21 @@ class TranslatorApp(QWidget):
         if self._stop_requested:
             remaining = self.total_jobs - self.completed_jobs
             self.append_log(
-                f"\x1b[33m==== ⚠️ 작업 중단됨 (미완료: {remaining}개) ====\x1b[0m"
+                f"\x1b[33m{self.tr_str('log_interrupted', count=remaining)}\x1b[0m"
             )
         elif self.completed_jobs < self.total_jobs:
             self.append_log(
-                f"\x1b[31m==== ⚠️ 일부 작업 누락됨 ({self.completed_jobs}/{self.total_jobs}) ====\x1b[0m"
+                f"\x1b[31m{self.tr_str('log_skipped', completed=self.completed_jobs, total=self.total_jobs)}\x1b[0m"
             )
         else:
-            self.append_log("\x1b[32m==== ✅ 모든 작업 완료 ====\x1b[0m")
+            self.append_log(f"\x1b[32m{self.tr_str('log_all_done')}\x1b[0m")
 
         self.progress_bar.setValue(self.completed_jobs)
         if self.completed_jobs >= self.total_jobs:
-            self.progress_bar.setFormat("완료")
+            self.progress_bar.setFormat(self.tr_str("progress_completed"))
         else:
             self.progress_bar.setFormat(
-                f"{self.completed_jobs} / {self.total_jobs} (중단됨)"
+                self.tr_str("progress_interrupted", current=self.completed_jobs, total=self.total_jobs)
             )
 
         self.set_ui_enabled(True)
