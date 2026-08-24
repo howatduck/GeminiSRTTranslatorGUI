@@ -24,6 +24,9 @@ hiddenimports = [
     'http.client',
     'xml.etree',
     'certifi',
+    'html',
+    'html.parser',
+    'html.entities',
 ]
 
 # collect submodules, data & binaries for key packages
@@ -65,9 +68,9 @@ a = Analysis(
         'tkinter',
         'unittest',
         'pydoc',
-        'html',
         'lib2to3',
     ],
+
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=block_cipher,
