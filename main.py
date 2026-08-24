@@ -175,12 +175,37 @@ if gst is not None:
             return srt_subs
 
         def _patched_save_subtitle_file(self, translated_subtitle: list, output_file: str):
-            subs = pysubs2.load(self.input_file, encoding="utf-8")
-            for sub in translated_subtitle:
-                idx = sub.index - 1
-                if 0 <= idx < len(subs):
-                    subs[idx].text = sub.content.replace("\n", r"\N")
-            subs.save(output_file, encoding="utf-8")
+            # 싱크 버그 방지: 원본 파일을 재로드해서 index로 매핑하는 방식은
+            # AI가 줄을 병합/누락하면 타이밍이 어긋남.
+            # → 번역된 Subtitle 객체가 이미 정확한 start/end를 가지고 있으므로
+            #   이를 직접 SRT 형식으로 씀.
+            def _ms_to_srt(td):
+                total_ms = int(td.total_seconds() * 1000)
+                h = total_ms // 3_600_000
+                m = (total_ms % 3_600_000) // 60_000
+                s = (total_ms % 60_000) // 1_000
+                ms = total_ms % 1_000
+                return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
+
+            ext = os.path.splitext(output_file)[1].lower()
+            if ext == ".srt":
+                lines = []
+                for sub in translated_subtitle:
+                    start_str = _ms_to_srt(sub.start)
+                    end_str = _ms_to_srt(sub.end)
+                    text = sub.content.replace(r"\N", "\n").replace(r"\n", "\n")
+                    lines.append(f"{sub.index}\n{start_str} --> {end_str}\n{text}\n")
+                with open(output_file, "w", encoding="utf-8") as f:
+                    f.write("\n".join(lines))
+            else:
+                # ASS/SSA 등 다른 형식은 pysubs2를 사용하여 저장
+                subs = pysubs2.load(self.input_file, encoding="utf-8")
+                # index 매핑 대신 순서(position) 기반으로 매핑하여 싱크 보장
+                sorted_subs = sorted(translated_subtitle, key=lambda s: s.index)
+                for i, sub in enumerate(sorted_subs):
+                    if i < len(subs):
+                        subs[i].text = sub.content.replace("\n", r"\N")
+                subs.save(output_file, encoding="utf-8")
 
         def _patched_parse_response(self, response_text: str, batch: list) -> list:
             """LLM 응답을 안전하게 파싱하여 번역된 Subtitle 리스트 반환 (형변환 오류 완벽 방어)"""
