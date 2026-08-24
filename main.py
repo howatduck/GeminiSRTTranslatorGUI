@@ -125,10 +125,10 @@ except Exception as e:
     genai = None
     GENAI_IMPORT_ERROR = repr(e)
 
-# --- 상수 정의 (v3.7.1 반영) ---
-APP_NAME = "Gemini SRT 번역/전사 GUI (v3.7.1 호환, Pyte VT100 터미널)"
-SETTINGS_ORG = "HANDANG"
-SETTINGS_APP = "GeminiSrtTranslatorGUI_v3_7_1"
+# --- 상수 정의 ---
+APP_NAME = "Gemini SRT 번역/전사 GUI"
+SETTINGS_ORG = "GeminiSrtTranslatorGUI"
+SETTINGS_APP = "GeminiSrtTranslatorGUI"
 NUM_API_KEYS = 10
 API_KEY_SETTINGS = [f"gemini_api_key_{i+1}" for i in range(NUM_API_KEYS)]
 
@@ -142,8 +142,10 @@ DEFAULT_BATCH_SIZE = 1000
 
 
 # =====================================================================
-# [패치] gemini-srt-translator의 f-string backslash 문법 오류 몽키패치
-# Python 3.11 이하에서 f"{ev.text.replace('\\N', '\n')}" 구문 오류 방지
+# [패치] gemini-srt-translator 몽키패치
+# 1) f-string backslash 문법 오류 방지
+# 2) LLM 응답 JSON 파싱 시 키-값 역전/형변환 실패(ValueError: invalid literal for int) 방지
+# 3) ffmpeg_utils sys.exit(1) 방지
 # =====================================================================
 GeminiSRTTranslator = None
 Subtitle = None
@@ -154,6 +156,7 @@ if gst is not None:
         GeminiSRTTranslator = _GST
         Subtitle = _Sub
         import pysubs2
+        import json_repair
         from datetime import timedelta
 
         def _patched_parse_subtitle_file(self, file_path: str) -> list:
@@ -179,8 +182,68 @@ if gst is not None:
                     subs[idx].text = sub.content.replace("\n", r"\N")
             subs.save(output_file, encoding="utf-8")
 
+        def _patched_parse_response(self, response_text: str, batch: list) -> list:
+            """LLM 응답을 안전하게 파싱하여 번역된 Subtitle 리스트 반환 (형변환 오류 완벽 방어)"""
+            parsed = json_repair.loads(response_text)
+            translated_dict = {}
+
+            if isinstance(parsed, dict):
+                for k, v in parsed.items():
+                    # 1) 정상 형태: key가 인덱스 숫자, value가 번역 텍스트
+                    try:
+                        k_int = int(str(k).strip())
+                        translated_dict[k_int] = str(v)
+                        continue
+                    except (ValueError, TypeError):
+                        pass
+
+                    # 2) 역전 형태: value가 인덱스 숫자, key가 번역 텍스트
+                    try:
+                        v_int = int(str(v).strip())
+                        translated_dict[v_int] = str(k)
+                        continue
+                    except (ValueError, TypeError):
+                        pass
+
+            elif isinstance(parsed, list):
+                for item in parsed:
+                    if isinstance(item, dict):
+                        # item = {"index": 1, "text": "..."} or {"1": "..."}
+                        for k, v in item.items():
+                            try:
+                                k_int = int(str(k).strip())
+                                translated_dict[k_int] = str(v)
+                            except (ValueError, TypeError):
+                                pass
+                    elif isinstance(item, str):
+                        # 리스트 순서대로 매핑
+                        pass
+
+            # batch의 각 subtitle에 매핑 (누락 시 원본 유지)
+            result = []
+            for i, sub in enumerate(batch):
+                if sub.index in translated_dict:
+                    new_content = translated_dict[sub.index]
+                elif (i + 1) in translated_dict:
+                    new_content = translated_dict[i + 1]
+                elif isinstance(parsed, list) and i < len(parsed) and isinstance(parsed[i], str):
+                    new_content = parsed[i]
+                else:
+                    new_content = sub.content
+                result.append(
+                    Subtitle(
+                        index=sub.index,
+                        start=sub.start,
+                        end=sub.end,
+                        content=new_content,
+                    )
+                )
+            return result
+
         GeminiSRTTranslator._parse_subtitle_file = _patched_parse_subtitle_file
         GeminiSRTTranslator._save_subtitle_file = _patched_save_subtitle_file
+        if hasattr(GeminiSRTTranslator, '_parse_response'):
+            GeminiSRTTranslator._parse_response = _patched_parse_response
 
         # [패치] ffmpeg_utils._run_command에서 sys.exit(1) 호출 방지 (GUI 크래시 방지)
         try:
@@ -2356,13 +2419,24 @@ class TranslatorApp(QWidget):
                 saved_direct_count = 0
 
                 norm_target_langs = {l: _normalize_lang_name(l) for l in selected_languages}
+                total_vids = len(valid_video_paths)
 
-                for vpath in valid_video_paths:
+                self.progress_bar.setRange(0, total_vids)
+                self.progress_bar.setValue(0)
+                self.progress_bar.setFormat("자막 트랙 검사 및 추출 중... (%v/%m)")
+                QApplication.processEvents()
+
+                for v_idx, vpath in enumerate(valid_video_paths):
                     v_basename = os.path.splitext(os.path.basename(vpath))[0]
+                    self.append_log(f"\x1b[34m[자막 트랙 검사 ({v_idx+1}/{total_vids})] '{os.path.basename(vpath)}' 분석 중...\x1b[0m")
+                    QApplication.processEvents()
                     streams = _get_video_subtitle_streams(vpath)
 
                     if not streams:
+                        self.append_log(f"\x1b[33m  → 내장 자막 트랙 없음\x1b[0m")
                         videos_without_subs.append(vpath)
+                        self.progress_bar.setValue(v_idx + 1)
+                        QApplication.processEvents()
                         continue
 
                     # 1) 목표 언어와 동일한 자막 트랙이 있는지 확인 -> 있으면 번역 없이 바로 추출/저장
@@ -2382,11 +2456,15 @@ class TranslatorApp(QWidget):
                     if same_lang_stream:
                         stream_idx = same_lang_stream.get("index", 0)
                         out_direct = os.path.join(self.output_dir, f"{v_basename}_{target_matched_lang}.srt")
+                        self.append_log(f"\x1b[36m  → 목표 언어({target_matched_lang}) 트랙 #{stream_idx} 발견! 추출 중...\x1b[0m")
+                        QApplication.processEvents()
                         if _extract_subtitle_track(vpath, stream_idx, out_direct):
                             saved_direct_count += 1
                             self.append_log(
-                                f"\x1b[32m[내장 자막 추출 완료] '{os.path.basename(vpath)}' 내에 목표 언어({target_matched_lang}) 자막이 내장되어 있어 번역 없이 저장했습니다: {os.path.basename(out_direct)}\x1b[0m"
+                                f"\x1b[32m  ✔ [추출 완료] 번역 불필요: '{os.path.basename(out_direct)}' 저장됨\x1b[0m"
                             )
+                        self.progress_bar.setValue(v_idx + 1)
+                        QApplication.processEvents()
                         continue
 
                     # 2) 번역용 자막 트랙 선택: 영어 트랙 우선 검색, 없으면 첫 번째 트랙
@@ -2402,13 +2480,18 @@ class TranslatorApp(QWidget):
 
                     stream_idx = best_stream.get("index", 0)
                     temp_srt_path = os.path.join(self.output_dir, f"{v_basename}_extracted.srt")
+                    self.append_log(f"\x1b[36m  → 자막 트랙 #{stream_idx} 추출 중: '{os.path.basename(temp_srt_path)}'...\x1b[0m")
+                    QApplication.processEvents()
                     if _extract_subtitle_track(vpath, stream_idx, temp_srt_path):
                         extracted_sub_files.append((temp_srt_path, vpath))
                         self.append_log(
-                            f"\x1b[36m[내장 자막 추출] '{os.path.basename(vpath)}'에서 자막 트랙(스트림 #{stream_idx})을 추출하여 번역 대상으로 설정했습니다.\x1b[0m"
+                            f"\x1b[32m  ✔ [추출 완료] '{os.path.basename(temp_srt_path)}' 추출 완료 → 번역 대상으로 등록됨\x1b[0m"
                         )
                     else:
                         videos_without_subs.append(vpath)
+
+                    self.progress_bar.setValue(v_idx + 1)
+                    QApplication.processEvents()
 
                 if extracted_sub_files:
                     primary_input_source_for_jobs = [item[0] for item in extracted_sub_files]
