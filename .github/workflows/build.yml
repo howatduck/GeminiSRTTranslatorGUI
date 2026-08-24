@@ -79,7 +79,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: GeminiSRTTranslator-Windows
-          path: GeminiSRTTranslator-Windows.zip
+          path: dist/GeminiSRTTranslator.exe
           if-no-files-found: error
 
       - name: Upload to GitHub Release
@@ -90,4 +90,5 @@ jobs:
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 
