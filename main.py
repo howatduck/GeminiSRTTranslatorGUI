@@ -94,9 +94,14 @@ DEFAULT_BATCH_SIZE = 1000
 # [패치] gemini-srt-translator의 f-string backslash 문법 오류 몽키패치
 # Python 3.11 이하에서 f"{ev.text.replace('\\N', '\n')}" 구문 오류 방지
 # =====================================================================
+GeminiSRTTranslator = None
+Subtitle = None
+
 if gst is not None:
     try:
-        from gemini_srt_translator.main import GeminiSRTTranslator, Subtitle
+        from gemini_srt_translator.main import GeminiSRTTranslator as _GST, Subtitle as _Sub
+        GeminiSRTTranslator = _GST
+        Subtitle = _Sub
         import pysubs2
         from datetime import timedelta
 
@@ -127,6 +132,7 @@ if gst is not None:
         GeminiSRTTranslator._save_subtitle_file = _patched_save_subtitle_file
     except Exception as _patch_err:
         pass
+
 
 
 # =====================================================================
@@ -694,12 +700,19 @@ class TranslationWorker(QThread):
                                 translator_args['thinking_level'] = t_level.lower()
 
                             filtered_params = {k: v for k, v in translator_args.items() if v is not None}
-                            translator_instance = GeminiSRTTranslator(**filtered_params)
-
-                            if is_transcribe_mode:
-                                translator_instance.transcribe()
+                            if GeminiSRTTranslator is not None:
+                                translator_instance = GeminiSRTTranslator(**filtered_params)
+                                if is_transcribe_mode:
+                                    translator_instance.transcribe()
+                                else:
+                                    translator_instance.translate()
                             else:
-                                translator_instance.translate()
+                                for key, value in filtered_params.items():
+                                    setattr(gst, key, value)
+                                if is_transcribe_mode:
+                                    gst.transcribe()
+                                else:
+                                    gst.translate()
 
                             job_successful = True
 

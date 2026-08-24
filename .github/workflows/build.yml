@@ -31,9 +31,49 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Patch gemini-srt-translator library syntax errors
+        shell: python
+        run: |
+          import os, glob, site
+          for sp in site.getsitepackages():
+              pattern = os.path.join(sp, "gemini_srt_translator", "main.py")
+              for fpath in glob.glob(pattern):
+                  print(f"Patching {fpath}...")
+                  with open(fpath, "r", encoding="utf-8") as f:
+                      content = f.read()
+                  # Fix syntax errors with backslashes in f-strings:
+                  # text = f"{ev.text.replace(\"\\N\", \"\n\")}" -> text = ev.text.replace("\\N", "\n").replace(r"\n", "\n")
+                  # subs[idx].text = f"{sub.content.replace(\"\n\", \"\\N\")}" -> subs[idx].text = sub.content.replace("\n", "\\N")
+                  fixed = content.replace(
+                      'text = f"{ev.text.replace(\\"\\\\N\\", \\"\\n\\")}"',
+                      'text = ev.text.replace(r"\\N", "\\n").replace(r"\\n", "\\n")'
+                  ).replace(
+                      "text = f\"{ev.text.replace('\\\\N', '\\n')}\"",
+                      "text = ev.text.replace(r'\\N', '\\n').replace(r'\\n', '\\n')"
+                  ).replace(
+                      'subs[idx].text = f"{sub.content.replace(\\"\\n\\", \\"\\\\N\\")}"',
+                      'subs[idx].text = sub.content.replace("\\n", r"\\N")'
+                  ).replace(
+                      "subs[idx].text = f\"{sub.content.replace('\\n', '\\\\N')}\"",
+                      "subs[idx].text = sub.content.replace('\\n', r'\\N')"
+                  )
+                  # Also handle raw/literal variations
+                  fixed = fixed.replace('f"{ev.text.replace', 'ev.text.replace')
+                  if content != fixed:
+                      with open(fpath, "w", encoding="utf-8") as f:
+                          f.write(fixed)
+                      print(f"Successfully patched {fpath}")
+                  else:
+                      print(f"Pattern directly checking in {fpath}:")
+                      lines = content.splitlines()
+                      for i, l in enumerate(lines):
+                          if 'ev.text.replace' in l or 'replace("\\N"' in l or "replace('\\N'" in l:
+                              print(f"Line {i+1}: {l}")
+
       - name: Build EXE with PyInstaller
         run: |
           pyinstaller --clean --noconfirm GeminiSRTTranslator.spec
+
 
       - name: Package into ZIP
         shell: pwsh
