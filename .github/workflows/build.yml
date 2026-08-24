@@ -35,40 +35,35 @@ jobs:
         shell: python
         run: |
           import os, glob, site
+          rep1 = b'            text = ev.text.replace(r"\\N", "\\n").replace(r"\\n", "\\n")\n'
+          rep2 = b'                subs[idx].text = sub.content.replace("\\n", r"\\N")\n'
+
           for sp in site.getsitepackages():
               pattern = os.path.join(sp, "gemini_srt_translator", "main.py")
               for fpath in glob.glob(pattern):
                   print(f"Patching {fpath}...")
-                  with open(fpath, "r", encoding="utf-8") as f:
-                      content = f.read()
-                  # Fix syntax errors with backslashes in f-strings:
-                  # text = f"{ev.text.replace(\"\\N\", \"\n\")}" -> text = ev.text.replace("\\N", "\n").replace(r"\n", "\n")
-                  # subs[idx].text = f"{sub.content.replace(\"\n\", \"\\N\")}" -> subs[idx].text = sub.content.replace("\n", "\\N")
-                  fixed = content.replace(
-                      'text = f"{ev.text.replace(\\"\\\\N\\", \\"\\n\\")}"',
-                      'text = ev.text.replace(r"\\N", "\\n").replace(r"\\n", "\\n")'
-                  ).replace(
-                      "text = f\"{ev.text.replace('\\\\N', '\\n')}\"",
-                      "text = ev.text.replace(r'\\N', '\\n').replace(r'\\n', '\\n')"
-                  ).replace(
-                      'subs[idx].text = f"{sub.content.replace(\\"\\n\\", \\"\\\\N\\")}"',
-                      'subs[idx].text = sub.content.replace("\\n", r"\\N")'
-                  ).replace(
-                      "subs[idx].text = f\"{sub.content.replace('\\n', '\\\\N')}\"",
-                      "subs[idx].text = sub.content.replace('\\n', r'\\N')"
-                  )
-                  # Also handle raw/literal variations
-                  fixed = fixed.replace('f"{ev.text.replace', 'ev.text.replace')
-                  if content != fixed:
-                      with open(fpath, "w", encoding="utf-8") as f:
-                          f.write(fixed)
-                      print(f"Successfully patched {fpath}")
-                  else:
-                      print(f"Pattern directly checking in {fpath}:")
-                      lines = content.splitlines()
-                      for i, l in enumerate(lines):
-                          if 'ev.text.replace' in l or 'replace("\\N"' in l or "replace('\\N'" in l:
-                              print(f"Line {i+1}: {l}")
+                  with open(fpath, "rb") as f:
+                      lines = f.readlines()
+                  
+                  changed = False
+                  for i in range(len(lines)):
+                      if b'ev.text.replace' in lines[i]:
+                          print(f"Found line {i+1}: {lines[i]}")
+                          lines[i] = rep1
+                          changed = True
+                      elif b'sub.content.replace' in lines[i]:
+                          print(f"Found line {i+1}: {lines[i]}")
+                          lines[i] = rep2
+                          changed = True
+                  
+                  if changed:
+                      with open(fpath, "wb") as f:
+                          f.writelines(lines)
+                      # Verify syntax
+                      with open(fpath, "rb") as f:
+                          compile(f.read(), fpath, "exec")
+                      print(f"Successfully patched and verified {fpath}")
+
 
       - name: Build EXE with PyInstaller
         run: |
