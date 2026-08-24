@@ -23,6 +23,43 @@ import itertools
 import unicodedata
 
 # =====================================================================
+# [FFmpeg 번들 경로 자동 등록] (PyInstaller sys._MEIPASS 또는 EXE 디렉토리)
+# =====================================================================
+def _setup_ffmpeg_path():
+    search_dirs = []
+    if getattr(sys, 'frozen', False):
+        if hasattr(sys, '_MEIPASS'):
+            search_dirs.append(sys._MEIPASS)
+        exe_dir = os.path.dirname(sys.executable)
+        search_dirs.append(exe_dir)
+        search_dirs.append(os.path.join(exe_dir, 'ffmpeg'))
+    else:
+        app_dir = os.path.dirname(os.path.abspath(__file__))
+        search_dirs.append(app_dir)
+        search_dirs.append(os.path.join(app_dir, 'ffmpeg'))
+
+    current_path = os.environ.get("PATH", "")
+    for d in search_dirs:
+        if os.path.exists(d):
+            ffmpeg_exe = os.path.join(d, "ffmpeg.exe" if sys.platform == "win32" else "ffmpeg")
+            ffprobe_exe = os.path.join(d, "ffprobe.exe" if sys.platform == "win32" else "ffprobe")
+            if os.path.exists(ffmpeg_exe) or os.path.exists(ffprobe_exe):
+                if d not in current_path:
+                    os.environ["PATH"] = d + os.pathsep + current_path
+                    current_path = os.environ["PATH"]
+                # pydub 경로 강제 지정
+                try:
+                    import pydub.utils
+                    if os.path.exists(ffmpeg_exe):
+                        pydub.AudioSegment.converter = ffmpeg_exe
+                    if os.path.exists(ffprobe_exe):
+                        pydub.utils.get_prober_name = lambda: ffprobe_exe
+                except Exception:
+                    pass
+
+_setup_ffmpeg_path()
+
+# =====================================================================
 # [패치 1] GUI 환경/워커 스레드에서 signal 호출 시 발생하는 ValueError 방지
 # (signal only works in main thread of the main interpreter)
 # =====================================================================

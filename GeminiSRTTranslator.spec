@@ -1,4 +1,4 @@
-# -*- mode: python ; coding: utf-8 -*-
+import os
 import sys
 from PyInstaller.building.build_main import Analysis, PYZ, EXE
 from PyInstaller.utils.hooks import collect_all, collect_submodules, collect_data_files
@@ -7,6 +7,11 @@ block_cipher = None
 
 datas = []
 binaries = []
+
+# FFmpeg 바이너리 번들 포함 (ffmpeg.exe, ffprobe.exe)
+for f_exe in ['ffmpeg.exe', 'ffprobe.exe']:
+    if os.path.exists(f_exe):
+        binaries.append((f_exe, '.'))
 hiddenimports = [
     'google.genai',
     'google.genai.types',
