@@ -38,31 +38,71 @@ jobs:
           rep1 = b'            text = ev.text.replace(r"\\N", "\\n").replace(r"\\n", "\\n")\n'
           rep2 = b'                subs[idx].text = sub.content.replace("\\n", r"\\N")\n'
 
+          patch_code = b'''
+        import json_repair
+        try:
+            parsed = json_repair.loads(response_text)
+            translated_dict = {}
+            if isinstance(parsed, dict):
+                for k, v in parsed.items():
+                    try:
+                        translated_dict[int(str(k).strip())] = str(v)
+                    except Exception:
+                        try:
+                            translated_dict[int(str(v).strip())] = str(k)
+                        except Exception:
+                            pass
+            elif isinstance(parsed, list):
+                for item in parsed:
+                    if isinstance(item, dict):
+                        for k, v in item.items():
+                            try:
+                                translated_dict[int(str(k).strip())] = str(v)
+                            except Exception:
+                                pass
+            result = []
+            for i, sub in enumerate(batch):
+                idx = getattr(sub, "index", i + 1)
+                content = translated_dict.get(idx, translated_dict.get(i + 1, getattr(sub, "content", "")))
+                result.append(Subtitle(index=idx, start=sub.start, end=sub.end, content=content))
+            return result
+        except Exception:
+            pass
+'''
+
           for sp in site.getsitepackages():
               pattern = os.path.join(sp, "gemini_srt_translator", "main.py")
               for fpath in glob.glob(pattern):
                   print(f"Patching {fpath}...")
                   with open(fpath, "rb") as f:
+                      content = f.read()
+
+                  content = content.replace(b'text = f"{ev.text.replace(\'\\\\N\', \'\\n\')}"', rep1.strip())
+                  content = content.replace(b'subs[idx].text = f"{sub.content.replace(\'\\n\', \'\\\\N\')}"', rep2.strip())
+
+                  with open(fpath, "wb") as f:
+                      f.write(content)
+
+                  with open(fpath, "rb") as f:
                       lines = f.readlines()
                   
                   changed = False
                   for i in range(len(lines)):
-                      if b'ev.text.replace' in lines[i]:
-                          print(f"Found line {i+1}: {lines[i]}")
+                      if b'ev.text.replace' in lines[i] and b'f"' in lines[i]:
                           lines[i] = rep1
                           changed = True
-                      elif b'sub.content.replace' in lines[i]:
-                          print(f"Found line {i+1}: {lines[i]}")
+                      elif b'sub.content.replace' in lines[i] and b'f"' in lines[i]:
                           lines[i] = rep2
                           changed = True
                   
                   if changed:
                       with open(fpath, "wb") as f:
                           f.writelines(lines)
-                      # Verify syntax
-                      with open(fpath, "rb") as f:
-                          compile(f.read(), fpath, "exec")
-                      print(f"Successfully patched and verified {fpath}")
+
+                  # Verify syntax
+                  with open(fpath, "rb") as f:
+                      compile(f.read(), fpath, "exec")
+                  print(f"Successfully patched and verified {fpath}")
 
 
       - name: Download and prepare FFmpeg binaries for bundling
