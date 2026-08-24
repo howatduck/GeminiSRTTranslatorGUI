@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-Gemini SRT Translator GUI (v3.6.2 호환, Pyte VT100 터미널)
-v3.5.8 기반 → v3.6.2 최신 변경사항 반영 및 버그 수정
-[패치] 2026-08: 빌드 후 버튼이 안 눌리는 문제 진단용 QMessageBox 추가,
-        자막 파일 목록 X(지우기) 버튼 누락 수정
+Gemini SRT Translator GUI (v3.7.1 호환, Pyte VT100 터미널)
+v3.7.0 / v3.7.1 최신 변경사항 반영 (gemini-3.7-flash 기본 모델, 패키지 및 파이프라인 호환성 업데이트)
 """
 
 import sys
@@ -72,14 +70,14 @@ GENAI_IMPORT_ERROR = None
 try:
     from google import genai
 except Exception as e:
-    print(f"경고: 'google-genai' 라이브러리를 찾을 수 없습니다. 'pip install google-genai>=2.8.0' 명령어로 설치하세요. ({e})")
+    print(f"경고: 'google-genai' 라이브러리를 찾을 수 없습니다. 'pip install google-genai>=2.18.0' 명령어로 설치하세요. ({e})")
     genai = None
     GENAI_IMPORT_ERROR = repr(e)
 
-# --- 상수 정의 (v3.6.2 반영) ---
-APP_NAME = "Gemini SRT 번역/전사 GUI (v3.6.2 호환, Pyte VT100 터미널)"
+# --- 상수 정의 (v3.7.1 반영) ---
+APP_NAME = "Gemini SRT 번역/전사 GUI (v3.7.1 호환, Pyte VT100 터미널)"
 SETTINGS_ORG = "HANDANG"
-SETTINGS_APP = "GeminiSrtTranslatorGUI_v3_6_2"
+SETTINGS_APP = "GeminiSrtTranslatorGUI_v3_7_1"
 NUM_API_KEYS = 10
 API_KEY_SETTINGS = [f"gemini_api_key_{i+1}" for i in range(NUM_API_KEYS)]
 
@@ -88,7 +86,7 @@ TARGET_LANGUAGES = [
     "Italian", "Russian", "Simplified Chinese", "Japanese", "Portuguese",
     "Shuddh Hindi", "Arabic"
 ]
-DEFAULT_MODEL = "gemini-3.6-flash"
+DEFAULT_MODEL = "gemini-3.7-flash"
 DEFAULT_BATCH_SIZE = 1000
 
 
@@ -112,6 +110,9 @@ class CheckableComboBox(QComboBox):
             new_state = Qt.CheckState.Unchecked if item.checkState() == Qt.CheckState.Checked else Qt.CheckState.Checked
             item.setCheckState(new_state)
         self.update_text()
+
+    def set_placeholder_text(self, text):
+        self.lineEdit().setPlaceholderText(text)
 
     def update_text(self):
         texts = [self.model().item(i).text() for i in range(self.model().rowCount())
@@ -751,6 +752,237 @@ class TranslationWorker(QThread):
 
 
 # =====================================================================
+# [다국어 지원] 다국어(한국어 / English) 텍스트 리소스
+# =====================================================================
+I18N = {
+    "ko": {
+        "app_title": "Gemini SRT Translator GUI (Pyte Terminal)",
+        "api_group_title": "API 키 설정",
+        "btn_manage_api_keys": "API 키 관리...",
+        "lbl_api_keys_summary": "등록된 키: {filled} / {total}",
+        "lbl_app_lang": "언어/Lang:",
+        "chk_use_enterprise": "Agent Platform (Enterprise) 사용",
+        "cloud_project_label": "Cloud Project:",
+        "cloud_project_ph": "Google Cloud Project ID (ADC)",
+        "cloud_api_key_label": "Cloud API Key:",
+        "cloud_api_key_ph": "Google Cloud API Key (Express)",
+        "cloud_location_label": "Cloud Location:",
+        "cloud_location_ph": "Region (기본: global)",
+        "request_type_label": "Request Type:",
+        "btn_save_api": "설정 저장",
+
+        "dialog_api_title": "API 키 관리 (최대 10개)",
+        "dialog_api_info": "무료 할당량을 극대화하려면 여러 개의 Gemini API 키를 등록하세요.\n작업(job)마다 아래 순서대로 키를 돌려가며 사용합니다.",
+        "api_key_label": "API 키 {index}:",
+        "api_key_ph_primary": "기본 API 키 (필수)",
+        "api_key_ph_extra": "추가 API 키 {index}",
+        "api_key_ph_secondary_suffix": " (gemini_api_key2로 사용)",
+        "btn_save": "저장",
+        "btn_close": "닫기",
+
+        "file_lang_group_title": "파일 및 언어 설정",
+        "lbl_task_mode": "작업 모드:",
+        "task_mode_translate": "자막 번역 (Translate SRT/ASS)",
+        "task_mode_transcribe": "비디오/오디오 전사 (Transcribe to SRT)",
+        "btn_files": "입력 SRT/ASS 파일 선택 (번역용)",
+        "btn_out": "출력 폴더 선택",
+        "btn_video_file": "비디오 파일 선택 (다중 가능)",
+        "lst_video_files_tt": "전사 타겟(순차 처리) 또는 번역 컨텍스트로 사용될 비디오 파일 목록",
+        "btn_audio_file": "오디오 파일 선택",
+        "lbl_audio_file_ph": "오디오 파일 (전사 타겟 또는 번역 컨텍스트)",
+        "lbl_target_lang": "출력 대상 언어:",
+        "btn_all_lang": "전체 선택",
+        "btn_none_lang": "전체 해제",
+        "cmb_langs_ph": "언어를 선택하세요...",
+
+        "main_options_group_title": "기본 설정",
+        "btn_fetch": "모델 가져오기",
+        "lbl_model": "사용 모델:",
+        "chk_append_lang": "출력 파일명에 언어명 접미사 추가",
+        "lbl_batch": "배치 크기:",
+        "lbl_prompt": "프롬프트/지침 입력 (선택):",
+        "txt_desc_ph": "번역/전사 시 AI가 참고할 문맥을 입력하세요.",
+
+        "btn_advanced": "⚙ 고급 설정 및 튜닝 (v3.7.1 기능) 열기",
+        "advanced_dialog_title": "고급 설정 및 튜닝 (v3.7.1 기능)",
+        "lbl_service_tier": "서비스 티어:",
+        "lbl_start_line": "시작 라인:",
+        "spin_default": "기본값",
+        "lbl_thinking_budget": "사고 예산:",
+        "lbl_audio_chunk": "오디오청크:",
+        "lbl_thinking_level": "사고 수준:",
+        "spin_resume_default": "기본값 (자동)",
+        "lbl_resume_help": "(중단 후 재개 시 컨텍스트 크기)",
+        "chk_streaming": "스트리밍",
+        "chk_thinking": "사고기능",
+        "chk_preserve_context": "문맥 유지",
+        "chk_isolate_voice": "보이스 격리",
+        "chk_extract_audio": "번역 전 추출",
+        "chk_free": "무료 쿼터",
+        "chk_token_stats": "토큰 실시간 통계",
+        "chk_token_report": "비용 리포트 저장 (.json)",
+        "chk_thoughts_log": "사고 로그",
+
+        "action_log_group_title": "터미널 출력 (VT100 Engine)",
+        "btn_start": "🚀 작업 시작",
+        "btn_stop": "🛑 작업 중단",
+        "progress_idle": "대기 중",
+        "progress_format": "{current} / {total} 완료",
+        "progress_format_err": "{current} / {total} 완료 (오류 발생)",
+        "progress_completed": "완료",
+        "progress_interrupted": "{current} / {total} (중단됨)",
+
+        "dlg_exit_title": "종료 확인",
+        "dlg_exit_msg": "작업이 진행 중입니다. 프로그램을 종료하시겠습니까?\n\n(현재 작업은 중단되며, 재개 기능으로 나중에 이어서 할 수 있습니다.)",
+        "dlg_need_api_key_title": "API 키 필요",
+        "dlg_need_api_key_msg": "기본 API 키(1)가 필요합니다.",
+        "dlg_need_api_key_msg_all": "API 키를 하나 이상 입력해야 합니다.",
+        "dlg_need_media_title": "미디어 필요",
+        "dlg_need_media_msg": "전사할 대상 비디오/오디오 파일을 선택하세요.",
+        "dlg_need_file_title": "파일 필요",
+        "dlg_need_file_msg": "번역할 SRT/ASS 파일을 선택하세요.",
+        "dlg_need_output_err_title": "출력 폴더 오류",
+        "dlg_need_output_err_msg": "출력 폴더를 생성할 수 없습니다:\n{err}",
+        "dlg_need_model_title": "모델 선택",
+        "dlg_need_model_msg": "사용할 모델을 선택하세요.",
+        "dlg_need_lang_title": "언어 선택",
+        "dlg_need_lang_msg": "대상 언어를 하나 이상 선택하세요.",
+        "dlg_job_failed_title": "작업 생성 실패",
+        "dlg_job_failed_msg": "생성된 작업이 없습니다.",
+        "dlg_in_progress_title": "작업 중",
+        "dlg_in_progress_msg": "이미 작업이 진행 중입니다.",
+
+        "log_settings_loaded": "설정이 성공적으로 로드되었습니다.",
+        "log_models_fetched": "모델 업데이트 완료: {count}개",
+        "log_models_fetch_err": "[오류] 모델 로딩 실패: {err}",
+        "log_user_stop": "==== 🛑 사용자 중단 요청 (현재 진행 중인 배치 마무리 후 안전하게 종료됩니다) ====",
+        "log_all_done": "==== ✅ 모든 작업 완료 ====",
+        "log_interrupted": "==== ⚠️ 작업 중단됨 (미완료: {count}개) ====",
+        "log_skipped": "==== ⚠️ 일부 작업 누락됨 ({completed}/{total}) ====",
+        "log_job_success": "[성공] ({current}/{total}): [{lang}] {file}",
+        "log_job_fail": "[실패] ({current}/{total}): {err}",
+
+        "fd_select_video": "비디오 파일 선택 (다중 선택 가능)",
+        "fd_select_audio": "오디오 파일 선택",
+        "fd_select_srt": "SRT/ASS 파일 선택",
+        "fd_select_out": "출력 폴더 선택",
+    },
+    "en": {
+        "app_title": "Gemini SRT Translator GUI (Pyte Terminal)",
+        "api_group_title": "API Key Settings",
+        "btn_manage_api_keys": "Manage API Keys...",
+        "lbl_api_keys_summary": "Registered Keys: {filled} / {total}",
+        "lbl_app_lang": "Language:",
+        "chk_use_enterprise": "Use Agent Platform (Enterprise)",
+        "cloud_project_label": "Cloud Project:",
+        "cloud_project_ph": "Google Cloud Project ID (ADC)",
+        "cloud_api_key_label": "Cloud API Key:",
+        "cloud_api_key_ph": "Google Cloud API Key (Express)",
+        "cloud_location_label": "Cloud Location:",
+        "cloud_location_ph": "Region (Default: global)",
+        "request_type_label": "Request Type:",
+        "btn_save_api": "Save Settings",
+
+        "dialog_api_title": "Manage API Keys (Max 10)",
+        "dialog_api_info": "Register multiple Gemini API keys to maximize free quota allocation.\nKeys will be rotated sequentially for each job.",
+        "api_key_label": "API Key {index}:",
+        "api_key_ph_primary": "Primary API Key (Required)",
+        "api_key_ph_extra": "Additional API Key {index}",
+        "api_key_ph_secondary_suffix": " (Used as gemini_api_key2)",
+        "btn_save": "Save",
+        "btn_close": "Close",
+
+        "file_lang_group_title": "File & Language Settings",
+        "lbl_task_mode": "Task Mode:",
+        "task_mode_translate": "Subtitle Translation (Translate SRT/ASS)",
+        "task_mode_transcribe": "Video/Audio Transcription (Transcribe to SRT)",
+        "btn_files": "Select Input SRT/ASS Files (Translate)",
+        "btn_out": "Select Output Folder",
+        "btn_video_file": "Select Video Files (Multiple allowed)",
+        "lst_video_files_tt": "List of video files used as transcription targets or translation contexts",
+        "btn_audio_file": "Select Audio File",
+        "lbl_audio_file_ph": "Audio file (Transcription target or translation context)",
+        "lbl_target_lang": "Target Languages:",
+        "btn_all_lang": "Select All",
+        "btn_none_lang": "Deselect All",
+        "cmb_langs_ph": "Select languages...",
+
+        "main_options_group_title": "Basic Settings",
+        "btn_fetch": "Fetch Models",
+        "lbl_model": "Model:",
+        "chk_append_lang": "Append language suffix to output filename",
+        "lbl_batch": "Batch Size:",
+        "lbl_prompt": "Prompt / Instructions (Optional):",
+        "txt_desc_ph": "Enter context or guidelines for AI to reference during translation/transcription.",
+
+        "btn_advanced": "⚙ Open Advanced Settings & Tuning (v3.7.1)",
+        "advanced_dialog_title": "Advanced Settings & Tuning (v3.7.1)",
+        "lbl_service_tier": "Service Tier:",
+        "lbl_start_line": "Start Line:",
+        "spin_default": "Default",
+        "lbl_thinking_budget": "Thinking Budget:",
+        "lbl_audio_chunk": "Audio Chunk:",
+        "lbl_thinking_level": "Thinking Level:",
+        "spin_resume_default": "Default (Auto)",
+        "lbl_resume_help": "(Context size on resume)",
+        "chk_streaming": "Streaming",
+        "chk_thinking": "Thinking",
+        "chk_preserve_context": "Preserve Context",
+        "chk_isolate_voice": "Voice Isolation",
+        "chk_extract_audio": "Extract Audio First",
+        "chk_free": "Free Quota",
+        "chk_token_stats": "Real-time Token Stats",
+        "chk_token_report": "Save Cost Report (.json)",
+        "chk_thoughts_log": "Thinking Log",
+
+        "action_log_group_title": "Terminal Output (VT100 Engine)",
+        "btn_start": "🚀 Start Task",
+        "btn_stop": "🛑 Stop Task",
+        "progress_idle": "Idle",
+        "progress_format": "{current} / {total} Completed",
+        "progress_format_err": "{current} / {total} Completed (Errors)",
+        "progress_completed": "Completed",
+        "progress_interrupted": "{current} / {total} (Interrupted)",
+
+        "dlg_exit_title": "Confirm Exit",
+        "dlg_exit_msg": "A task is currently running. Do you want to exit?\n\n(Current progress will be stopped and can be resumed later.)",
+        "dlg_need_api_key_title": "API Key Required",
+        "dlg_need_api_key_msg": "Primary API Key (1) is required.",
+        "dlg_need_api_key_msg_all": "At least one API key must be entered.",
+        "dlg_need_media_title": "Media Required",
+        "dlg_need_media_msg": "Please select target video/audio file for transcription.",
+        "dlg_need_file_title": "File Required",
+        "dlg_need_file_msg": "Please select SRT/ASS file to translate.",
+        "dlg_need_output_err_title": "Output Folder Error",
+        "dlg_need_output_err_msg": "Cannot create output folder:\n{err}",
+        "dlg_need_model_title": "Model Selection",
+        "dlg_need_model_msg": "Please select a model to use.",
+        "dlg_need_lang_title": "Language Selection",
+        "dlg_need_lang_msg": "Please select at least one target language.",
+        "dlg_job_failed_title": "Job Creation Failed",
+        "dlg_job_failed_msg": "No jobs were created.",
+        "dlg_in_progress_title": "Task Running",
+        "dlg_in_progress_msg": "A task is already running.",
+
+        "log_settings_loaded": "Settings loaded successfully.",
+        "log_models_fetched": "Model update completed: {count} models",
+        "log_models_fetch_err": "[Error] Model loading failed: {err}",
+        "log_user_stop": "==== 🛑 User stop requested (Safely shutting down after completing current batch) ====",
+        "log_all_done": "==== ✅ All tasks completed ====",
+        "log_interrupted": "==== ⚠️ Task interrupted (Incomplete: {count}) ====",
+        "log_skipped": "==== ⚠️ Some tasks were skipped ({completed}/{total}) ====",
+        "log_job_success": "[Success] ({current}/{total}): [{lang}] {file}",
+        "log_job_fail": "[Failed] ({current}/{total}): {err}",
+
+        "fd_select_video": "Select Video Files (Multiple allowed)",
+        "fd_select_audio": "Select Audio File",
+        "fd_select_srt": "Select SRT/ASS Files",
+        "fd_select_out": "Select Output Folder",
+    }
+}
+
+
+# =====================================================================
 # [메인 GUI 애플리케이션]
 # =====================================================================
 class TranslatorApp(QWidget):
@@ -771,17 +1003,11 @@ class TranslatorApp(QWidget):
         self._stop_requested = False
         self.video_file_paths = []
         self.audio_file_path = ""
+        self.app_lang = "ko"
 
         self.init_ui()
         self.load_settings()
 
-        # =============================================================
-        # [패치] 빌드 후 "모델 가져오기"/"작업 시작" 버튼이 계속 비활성화
-        # 상태로 남아 있다면 대부분 gemini-srt-translator 또는
-        # google-genai 라이브러리 로드 실패가 원인이다. --windowed로
-        # 빌드하면 콘솔이 없어 print() 경고를 볼 수 없으므로, 여기서
-        # 팝업으로 정확한 원인을 사용자에게 보여준다.
-        # =============================================================
         if GST_IMPORT_ERROR or GENAI_IMPORT_ERROR:
             msg = ""
             if GST_IMPORT_ERROR:
@@ -795,6 +1021,176 @@ class TranslatorApp(QWidget):
                     f"오류 내용: {GENAI_IMPORT_ERROR}\n"
                 )
             QMessageBox.warning(self, "라이브러리 로드 경고", msg)
+
+    def tr_str(self, key, **kwargs):
+        lang = getattr(self, "app_lang", "ko")
+        template = I18N.get(lang, I18N["ko"]).get(key, I18N["ko"].get(key, key))
+        if kwargs:
+            try:
+                return template.format(**kwargs)
+            except Exception:
+                return template
+        return template
+
+    def _on_app_lang_changed(self, index):
+        self.app_lang = "ko" if index == 0 else "en"
+        self.update_ui_language()
+        self.save_settings()
+
+    def update_ui_language(self):
+        self.setWindowTitle(self.tr_str("app_title"))
+        if hasattr(self, 'api_group'):
+            self.api_group.setTitle(self.tr_str("api_group_title"))
+        if hasattr(self, 'btn_manage_api_keys'):
+            self.btn_manage_api_keys.setText(self.tr_str("btn_manage_api_keys"))
+        if hasattr(self, 'lbl_app_lang'):
+            self.lbl_app_lang.setText(self.tr_str("lbl_app_lang"))
+        self._update_api_keys_summary()
+        if hasattr(self, 'chk_use_enterprise'):
+            self.chk_use_enterprise.setText(self.tr_str("chk_use_enterprise"))
+        if hasattr(self, 'cloud_project_label'):
+            self.cloud_project_label.setText(self.tr_str("cloud_project_label"))
+        if hasattr(self, 'cloud_project_input'):
+            self.cloud_project_input.setPlaceholderText(self.tr_str("cloud_project_ph"))
+        if hasattr(self, 'cloud_api_key_label'):
+            self.cloud_api_key_label.setText(self.tr_str("cloud_api_key_label"))
+        if hasattr(self, 'cloud_api_key_input'):
+            self.cloud_api_key_input.setPlaceholderText(self.tr_str("cloud_api_key_ph"))
+        if hasattr(self, 'cloud_location_label'):
+            self.cloud_location_label.setText(self.tr_str("cloud_location_label"))
+        if hasattr(self, 'cloud_location_input'):
+            self.cloud_location_input.setPlaceholderText(self.tr_str("cloud_location_ph"))
+        if hasattr(self, 'request_type_label'):
+            self.request_type_label.setText(self.tr_str("request_type_label"))
+        if hasattr(self, 'btn_save_api'):
+            self.btn_save_api.setText(self.tr_str("btn_save_api"))
+
+        # API Key Dialog
+        if hasattr(self, 'api_keys_dialog'):
+            self.api_keys_dialog.setWindowTitle(self.tr_str("dialog_api_title"))
+        if hasattr(self, 'dialog_info_label'):
+            self.dialog_info_label.setText(self.tr_str("dialog_api_info"))
+        if hasattr(self, 'api_key_labels') and hasattr(self, 'api_key_inputs'):
+            for i in range(NUM_API_KEYS):
+                if i < len(self.api_key_labels):
+                    self.api_key_labels[i].setText(self.tr_str("api_key_label", index=i+1))
+                if i < len(self.api_key_inputs):
+                    ph = self.tr_str("api_key_ph_primary") if i == 0 else self.tr_str("api_key_ph_extra", index=i+1)
+                    if i == 1:
+                        ph += self.tr_str("api_key_ph_secondary_suffix")
+                    self.api_key_inputs[i].setPlaceholderText(ph)
+        if hasattr(self, 'btn_dialog_save'):
+            self.btn_dialog_save.setText(self.tr_str("btn_save"))
+        if hasattr(self, 'btn_dialog_close'):
+            self.btn_dialog_close.setText(self.tr_str("btn_close"))
+
+        # File & Language Group
+        if hasattr(self, 'file_lang_group'):
+            self.file_lang_group.setTitle(self.tr_str("file_lang_group_title"))
+        if hasattr(self, 'lbl_task_mode'):
+            self.lbl_task_mode.setText(self.tr_str("lbl_task_mode"))
+        if hasattr(self, 'cmb_task_mode'):
+            self.cmb_task_mode.setItemText(0, self.tr_str("task_mode_translate"))
+            self.cmb_task_mode.setItemText(1, self.tr_str("task_mode_transcribe"))
+        if hasattr(self, 'btn_files'):
+            self.btn_files.setText(self.tr_str("btn_files"))
+        if hasattr(self, 'btn_out'):
+            self.btn_out.setText(self.tr_str("btn_out"))
+        if hasattr(self, 'btn_video_file'):
+            self.btn_video_file.setText(self.tr_str("btn_video_file"))
+        if hasattr(self, 'lst_video_files'):
+            self.lst_video_files.setToolTip(self.tr_str("lst_video_files_tt"))
+        if hasattr(self, 'btn_audio_file'):
+            self.btn_audio_file.setText(self.tr_str("btn_audio_file"))
+        if hasattr(self, 'lbl_audio_file'):
+            self.lbl_audio_file.setPlaceholderText(self.tr_str("lbl_audio_file_ph"))
+        if hasattr(self, 'lbl_target_lang'):
+            self.lbl_target_lang.setText(self.tr_str("lbl_target_lang"))
+        if hasattr(self, 'btn_all_lang'):
+            self.btn_all_lang.setText(self.tr_str("btn_all_lang"))
+        if hasattr(self, 'btn_none_lang'):
+            self.btn_none_lang.setText(self.tr_str("btn_none_lang"))
+        if hasattr(self, 'cmb_langs'):
+            self.cmb_langs.set_placeholder_text(self.tr_str("cmb_langs_ph"))
+
+        # Main Options Group
+        if hasattr(self, 'main_options_group'):
+            self.main_options_group.setTitle(self.tr_str("main_options_group_title"))
+        if hasattr(self, 'btn_fetch'):
+            self.btn_fetch.setText(self.tr_str("btn_fetch"))
+        if hasattr(self, 'lbl_model'):
+            self.lbl_model.setText(self.tr_str("lbl_model"))
+        if hasattr(self, 'chk_append_lang'):
+            self.chk_append_lang.setText(self.tr_str("chk_append_lang"))
+        if hasattr(self, 'lbl_batch'):
+            self.lbl_batch.setText(self.tr_str("lbl_batch"))
+        if hasattr(self, 'lbl_prompt'):
+            self.lbl_prompt.setText(self.tr_str("lbl_prompt"))
+        if hasattr(self, 'txt_desc'):
+            self.txt_desc.setPlaceholderText(self.tr_str("txt_desc_ph"))
+
+        # Advanced Settings Dialog
+        if hasattr(self, 'btn_advanced'):
+            self.btn_advanced.setText(self.tr_str("btn_advanced"))
+        if hasattr(self, 'advanced_dialog'):
+            self.advanced_dialog.setWindowTitle(self.tr_str("advanced_dialog_title"))
+        if hasattr(self, 'lbl_service_tier'):
+            self.lbl_service_tier.setText(self.tr_str("lbl_service_tier"))
+        if hasattr(self, 'lbl_start_line'):
+            self.lbl_start_line.setText(self.tr_str("lbl_start_line"))
+        if hasattr(self, 'spin_temp'):
+            self.spin_temp.setSpecialValueText(self.tr_str("spin_default"))
+        if hasattr(self, 'spin_top_p'):
+            self.spin_top_p.setSpecialValueText(self.tr_str("spin_default"))
+        if hasattr(self, 'spin_top_k'):
+            self.spin_top_k.setSpecialValueText(self.tr_str("spin_default"))
+        if hasattr(self, 'lbl_thinking_budget'):
+            self.lbl_thinking_budget.setText(self.tr_str("lbl_thinking_budget"))
+        if hasattr(self, 'lbl_audio_chunk'):
+            self.lbl_audio_chunk.setText(self.tr_str("lbl_audio_chunk"))
+        if hasattr(self, 'lbl_thinking_level'):
+            self.lbl_thinking_level.setText(self.tr_str("lbl_thinking_level"))
+        if hasattr(self, 'spin_resume_context'):
+            self.spin_resume_context.setSpecialValueText(self.tr_str("spin_resume_default"))
+        if hasattr(self, 'lbl_resume_help'):
+            self.lbl_resume_help.setText(self.tr_str("lbl_resume_help"))
+        if hasattr(self, 'chk_streaming'):
+            self.chk_streaming.setText(self.tr_str("chk_streaming"))
+        if hasattr(self, 'chk_thinking'):
+            self.chk_thinking.setText(self.tr_str("chk_thinking"))
+        if hasattr(self, 'chk_preserve_context'):
+            self.chk_preserve_context.setText(self.tr_str("chk_preserve_context"))
+        if hasattr(self, 'chk_isolate_voice'):
+            self.chk_isolate_voice.setText(self.tr_str("chk_isolate_voice"))
+        if hasattr(self, 'chk_extract_audio'):
+            self.chk_extract_audio.setText(self.tr_str("chk_extract_audio"))
+        if hasattr(self, 'chk_free'):
+            self.chk_free.setText(self.tr_str("chk_free"))
+        if hasattr(self, 'chk_token_stats'):
+            self.chk_token_stats.setText(self.tr_str("chk_token_stats"))
+        if hasattr(self, 'chk_token_report'):
+            self.chk_token_report.setText(self.tr_str("chk_token_report"))
+        if hasattr(self, 'chk_thoughts_log'):
+            self.chk_thoughts_log.setText(self.tr_str("chk_thoughts_log"))
+        if hasattr(self, 'btn_adv_close'):
+            self.btn_adv_close.setText(self.tr_str("btn_close"))
+
+        # Action & Log Group
+        if hasattr(self, 'action_log_group'):
+            self.action_log_group.setTitle(self.tr_str("action_log_group_title"))
+        if hasattr(self, 'btn_start'):
+            self.btn_start.setText(self.tr_str("btn_start"))
+        if hasattr(self, 'btn_stop'):
+            self.btn_stop.setText(self.tr_str("btn_stop"))
+
+        if hasattr(self, 'progress_bar'):
+            if not (self.translation_worker and self.translation_worker.isRunning()):
+                if self.completed_jobs == 0:
+                    self.progress_bar.setFormat(self.tr_str("progress_idle"))
+                elif self.completed_jobs >= self.total_jobs and self.total_jobs > 0:
+                    self.progress_bar.setFormat(self.tr_str("progress_completed"))
+                elif self.total_jobs > 0:
+                    self.progress_bar.setFormat(self.tr_str("progress_interrupted", current=self.completed_jobs, total=self.total_jobs))
 
     def init_ui(self):
         self.setWindowTitle(APP_NAME)
@@ -819,7 +1215,7 @@ class TranslatorApp(QWidget):
         self.setLayout(main_layout)
 
     def _create_api_group(self, parent_layout):
-        api_group = QGroupBox("API 키 설정")
+        self.api_group = QGroupBox("API 키 설정")
         api_layout = QFormLayout()
         self.api_key_inputs = []
         self.api_key_labels = []
@@ -830,8 +1226,17 @@ class TranslatorApp(QWidget):
         self.btn_manage_api_keys = QPushButton("API 키 관리...")
         self.btn_manage_api_keys.clicked.connect(self._open_api_keys_dialog)
         self.lbl_api_keys_summary = QLabel("등록된 키: 0 / " + str(NUM_API_KEYS))
+        
+        self.lbl_app_lang = QLabel("언어/Lang:")
+        self.cmb_app_lang = QComboBox()
+        self.cmb_app_lang.addItems(["한국어", "English"])
+        self.cmb_app_lang.currentIndexChanged.connect(self._on_app_lang_changed)
+
         api_keys_row.addWidget(self.btn_manage_api_keys)
         api_keys_row.addWidget(self.lbl_api_keys_summary)
+        api_keys_row.addSpacing(15)
+        api_keys_row.addWidget(self.lbl_app_lang)
+        api_keys_row.addWidget(self.cmb_app_lang)
         api_keys_row.addStretch()
         api_layout.addRow(api_keys_row)
 
@@ -868,8 +1273,8 @@ class TranslatorApp(QWidget):
         self.btn_save_api = QPushButton("설정 저장")
         self.btn_save_api.clicked.connect(self.save_settings)
         api_layout.addRow(self.btn_save_api)
-        api_group.setLayout(api_layout)
-        parent_layout.addWidget(api_group)
+        self.api_group.setLayout(api_layout)
+        parent_layout.addWidget(self.api_group)
 
     def _build_api_keys_dialog(self):
         dialog = QDialog(self)
@@ -878,12 +1283,12 @@ class TranslatorApp(QWidget):
 
         outer_layout = QVBoxLayout(dialog)
 
-        info_label = QLabel(
+        self.dialog_info_label = QLabel(
             "무료 할당량을 극대화하려면 여러 개의 Gemini API 키를 등록하세요.\n"
             "작업(job)마다 아래 순서대로 키를 돌려가며 사용합니다."
         )
-        info_label.setWordWrap(True)
-        outer_layout.addWidget(info_label)
+        self.dialog_info_label.setWordWrap(True)
+        outer_layout.addWidget(self.dialog_info_label)
 
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
@@ -911,13 +1316,13 @@ class TranslatorApp(QWidget):
         outer_layout.addWidget(scroll)
 
         btn_row = QHBoxLayout()
-        btn_save = QPushButton("저장")
-        btn_save.clicked.connect(self.save_settings)
-        btn_close = QPushButton("닫기")
-        btn_close.clicked.connect(dialog.accept)
+        self.btn_dialog_save = QPushButton("저장")
+        self.btn_dialog_save.clicked.connect(self.save_settings)
+        self.btn_dialog_close = QPushButton("닫기")
+        self.btn_dialog_close.clicked.connect(dialog.accept)
         btn_row.addStretch()
-        btn_row.addWidget(btn_save)
-        btn_row.addWidget(btn_close)
+        btn_row.addWidget(self.btn_dialog_save)
+        btn_row.addWidget(self.btn_dialog_close)
         outer_layout.addLayout(btn_row)
 
         dialog.resize(480, 500)
@@ -930,7 +1335,9 @@ class TranslatorApp(QWidget):
 
     def _update_api_keys_summary(self):
         filled = sum(1 for le in self.api_key_inputs if le.text().strip())
-        self.lbl_api_keys_summary.setText(f"등록된 키: {filled} / {NUM_API_KEYS}")
+        self.lbl_api_keys_summary.setText(
+            self.tr_str("lbl_api_keys_summary", filled=filled, total=NUM_API_KEYS)
+        )
 
     def _set_enterprise_visible(self, visible):
         widgets = [
@@ -946,11 +1353,12 @@ class TranslatorApp(QWidget):
         self._set_enterprise_visible(state == Qt.CheckState.Checked.value)
 
     def _create_file_lang_group(self, parent_layout):
-        group = QGroupBox("파일 및 언어 설정")
+        self.file_lang_group = QGroupBox("파일 및 언어 설정")
         layout = QVBoxLayout()
 
         task_mode_layout = QHBoxLayout()
-        task_mode_layout.addWidget(QLabel("작업 모드:"))
+        self.lbl_task_mode = QLabel("작업 모드:")
+        task_mode_layout.addWidget(self.lbl_task_mode)
         self.cmb_task_mode = QComboBox()
         self.cmb_task_mode.addItems([
             "자막 번역 (Translate SRT/ASS)",
@@ -960,11 +1368,6 @@ class TranslatorApp(QWidget):
         task_mode_layout.addWidget(self.cmb_task_mode, 1)
         layout.addLayout(task_mode_layout)
 
-        # ---------------------------------------------------------------
-        # [버그 수정] 비디오 파일 선택에는 있던 "X"(목록 지우기) 버튼이
-        # 자막(SRT/ASS) 파일 선택 줄에는 누락되어 있었다. 동일한 형태로
-        # btn_clear_files를 추가하고 clear_input_files와 연결한다.
-        # ---------------------------------------------------------------
         input_layout = QHBoxLayout()
         self.btn_files = QPushButton("입력 SRT/ASS 파일 선택 (번역용)")
         self.btn_files.clicked.connect(self.select_input_files)
@@ -1025,7 +1428,8 @@ class TranslatorApp(QWidget):
         layout.addWidget(line)
 
         lang_header_layout = QHBoxLayout()
-        lang_header_layout.addWidget(QLabel("출력 대상 언어:"))
+        self.lbl_target_lang = QLabel("출력 대상 언어:")
+        lang_header_layout.addWidget(self.lbl_target_lang)
         lang_header_layout.addStretch()
         self.btn_all_lang = QPushButton("전체 선택")
         self.btn_all_lang.clicked.connect(self.select_all_languages)
@@ -1039,8 +1443,8 @@ class TranslatorApp(QWidget):
         for lang in TARGET_LANGUAGES:
             self.cmb_langs.addItem(lang)
         layout.addWidget(self.cmb_langs)
-        group.setLayout(layout)
-        parent_layout.addWidget(group)
+        self.file_lang_group.setLayout(layout)
+        parent_layout.addWidget(self.file_lang_group)
 
     def _on_task_mode_changed(self, index):
         is_transcribe = (index == 1)
@@ -1055,7 +1459,7 @@ class TranslatorApp(QWidget):
             self.btn_audio_file.setStyleSheet("")
 
     def _create_main_options_group(self, parent_layout):
-        group = QGroupBox("기본 설정")
+        self.main_options_group = QGroupBox("기본 설정")
         form_layout = QFormLayout()
 
         model_layout = QHBoxLayout()
@@ -1067,7 +1471,8 @@ class TranslatorApp(QWidget):
         self.cmb_model.addItem(DEFAULT_MODEL)
         model_layout.addWidget(self.btn_fetch)
         model_layout.addWidget(self.cmb_model, 1)
-        form_layout.addRow("사용 모델:", model_layout)
+        self.lbl_model = QLabel("사용 모델:")
+        form_layout.addRow(self.lbl_model, model_layout)
 
         self.chk_append_lang = QCheckBox("출력 파일명에 언어명 접미사 추가")
         self.chk_append_lang.setChecked(True)
@@ -1079,28 +1484,29 @@ class TranslatorApp(QWidget):
         self.spin_batch.setValue(DEFAULT_BATCH_SIZE)
         batch_layout.addWidget(self.spin_batch)
         batch_layout.addStretch()
-        form_layout.addRow("배치 크기:", batch_layout)
+        self.lbl_batch = QLabel("배치 크기:")
+        form_layout.addRow(self.lbl_batch, batch_layout)
 
-        label_prompt = QLabel("프롬프트/지침 입력 (선택):")
+        self.lbl_prompt = QLabel("프롬프트/지침 입력 (선택):")
         self.txt_desc = QTextEdit()
         self.txt_desc.setMinimumHeight(60)
         self.txt_desc.setMaximumHeight(80)
         self.txt_desc.setPlaceholderText("번역/전사 시 AI가 참고할 문맥을 입력하세요.")
-        form_layout.addRow(label_prompt)
+        form_layout.addRow(self.lbl_prompt)
         form_layout.addRow(self.txt_desc)
 
-        group.setLayout(form_layout)
-        parent_layout.addWidget(group)
+        self.main_options_group.setLayout(form_layout)
+        parent_layout.addWidget(self.main_options_group)
 
     def _create_options_group(self, parent_layout):
         btn_layout = QHBoxLayout()
-        self.btn_advanced = QPushButton("⚙ 고급 설정 및 튜닝 (v3.6.2 기능) 열기")
+        self.btn_advanced = QPushButton("⚙ 고급 설정 및 튜닝 (v3.7.1 기능) 열기")
         self.btn_advanced.clicked.connect(self.open_advanced_settings)
         btn_layout.addWidget(self.btn_advanced)
         parent_layout.addLayout(btn_layout)
 
         self.advanced_dialog = QDialog(self)
-        self.advanced_dialog.setWindowTitle("고급 설정 및 튜닝 (v3.6.2 기능)")
+        self.advanced_dialog.setWindowTitle("고급 설정 및 튜닝 (v3.7.1 기능)")
         self.advanced_dialog.setMinimumWidth(440)
         dialog_layout = QVBoxLayout(self.advanced_dialog)
 
@@ -1111,7 +1517,8 @@ class TranslatorApp(QWidget):
         self.cmb_service_tier.addItems(["Default", "standard", "flex", "priority"])
         service_layout.addWidget(self.cmb_service_tier)
         service_layout.addStretch()
-        main_form_layout.addRow("서비스 티어:", service_layout)
+        self.lbl_service_tier = QLabel("서비스 티어:")
+        main_form_layout.addRow(self.lbl_service_tier, service_layout)
 
         start_layout = QHBoxLayout()
         self.spin_start = QSpinBox()
@@ -1119,7 +1526,8 @@ class TranslatorApp(QWidget):
         self.spin_start.setValue(1)
         start_layout.addWidget(self.spin_start)
         start_layout.addStretch()
-        main_form_layout.addRow("시작 라인:", start_layout)
+        self.lbl_start_line = QLabel("시작 라인:")
+        main_form_layout.addRow(self.lbl_start_line, start_layout)
 
         tuning_grid_layout = QFormLayout()
 
@@ -1131,7 +1539,8 @@ class TranslatorApp(QWidget):
         self.spin_temp.setSpecialValueText("기본값")
         temp_top_p_layout.addWidget(self.spin_temp)
         temp_top_p_layout.addSpacing(10)
-        temp_top_p_layout.addWidget(QLabel("Top_p:"))
+        self.lbl_top_p = QLabel("Top_p:")
+        temp_top_p_layout.addWidget(self.lbl_top_p)
         self.spin_top_p = QDoubleSpinBox()
         self.spin_top_p.setRange(0.0, 1.0)
         self.spin_top_p.setValue(1.0)
@@ -1147,7 +1556,8 @@ class TranslatorApp(QWidget):
         self.spin_top_k.setSpecialValueText("기본값")
         top_k_budget_layout.addWidget(self.spin_top_k)
         top_k_budget_layout.addSpacing(10)
-        top_k_budget_layout.addWidget(QLabel("사고 예산:"))
+        self.lbl_thinking_budget = QLabel("사고 예산:")
+        top_k_budget_layout.addWidget(self.lbl_thinking_budget)
         self.spin_thinking_budget = QSpinBox()
         self.spin_thinking_budget.setRange(0, 32768)
         self.spin_thinking_budget.setValue(2048)
@@ -1159,12 +1569,14 @@ class TranslatorApp(QWidget):
         self.cmb_thinking_level.addItems(["Default", "Minimal", "Low", "Medium", "High"])
         level_layout.addWidget(self.cmb_thinking_level)
         level_layout.addSpacing(10)
-        level_layout.addWidget(QLabel("오디오청크:"))
+        self.lbl_audio_chunk = QLabel("오디오청크:")
+        level_layout.addWidget(self.lbl_audio_chunk)
         self.spin_audio_chunk = QSpinBox()
         self.spin_audio_chunk.setRange(60, 3600)
         self.spin_audio_chunk.setValue(300)
         level_layout.addWidget(self.spin_audio_chunk)
-        tuning_grid_layout.addRow("사고 수준:", level_layout)
+        self.lbl_thinking_level = QLabel("사고 수준:")
+        tuning_grid_layout.addRow(self.lbl_thinking_level, level_layout)
         main_form_layout.addRow(tuning_grid_layout)
 
         resume_layout = QHBoxLayout()
@@ -1173,9 +1585,11 @@ class TranslatorApp(QWidget):
         self.spin_resume_context.setValue(0)
         self.spin_resume_context.setSpecialValueText("기본값 (자동)")
         resume_layout.addWidget(self.spin_resume_context)
-        resume_layout.addWidget(QLabel("(중단 후 재개 시 컨텍스트 크기)"))
+        self.lbl_resume_help = QLabel("(중단 후 재개 시 컨텍스트 크기)")
+        resume_layout.addWidget(self.lbl_resume_help)
         resume_layout.addStretch()
-        main_form_layout.addRow("Resume Context:", resume_layout)
+        self.lbl_resume_context = QLabel("Resume Context:")
+        main_form_layout.addRow(self.lbl_resume_context, resume_layout)
 
         box1 = QHBoxLayout()
         self.chk_streaming = QCheckBox("스트리밍")
@@ -1217,16 +1631,16 @@ class TranslatorApp(QWidget):
 
         dialog_btn_layout = QHBoxLayout()
         dialog_btn_layout.addStretch()
-        btn_close = QPushButton("닫기")
-        btn_close.clicked.connect(self.advanced_dialog.accept)
-        dialog_btn_layout.addWidget(btn_close)
+        self.btn_adv_close = QPushButton("닫기")
+        self.btn_adv_close.clicked.connect(self.advanced_dialog.accept)
+        dialog_btn_layout.addWidget(self.btn_adv_close)
         dialog_layout.addLayout(dialog_btn_layout)
 
     def open_advanced_settings(self):
         self.advanced_dialog.exec()
 
     def _create_action_log_group(self, parent_layout):
-        group = QGroupBox("터미널 출력 (VT100 Engine)")
+        self.action_log_group = QGroupBox("터미널 출력 (VT100 Engine)")
         layout = QVBoxLayout()
 
         self.progress_bar = QProgressBar()
@@ -1257,8 +1671,8 @@ class TranslatorApp(QWidget):
         self.log_output = PyteTerminalWidget()
         self.log_output.setMinimumHeight(250)
         layout.addWidget(self.log_output)
-        group.setLayout(layout)
-        parent_layout.addWidget(group)
+        self.action_log_group.setLayout(layout)
+        parent_layout.addWidget(self.action_log_group)
 
     # ---------------------------------------------------------------
     # [버그 수정] 자막 파일 목록 지우기 메서드 (video/audio와 동일한 패턴)

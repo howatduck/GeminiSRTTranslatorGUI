@@ -63,11 +63,11 @@ python main.py
 
 ## 폴더/설정 저장 위치
 
-설정은 `QSettings(SETTINGS_ORG="HANDANG", SETTINGS_APP="GeminiSrtTranslatorGUI_v3_6_2")`를 통해 OS 표준 위치(Windows 레지스트리)에 저장됩니다.
+설정은 `QSettings(SETTINGS_ORG="HANDANG", SETTINGS_APP="GeminiSrtTranslatorGUI_v3_7_1")`를 통해 OS 표준 위치(Windows 레지스트리)에 저장됩니다.
 
 ## 주의 사항
 
 - API 키는 평문(Normal echo mode)으로 입력창에 표시됩니다. 화면 캡처나 공유 시 주의하세요.
 - Enterprise(Vertex AI) 모드 사용 시 별도의 Google Cloud Project / 인증 정보가 필요합니다.
-- 이 GUI는 [gemini-srt-translator](https://pypi.org/project/gemini-srt-translator/) 라이브러리의 v3.6.2 인터페이스에 맞춰 작성되었습니다.
+- 이 GUI는 [gemini-srt-translator](https://pypi.org/project/gemini-srt-translator/) 라이브러리의 v3.7.1 인터페이스에 맞춰 작성되었습니다.
 - 라이브러리 버전이 다르면 일부 옵션이 동작하지 않을 수 있습니다.
