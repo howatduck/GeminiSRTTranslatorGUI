@@ -693,13 +693,13 @@ class TranslationWorker(QThread):
                             if t_level != 'Default':
                                 translator_args['thinking_level'] = t_level.lower()
 
-                            for key, value in translator_args.items():
-                                setattr(gst, key, value)
+                            filtered_params = {k: v for k, v in translator_args.items() if v is not None}
+                            translator_instance = GeminiSRTTranslator(**filtered_params)
 
                             if is_transcribe_mode:
-                                gst.transcribe()
+                                translator_instance.transcribe()
                             else:
-                                gst.translate()
+                                translator_instance.translate()
 
                             job_successful = True
 
