@@ -175,12 +175,12 @@ if gst is not None:
             return srt_subs
 
         def _patched_save_subtitle_file(self, translated_subtitle: list, output_file: str):
-            # 싱크 버그 방지: 원본 파일을 재로드해서 index로 매핑하는 방식은
-            # AI가 줄을 병합/누락하면 타이밍이 어긋남.
-            # → 번역된 Subtitle 객체가 이미 정확한 start/end를 가지고 있으므로
-            #   이를 직접 SRT 형식으로 씀.
+            # 싱크 버그 방지: Subtitle 객체에 저장된 원본 start/end 타임스탬프를
+            # 직접 사용하여 SRT 형식으로 안전하게 기록
             def _ms_to_srt(td):
-                total_ms = int(td.total_seconds() * 1000)
+                total_ms = int(round(td.total_seconds() * 1000))
+                if total_ms < 0:
+                    total_ms = 0
                 h = total_ms // 3_600_000
                 m = (total_ms % 3_600_000) // 60_000
                 s = (total_ms % 60_000) // 1_000
@@ -190,22 +190,62 @@ if gst is not None:
             ext = os.path.splitext(output_file)[1].lower()
             if ext == ".srt":
                 lines = []
-                for sub in translated_subtitle:
+                for i, sub in enumerate(translated_subtitle, start=1):
                     start_str = _ms_to_srt(sub.start)
                     end_str = _ms_to_srt(sub.end)
-                    text = sub.content.replace(r"\N", "\n").replace(r"\n", "\n")
-                    lines.append(f"{sub.index}\n{start_str} --> {end_str}\n{text}\n")
+                    text = sub.content.replace(r"\N", "\n").replace(r"\n", "\n").strip("\r\n")
+                    lines.append(f"{i}\n{start_str} --> {end_str}\n{text}\n")
                 with open(output_file, "w", encoding="utf-8") as f:
-                    f.write("\n".join(lines))
+                    f.write("\n".join(lines) + "\n")
             else:
                 # ASS/SSA 등 다른 형식은 pysubs2를 사용하여 저장
                 subs = pysubs2.load(self.input_file, encoding="utf-8")
-                # index 매핑 대신 순서(position) 기반으로 매핑하여 싱크 보장
+                # 순서(position) 기반으로 매핑하여 싱크 보장
                 sorted_subs = sorted(translated_subtitle, key=lambda s: s.index)
                 for i, sub in enumerate(sorted_subs):
                     if i < len(subs):
                         subs[i].text = sub.content.replace("\n", r"\N")
                 subs.save(output_file, encoding="utf-8")
+
+        def _patched_process_translated_lines(
+            self,
+            translated_lines: list,
+            translated_subtitle: list,
+            batch: list,
+            finished: bool,
+        ) -> bool:
+            """
+            AI 응답 라인을 자막 객체에 매핑할 때,
+            배치 순서(position i)를 우선하여 AI 인덱스 왜곡(1-based, int/str 불일치)으로 인한
+            싱크 밀림 현상을 원천 방지
+            """
+            if not translated_lines:
+                raise ValueError("Gemini has returned an empty translation.")
+
+            last_translated_line = translated_lines[-1]
+            for i, line in enumerate(translated_lines):
+                if not isinstance(line, dict) or "text" not in line:
+                    if line != last_translated_line or finished:
+                        raise ValueError(f"Gemini has returned a malformed object at item {i + 1}.")
+                    else:
+                        continue
+
+                text = str(line.get("text", ""))
+
+                # 핵심: batch[i]의 고유 index를 우선 매핑하여 인덱스 왜곡/오프셋 방지
+                if i < len(batch):
+                    target_idx = int(batch[i]["index"])
+                else:
+                    try:
+                        target_idx = int(str(line.get("index", i)))
+                    except (ValueError, TypeError):
+                        target_idx = i
+
+                if 0 <= target_idx < len(translated_subtitle):
+                    if self._dominant_strong_direction(text) == "rtl":
+                        translated_subtitle[target_idx].content = f"\u202b{text}\u202c"
+                    else:
+                        translated_subtitle[target_idx].content = text
 
         def _patched_parse_response(self, response_text: str, batch: list) -> list:
             """LLM 응답을 안전하게 파싱하여 번역된 Subtitle 리스트 반환 (형변환 오류 완벽 방어)"""
@@ -233,16 +273,12 @@ if gst is not None:
             elif isinstance(parsed, list):
                 for item in parsed:
                     if isinstance(item, dict):
-                        # item = {"index": 1, "text": "..."} or {"1": "..."}
                         for k, v in item.items():
                             try:
                                 k_int = int(str(k).strip())
                                 translated_dict[k_int] = str(v)
                             except (ValueError, TypeError):
                                 pass
-                    elif isinstance(item, str):
-                        # 리스트 순서대로 매핑
-                        pass
 
             # batch의 각 subtitle에 매핑 (누락 시 원본 유지)
             result = []
@@ -267,6 +303,7 @@ if gst is not None:
 
         GeminiSRTTranslator._parse_subtitle_file = _patched_parse_subtitle_file
         GeminiSRTTranslator._save_subtitle_file = _patched_save_subtitle_file
+        GeminiSRTTranslator._process_translated_lines = _patched_process_translated_lines
         if hasattr(GeminiSRTTranslator, '_parse_response'):
             GeminiSRTTranslator._parse_response = _patched_parse_response
 
@@ -299,7 +336,7 @@ def _get_video_subtitle_streams(video_path: str) -> list:
     cmd = [
         "ffprobe", "-v", "error",
         "-select_streams", "s",
-        "-show_entries", "stream=index,codec_name:stream_tags=language,title",
+        "-show_entries", "stream=index,codec_name,disposition:stream_tags=language,title",
         "-of", "json",
         video_path
     ]
@@ -2492,14 +2529,35 @@ class TranslatorApp(QWidget):
                         QApplication.processEvents()
                         continue
 
-                    # 2) 번역용 자막 트랙 선택: 영어 트랙 우선 검색, 없으면 첫 번째 트랙
+                    # 2) 번역용 자막 트랙 선택: 영어 트랙 우선 검색 (강제/forced 자막 제외 우선), 없으면 일반 첫 번째 트랙
                     best_stream = None
+                    # 1순위: 'forced'가 아닌 영어 트랙
                     for s in streams:
                         s_tags = s.get("tags", {})
+                        disp = s.get("disposition", {})
+                        is_forced = disp.get("forced", 0) == 1 or "forced" in (s_tags.get("title", "") or "").lower()
                         s_lang = _normalize_lang_name(s_tags.get("language", "") or s_tags.get("title", ""))
-                        if s_lang == "english":
+                        if s_lang == "english" and not is_forced:
                             best_stream = s
                             break
+                    # 2순위: 임의의 영어 트랙
+                    if not best_stream:
+                        for s in streams:
+                            s_tags = s.get("tags", {})
+                            s_lang = _normalize_lang_name(s_tags.get("language", "") or s_tags.get("title", ""))
+                            if s_lang == "english":
+                                best_stream = s
+                                break
+                    # 3순위: forced가 아닌 첫 번째 자막 트랙
+                    if not best_stream:
+                        for s in streams:
+                            s_tags = s.get("tags", {})
+                            disp = s.get("disposition", {})
+                            is_forced = disp.get("forced", 0) == 1 or "forced" in (s_tags.get("title", "") or "").lower()
+                            if not is_forced:
+                                best_stream = s
+                                break
+                    # 4순위: 첫 번째 트랙
                     if not best_stream:
                         best_stream = streams[0]
 
