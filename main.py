@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Gemini SRT Translator GUI (v3.7.1 호환, Pyte VT100 터미널)
-v3.7.0 / v3.7.1 최신 변경사항 반영 (gemini-3.7-flash 기본 모델, 패키지 및 파이프라인 호환성 업데이트)
+v3.7.0 / v3.7.1 최신 변경사항 반영 (gemini-3.5-flash-lite 기본 모델, 패키지 및 파이프라인 호환성 업데이트)
 """
 
 import sys
@@ -137,7 +137,7 @@ TARGET_LANGUAGES = [
     "Italian", "Russian", "Simplified Chinese", "Japanese", "Portuguese",
     "Shuddh Hindi", "Arabic"
 ]
-DEFAULT_MODEL = "gemini-3.7-flash"
+DEFAULT_MODEL = "gemini-3.5-flash-lite"
 DEFAULT_BATCH_SIZE = 1000
 
 
