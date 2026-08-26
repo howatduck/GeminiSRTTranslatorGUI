@@ -45,8 +45,8 @@ pyinstaller --clean --noconfirm GeminiSRTTranslator.spec
 ```
 생성된 실행 파일 위치: `dist\GeminiSRTTranslator.exe`
 
-#### 3. GitHub Actions 자동 빌드
-GitHub 저장소에 소스를 push하거나 Tag를 생성하면 GitHub Actions가 Windows 가상 환경에서 자동으로 `.exe` 파일을 빌드하여 Artifact 및 Release에 아카이브(`GeminiSRTTranslator-Windows.zip`)로 제공합니다.
+#### 3. GitHub Release 다운로드
+Release GeminiSRTTranslator-Windows.zip 다운로드.
 
 ### 소스 코드 직접 실행 방법
 
@@ -122,8 +122,8 @@ pyinstaller --clean --noconfirm GeminiSRTTranslator.spec
 ```
 Output: `dist\GeminiSRTTranslator.exe`
 
-#### Option 3 — GitHub Actions CI Build
-Pushing to the repository or creating a tag triggers GitHub Actions, which builds the `.exe` in a Windows virtual environment and uploads it as an artifact and release archive (`GeminiSRTTranslator-Windows.zip`).
+#### Option 3 — GitHub Release Download
+Release GeminiSRTTranslator-Windows.zip Download.
 
 ### Running from Source
 
