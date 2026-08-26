@@ -70,7 +70,7 @@ python main.py
 
 ### 폴더/설정 저장 위치
 
-설정은 `QSettings(SETTINGS_ORG="HANDANG", SETTINGS_APP="GeminiSrtTranslatorGUI_v3_7_1")`를 통해 OS 표준 위치(Windows 레지스트리)에 저장됩니다.
+설정은 `QSettings(SETTINGS_ORG="GeminiSrtTranslatorGUI", SETTINGS_APP="GeminiSrtTranslatorGUI")`를 통해 OS 표준 위치(Windows 레지스트리)에 저장됩니다.
 
 ### 주의 사항
 
@@ -147,7 +147,7 @@ python main.py
 
 ### Settings Storage Location
 
-Settings are stored via `QSettings(SETTINGS_ORG="HANDANG", SETTINGS_APP="GeminiSrtTranslatorGUI_v3_7_1")` in the OS standard location (Windows Registry on Windows).
+Settings are stored via `QSettings(SETTINGS_ORG="GeminiSrtTranslatorGUI", SETTINGS_APP="GeminiSrtTranslatorGUI")` in the OS standard location (Windows Registry on Windows).
 
 ### Notes
 
