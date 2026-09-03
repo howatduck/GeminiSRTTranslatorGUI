@@ -36,38 +36,39 @@ jobs:
           rep2 = b'                subs[idx].text = sub.content.replace("\\n", r"\\N")\n'
 
           for sp in site.getsitepackages():
-              pattern = os.path.join(sp, "gemini_srt_translator", "main.py")
-              for fpath in glob.glob(pattern):
-                  print(f"Patching {fpath}...")
-                  with open(fpath, "rb") as f:
-                      content = f.read()
+              for target in ["main.py", "session.py"]:
+                  pattern = os.path.join(sp, "gemini_srt_translator", target)
+                  for fpath in glob.glob(pattern):
+                      print(f"Patching {fpath}...")
+                      with open(fpath, "rb") as f:
+                          content = f.read()
 
-                  content = content.replace(b'text = f"{ev.text.replace(\'\\\\N\', \'\\n\')}"', rep1.strip())
-                  content = content.replace(b'subs[idx].text = f"{sub.content.replace(\'\\n\', \'\\\\N\')}"', rep2.strip())
+                      content = content.replace(b'text = f"{ev.text.replace(\'\\\\N\', \'\\n\')}"', rep1.strip())
+                      content = content.replace(b'subs[idx].text = f"{sub.content.replace(\'\\n\', \'\\\\N\')}"', rep2.strip())
 
-                  with open(fpath, "wb") as f:
-                      f.write(content)
-
-                  with open(fpath, "rb") as f:
-                      lines = f.readlines()
-                  
-                  changed = False
-                  for i in range(len(lines)):
-                      if b'ev.text.replace' in lines[i] and b'f"' in lines[i]:
-                          lines[i] = rep1
-                          changed = True
-                      elif b'sub.content.replace' in lines[i] and b'f"' in lines[i]:
-                          lines[i] = rep2
-                          changed = True
-                  
-                  if changed:
                       with open(fpath, "wb") as f:
-                          f.writelines(lines)
+                          f.write(content)
 
-                  # Verify syntax
-                  with open(fpath, "rb") as f:
-                      compile(f.read(), fpath, "exec")
-                  print(f"Successfully patched and verified {fpath}")
+                      with open(fpath, "rb") as f:
+                          lines = f.readlines()
+                      
+                      changed = False
+                      for i in range(len(lines)):
+                          if b'ev.text.replace' in lines[i] and b'f"' in lines[i]:
+                              lines[i] = rep1
+                              changed = True
+                          elif b'sub.content.replace' in lines[i] and b'f"' in lines[i]:
+                              lines[i] = rep2
+                              changed = True
+                      
+                      if changed:
+                          with open(fpath, "wb") as f:
+                              f.writelines(lines)
+
+                      # Verify syntax
+                      with open(fpath, "rb") as f:
+                          compile(f.read(), fpath, "exec")
+                      print(f"Successfully patched and verified {fpath}")
 
 
       - name: Download and prepare FFmpeg binaries for bundling

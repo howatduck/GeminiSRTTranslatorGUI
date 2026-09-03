@@ -1,7 +1,7 @@
 PyQt6>=6.6.0
 pyte>=0.8.2
 google-genai>=2.18.0
-gemini-srt-translator>=3.7.1
+gemini-srt-translator>=3.8.3
 pysubs2>=1.8.1
 json-repair>=0.63.1
 pyinstaller>=6.0

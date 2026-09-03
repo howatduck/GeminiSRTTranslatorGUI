@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-Gemini SRT Translator GUI (v3.7.1 호환, Pyte VT100 터미널)
-v3.7.0 / v3.7.1 최신 변경사항 반영 (gemini-3.5-flash-lite 기본 모델, 패키지 및 파이프라인 호환성 업데이트)
+Gemini SRT Translator GUI (v3.8.3 호환, Pyte VT100 터미널)
+v3.8.0 ~ v3.8.3 최신 변경사항 반영 (SubtitleSession 엔진, 적응형 배치/오디오청크 감축, context_size 통일 등)
 """
 
 import sys
@@ -142,24 +142,34 @@ DEFAULT_BATCH_SIZE = 1000
 
 
 # =====================================================================
-# [패치] gemini-srt-translator 몽키패치
+# [패치] gemini-srt-translator 몽키패치 (v3.8.0~v3.8.3 대응)
 # 1) f-string backslash 문법 오류 방지
 # 2) LLM 응답 JSON 파싱 시 키-값 역전/형변환 실패(ValueError: invalid literal for int) 방지
 # 3) ffmpeg_utils sys.exit(1) 방지
+# 4) SubtitleSession 타임스탬프 보존 및 원천 싱크 밀림 방지
 # =====================================================================
 GeminiSRTTranslator = None
 Subtitle = None
+SubtitleSession = None
 
 if gst is not None:
     try:
-        from gemini_srt_translator.main import GeminiSRTTranslator as _GST, Subtitle as _Sub
+        from gemini_srt_translator.main import GeminiSRTTranslator as _GST
         GeminiSRTTranslator = _GST
-        Subtitle = _Sub
+        try:
+            from gemini_srt_translator.session import Subtitle as _Sub, SubtitleSession as _SubSession
+            Subtitle = _Sub
+            SubtitleSession = _SubSession
+        except ImportError:
+            from gemini_srt_translator.main import Subtitle as _Sub
+            Subtitle = _Sub
+            SubtitleSession = None
+
         import pysubs2
         import json_repair
         from datetime import timedelta
 
-        def _patched_parse_subtitle_file(self, file_path: str) -> list:
+        def _patched_parse_subtitle_file(file_path: str) -> list:
             subs = pysubs2.load(file_path, encoding="utf-8", keep_html_tags=True)
             srt_subs = []
             for i, ev in enumerate(subs):
@@ -174,7 +184,7 @@ if gst is not None:
                 )
             return srt_subs
 
-        def _patched_save_subtitle_file(self, translated_subtitle: list, output_file: str):
+        def _patched_save_subtitle_file(input_file: str, translated_subtitle: list, output_file: str):
             # 싱크 버그 방지: Subtitle 객체에 저장된 원본 start/end 타임스탬프를
             # 직접 사용하여 SRT 형식으로 안전하게 기록
             def _ms_to_srt(td):
@@ -188,6 +198,9 @@ if gst is not None:
                 return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
 
             ext = os.path.splitext(output_file)[1].lower()
+            temp_dir = os.path.dirname(os.path.abspath(output_file)) or "."
+            temp_out = os.path.join(temp_dir, f".tmp_{os.path.basename(output_file)}")
+
             if ext == ".srt":
                 lines = []
                 for i, sub in enumerate(translated_subtitle, start=1):
@@ -195,17 +208,19 @@ if gst is not None:
                     end_str = _ms_to_srt(sub.end)
                     text = sub.content.replace(r"\N", "\n").replace(r"\n", "\n").strip("\r\n")
                     lines.append(f"{i}\n{start_str} --> {end_str}\n{text}\n")
-                with open(output_file, "w", encoding="utf-8") as f:
+                with open(temp_out, "w", encoding="utf-8") as f:
                     f.write("\n".join(lines) + "\n")
+                os.replace(temp_out, output_file)
             else:
                 # ASS/SSA 등 다른 형식은 pysubs2를 사용하여 저장
-                subs = pysubs2.load(self.input_file, encoding="utf-8")
+                subs = pysubs2.load(input_file, encoding="utf-8")
                 # 순서(position) 기반으로 매핑하여 싱크 보장
                 sorted_subs = sorted(translated_subtitle, key=lambda s: s.index)
                 for i, sub in enumerate(sorted_subs):
                     if i < len(subs):
                         subs[i].text = sub.content.replace("\n", r"\N")
-                subs.save(output_file, encoding="utf-8")
+                subs.save(temp_out, encoding="utf-8")
+                os.replace(temp_out, output_file)
 
         def _patched_process_translated_lines(
             self,
@@ -242,7 +257,7 @@ if gst is not None:
                         target_idx = i
 
                 if 0 <= target_idx < len(translated_subtitle):
-                    if self._dominant_strong_direction(text) == "rtl":
+                    if hasattr(self, '_dominant_strong_direction') and self._dominant_strong_direction(text) == "rtl":
                         translated_subtitle[target_idx].content = f"\u202b{text}\u202c"
                     else:
                         translated_subtitle[target_idx].content = text
@@ -301,11 +316,15 @@ if gst is not None:
                 )
             return result
 
-        GeminiSRTTranslator._parse_subtitle_file = _patched_parse_subtitle_file
-        GeminiSRTTranslator._save_subtitle_file = _patched_save_subtitle_file
+        GeminiSRTTranslator._parse_subtitle_file = staticmethod(_patched_parse_subtitle_file)
+        GeminiSRTTranslator._save_subtitle_file = staticmethod(_patched_save_subtitle_file)
         GeminiSRTTranslator._process_translated_lines = _patched_process_translated_lines
         if hasattr(GeminiSRTTranslator, '_parse_response'):
             GeminiSRTTranslator._parse_response = _patched_parse_response
+
+        if SubtitleSession is not None:
+            SubtitleSession._parse_subtitle_file = staticmethod(_patched_parse_subtitle_file)
+            SubtitleSession._save_subtitle_file = staticmethod(_patched_save_subtitle_file)
 
         # [패치] ffmpeg_utils._run_command에서 sys.exit(1) 호출 방지 (GUI 크래시 방지)
         try:
@@ -956,7 +975,10 @@ class TranslationWorker(QThread):
                                 'token_stats': self.base_config.get('token_stats', True),
                                 'preserve_context': self.base_config.get('preserve_context', True),
                                 'token_report': self.base_config.get('token_report', False),
+                                'context_size': self.base_config.get('context_size', self.base_config.get('resume_context_size', 0)),
                                 'resume_context_size': self.base_config.get('resume_context_size', 0),
+                                'batch_size_error_step': self.base_config.get('batch_size_error_step', 100),
+                                'audio_chunk_error_step': self.base_config.get('audio_chunk_error_step', 60),
                                 'service_tier': self.base_config.get('service_tier', None),
                                 'use_enterprise': self.base_config.get('use_enterprise', False),
                                 'cloud_project': self.base_config.get('cloud_project', None),
@@ -1142,8 +1164,8 @@ I18N = {
         "lbl_prompt": "프롬프트/지침 입력 (선택):",
         "txt_desc_ph": "번역/전사 시 AI가 참고할 문맥을 입력하세요.",
 
-        "btn_advanced": "⚙ 고급 설정 및 튜닝 (v3.7.1 기능) 열기",
-        "advanced_dialog_title": "고급 설정 및 튜닝 (v3.7.1 기능)",
+        "btn_advanced": "⚙ 고급 설정 및 튜닝 (v3.8.3 기능) 열기",
+        "advanced_dialog_title": "고급 설정 및 튜닝 (v3.8.3 기능)",
         "lbl_service_tier": "서비스 티어:",
         "lbl_start_line": "시작 라인:",
         "spin_default": "기본값",
@@ -1151,7 +1173,10 @@ I18N = {
         "lbl_audio_chunk": "오디오청크:",
         "lbl_thinking_level": "사고 수준:",
         "spin_resume_default": "기본값 (자동)",
-        "lbl_resume_help": "(중단 후 재개 시 컨텍스트 크기)",
+        "lbl_resume_help": "(문맥/재개 시 참조 라인 수, 0: 비활성)",
+        "lbl_batch_step": "배치 축소단위:",
+        "lbl_audio_step": "오디오 축소단위:",
+        "lbl_adaptive_help": "(API/파싱 오류 발생 시 자동 감축 단위)",
         "chk_streaming": "스트리밍",
         "chk_thinking": "사고기능",
         "chk_preserve_context": "문맥 유지",
@@ -1254,8 +1279,8 @@ I18N = {
         "lbl_prompt": "Prompt / Instructions (Optional):",
         "txt_desc_ph": "Enter context or guidelines for AI to reference during translation/transcription.",
 
-        "btn_advanced": "⚙ Open Advanced Settings & Tuning (v3.7.1)",
-        "advanced_dialog_title": "Advanced Settings & Tuning (v3.7.1)",
+        "btn_advanced": "⚙ Open Advanced Settings & Tuning (v3.8.3)",
+        "advanced_dialog_title": "Advanced Settings & Tuning (v3.8.3)",
         "lbl_service_tier": "Service Tier:",
         "lbl_start_line": "Start Line:",
         "spin_default": "Default",
@@ -1263,7 +1288,10 @@ I18N = {
         "lbl_audio_chunk": "Audio Chunk:",
         "lbl_thinking_level": "Thinking Level:",
         "spin_resume_default": "Default (Auto)",
-        "lbl_resume_help": "(Context size on resume)",
+        "lbl_resume_help": "(Context lines for resume/sliding context, 0: disable)",
+        "lbl_batch_step": "Batch Error Step:",
+        "lbl_audio_step": "Audio Error Step:",
+        "lbl_adaptive_help": "(Adaptive sizing reduction per error)",
         "chk_streaming": "Streaming",
         "chk_thinking": "Thinking",
         "chk_preserve_context": "Preserve Context",
@@ -1493,6 +1521,12 @@ class TranslatorApp(QWidget):
             self.spin_resume_context.setSpecialValueText(self.tr_str("spin_resume_default"))
         if hasattr(self, 'lbl_resume_help'):
             self.lbl_resume_help.setText(self.tr_str("lbl_resume_help"))
+        if hasattr(self, 'lbl_batch_step'):
+            self.lbl_batch_step.setText(self.tr_str("lbl_batch_step"))
+        if hasattr(self, 'lbl_audio_step'):
+            self.lbl_audio_step.setText(self.tr_str("lbl_audio_step"))
+        if hasattr(self, 'lbl_adaptive_help'):
+            self.lbl_adaptive_help.setText(self.tr_str("lbl_adaptive_help"))
         if hasattr(self, 'chk_streaming'):
             self.chk_streaming.setText(self.tr_str("chk_streaming"))
         if hasattr(self, 'chk_thinking'):
@@ -1839,13 +1873,13 @@ class TranslatorApp(QWidget):
 
     def _create_options_group(self, parent_layout):
         btn_layout = QHBoxLayout()
-        self.btn_advanced = QPushButton("⚙ 고급 설정 및 튜닝 (v3.7.1 기능) 열기")
+        self.btn_advanced = QPushButton("⚙ 고급 설정 및 튜닝 (v3.8.3 기능) 열기")
         self.btn_advanced.clicked.connect(self.open_advanced_settings)
         btn_layout.addWidget(self.btn_advanced)
         parent_layout.addLayout(btn_layout)
 
         self.advanced_dialog = QDialog(self)
-        self.advanced_dialog.setWindowTitle("고급 설정 및 튜닝 (v3.7.1 기능)")
+        self.advanced_dialog.setWindowTitle("고급 설정 및 튜닝 (v3.8.3 기능)")
         self.advanced_dialog.setMinimumWidth(440)
         dialog_layout = QVBoxLayout(self.advanced_dialog)
 
@@ -1924,11 +1958,35 @@ class TranslatorApp(QWidget):
         self.spin_resume_context.setValue(0)
         self.spin_resume_context.setSpecialValueText("기본값 (자동)")
         resume_layout.addWidget(self.spin_resume_context)
-        self.lbl_resume_help = QLabel("(중단 후 재개 시 컨텍스트 크기)")
+        self.lbl_resume_help = QLabel("(문맥/재개 시 참조 라인 수, 0: 비활성)")
         resume_layout.addWidget(self.lbl_resume_help)
         resume_layout.addStretch()
-        self.lbl_resume_context = QLabel("Resume Context:")
+        self.lbl_resume_context = QLabel("Context Size:")
         main_form_layout.addRow(self.lbl_resume_context, resume_layout)
+
+        adaptive_layout = QHBoxLayout()
+        self.lbl_batch_step = QLabel("배치 축소단위:")
+        adaptive_layout.addWidget(self.lbl_batch_step)
+        self.spin_batch_error_step = QSpinBox()
+        self.spin_batch_error_step.setRange(10, 1000)
+        self.spin_batch_error_step.setValue(100)
+        self.spin_batch_error_step.setSingleStep(50)
+        adaptive_layout.addWidget(self.spin_batch_error_step)
+        adaptive_layout.addSpacing(10)
+
+        self.lbl_audio_step = QLabel("오디오 축소단위:")
+        adaptive_layout.addWidget(self.lbl_audio_step)
+        self.spin_audio_chunk_error_step = QSpinBox()
+        self.spin_audio_chunk_error_step.setRange(10, 600)
+        self.spin_audio_chunk_error_step.setValue(60)
+        self.spin_audio_chunk_error_step.setSingleStep(30)
+        adaptive_layout.addWidget(self.spin_audio_chunk_error_step)
+        adaptive_layout.addSpacing(10)
+
+        self.lbl_adaptive_help = QLabel("(오류 시 자동감축)")
+        adaptive_layout.addWidget(self.lbl_adaptive_help)
+        adaptive_layout.addStretch()
+        main_form_layout.addRow("적응형 복구:", adaptive_layout)
 
         box1 = QHBoxLayout()
         self.chk_streaming = QCheckBox("스트리밍")
@@ -2191,6 +2249,12 @@ class TranslatorApp(QWidget):
             self.spin_resume_context.setValue(
                 self.settings.value("resume_context_size", 0, type=int)
             )
+            self.spin_batch_error_step.setValue(
+                self.settings.value("batch_size_error_step", 100, type=int)
+            )
+            self.spin_audio_chunk_error_step.setValue(
+                self.settings.value("audio_chunk_error_step", 60, type=int)
+            )
             self.cmb_service_tier.setCurrentText(
                 self.settings.value("service_tier", "Default", type=str)
             )
@@ -2260,6 +2324,8 @@ class TranslatorApp(QWidget):
             self.settings.setValue("free_quota", self.chk_free.isChecked())
 
             self.settings.setValue("resume_context_size", self.spin_resume_context.value())
+            self.settings.setValue("batch_size_error_step", self.spin_batch_error_step.value())
+            self.settings.setValue("audio_chunk_error_step", self.spin_audio_chunk_error_step.value())
             self.settings.setValue("service_tier", self.cmb_service_tier.currentText())
             self.settings.setValue("use_enterprise", self.chk_use_enterprise.isChecked())
             self.settings.setValue("cloud_project", self.cloud_project_input.text())
@@ -2691,7 +2757,10 @@ class TranslatorApp(QWidget):
             'token_stats': self.chk_token_stats.isChecked(),
             'preserve_context': self.chk_preserve_context.isChecked(),
             'token_report': self.chk_token_report.isChecked(),
+            'context_size': self.spin_resume_context.value(),
             'resume_context_size': self.spin_resume_context.value(),
+            'batch_size_error_step': self.spin_batch_error_step.value(),
+            'audio_chunk_error_step': self.spin_audio_chunk_error_step.value(),
             'service_tier': service_tier,
             'use_enterprise': self.chk_use_enterprise.isChecked(),
             'cloud_project': self.cloud_project_input.text().strip() or None,
@@ -2779,6 +2848,7 @@ class TranslatorApp(QWidget):
             self.cmb_thinking_level, self.spin_audio_chunk, self.chk_isolate_voice,
             self.chk_append_lang, self.chk_token_stats, self.chk_preserve_context,
             self.chk_token_report, self.spin_resume_context,
+            self.spin_batch_error_step, self.spin_audio_chunk_error_step,
             self.cmb_service_tier, self.chk_use_enterprise,
             self.cloud_project_input, self.cloud_api_key_input,
             self.cloud_location_input, self.cmb_request_type,
