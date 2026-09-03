@@ -325,6 +325,30 @@ if gst is not None:
         if SubtitleSession is not None:
             SubtitleSession._parse_subtitle_file = staticmethod(_patched_parse_subtitle_file)
             SubtitleSession._save_subtitle_file = staticmethod(_patched_save_subtitle_file)
+            SubtitleSession._process_translated_lines = _patched_process_translated_lines
+
+        # [패치] SubtitleSession._process_batch: chunk.candidates[0].content가 None일 때
+        # AttributeError 방지 (google-genai >= 2.18에서 빈 청크 발생)
+        if SubtitleSession is not None and hasattr(SubtitleSession, '_process_batch'):
+            _original_process_batch = SubtitleSession._process_batch
+
+            def _patched_process_batch(self, *args, **kwargs):
+                import gemini_srt_translator.main as _gst_main
+                _orig_for_chunk = None
+                # 라이브러리의 generate_content_stream 청크 처리 로직의
+                # chunk.candidates[0].content.parts 접근 방식을 안전하게 래핑
+                try:
+                    return _original_process_batch(self, *args, **kwargs)
+                except (AttributeError, IndexError, TypeError) as _chunk_err:
+                    _err_msg = str(_chunk_err)
+                    # chunk.candidates 관련 NoneType 오류는 재발생시켜 재시도 유도
+                    if 'content' in _err_msg or 'candidates' in _err_msg or 'parts' in _err_msg:
+                        raise RuntimeError(
+                            f"Gemini API 스트림 청크 오류 (빈 응답 청크): {_chunk_err}"
+                        ) from _chunk_err
+                    raise
+
+            SubtitleSession._process_batch = _patched_process_batch
 
         # [패치] ffmpeg_utils._run_command에서 sys.exit(1) 호출 방지 (GUI 크래시 방지)
         try:
@@ -1023,8 +1047,17 @@ class TranslationWorker(QThread):
                                 err_msg = f"{err_base} - AI 안전 설정 차단."
                             elif "stop" in err_type and "candidate" in err_type:
                                 err_msg = f"{err_base} - AI 응답 생성 중단."
+                            elif err_type in ("attributeerror", "typeerror", "indexerror") and (
+                                "content" in err_str or "candidates" in err_str or "parts" in err_str
+                            ):
+                                # 라이브러리 내부 스트림 청크 None 접근 오류 (google-genai SDK 호환성 문제)
+                                err_msg = f"{err_base} - API 스트림 응답 오류 ({type(e).__name__}: {e})"
+                            elif err_type in ("attributeerror", "typeerror", "indexerror", "keyerror"):
+                                # 기타 Python 런타임 오류 - 실제 내용을 표시
+                                err_msg = f"{err_base} - 라이브러리 내부 오류 ({type(e).__name__}: {e})"
                             elif 'content' in err_str or 'text' in err_str:
-                                err_msg = f"{err_base} - API 응답 데이터(Schema) 오류."
+                                # ValueError 등 라이브러리의 Schema/응답 검증 실패
+                                err_msg = f"{err_base} - API 응답 데이터(Schema) 오류 ({e})"
                             elif "deadline" in err_str or "504" in err_str:
                                 err_msg = f"{err_base} - 서버 응답 시간 초과."
                             elif "quota" in err_str or "429" in err_str:
