@@ -1017,6 +1017,11 @@ class TranslationWorker(QThread):
 
                             filtered_params = {k: v for k, v in translator_args.items() if v is not None}
                             if GeminiSRTTranslator is not None:
+                                # 라이브러리 버전 호환성: 실제 __init__ 파라미터만 전달
+                                import inspect as _inspect
+                                _gst_params = set(_inspect.signature(GeminiSRTTranslator.__init__).parameters.keys())
+                                _gst_params.discard('self')
+                                filtered_params = {k: v for k, v in filtered_params.items() if k in _gst_params}
                                 translator_instance = GeminiSRTTranslator(**filtered_params)
                                 if is_transcribe_mode:
                                     translator_instance.transcribe()
