@@ -423,6 +423,38 @@ if gst is not None:
 
                 SubtitleSession._process_batch = _patched_session_process_batch
 
+        # [패치] gemini-3.5-flash-lite 등 모델에서 영어 -> 한국어 번역 시 영어가 그대로 출력되는 현상 방지
+        # 대상 언어가 한국어인 경우 한글(Hangul)로 반드시 번역하도록 명시적 지침 추가
+        import gemini_srt_translator.helpers as gst_helpers
+        if hasattr(gst_helpers, 'get_translate_instruction'):
+            _orig_get_translate_instruction = gst_helpers.get_translate_instruction
+
+            def _patched_get_translate_instruction(language, thinking, thinking_compatible, audio_file=None, description=None):
+                prompt = _orig_get_translate_instruction(language, thinking, thinking_compatible, audio_file=audio_file, description=description)
+                norm_l = (language or "").strip().lower()
+                if norm_l in ("korean", "한국어", "ko", "kor"):
+                    korean_rule = (
+                        "\n---\n## 3.1. Language Requirement (STRICT)\n"
+                        "- **Target Language**: Every line of the `text` field MUST be translated into natural **Korean (한국어/한글)**.\n"
+                        "- **CRITICAL**: Do NOT leave the subtitle text in English or the original language. Translate the meaning faithfully into fluent Korean."
+                    )
+                    prompt += korean_rule
+                return prompt
+
+            gst_helpers.get_translate_instruction = _patched_get_translate_instruction
+
+            # SubtitleSession 모듈에서도 이미 임포트된 참조 업데이트
+            try:
+                import gemini_srt_translator.session as gst_session
+                gst_session.get_translate_instruction = _patched_get_translate_instruction
+            except Exception:
+                pass
+            try:
+                import gemini_srt_translator.main as gst_main
+                gst_main.get_translate_instruction = _patched_get_translate_instruction
+            except Exception:
+                pass
+
         # [패치] ffmpeg_utils._run_command에서 sys.exit(1) 호출 방지 (GUI 크래시 방지)
         try:
             import gemini_srt_translator.ffmpeg_utils as ff_utils
@@ -470,26 +502,77 @@ def _get_video_subtitle_streams(video_path: str) -> list:
     except Exception:
         return []
 
-def _extract_subtitle_track(video_path: str, stream_index: int, output_srt_path: str) -> bool:
-    """ffmpeg를 사용하여 지정된 자막 스트림을 .srt 파일로 추출"""
+def _get_media_duration(file_path: str) -> float:
+    """ffprobe를 통해 미디어 파일의 총 재생 시간(초) 반환"""
     import subprocess
     cmd = [
-        "ffmpeg", "-y", "-v", "error",
-        "-i", video_path,
-        "-map", f"0:{stream_index}",
-        "-c:s", "srt",
-        output_srt_path
+        "ffprobe", "-v", "error",
+        "-show_entries", "format=duration",
+        "-of", "default=noprint_wrappers=1:nokey=1",
+        file_path
     ]
     try:
         startupinfo = None
         if sys.platform == "win32":
             startupinfo = subprocess.STARTUPINFO()
             startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-        subprocess.run(
+        res = subprocess.run(
             cmd, capture_output=True, text=True, check=True,
             encoding="utf-8", errors="replace", startupinfo=startupinfo
         )
-        return os.path.exists(output_srt_path) and os.path.getsize(output_srt_path) > 0
+        return float(res.stdout.strip())
+    except Exception:
+        return 0.0
+
+def _extract_subtitle_track(video_path: str, stream_index: int, output_srt_path: str, progress_callback=None) -> bool:
+    """ffmpeg를 사용하여 지정된 자막 스트림을 .srt 파일로 추출 (실시간 진행률 콜백 지원)"""
+    import subprocess
+    total_duration = _get_media_duration(video_path) if progress_callback else 0.0
+
+    cmd = [
+        "ffmpeg", "-y", "-v", "error",
+        "-i", video_path,
+        "-map", f"0:{stream_index}",
+        "-c:s", "srt",
+    ]
+    if progress_callback:
+        cmd.extend(["-progress", "pipe:1", "-nostats"])
+    cmd.append(output_srt_path)
+
+    try:
+        startupinfo = None
+        if sys.platform == "win32":
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+
+        if progress_callback:
+            process = subprocess.Popen(
+                cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                text=True, encoding="utf-8", errors="replace", startupinfo=startupinfo
+            )
+            for line in process.stdout:
+                line = line.strip()
+                if line.startswith("out_time_us="):
+                    try:
+                        us = int(line.split("=", 1)[1])
+                        curr_sec = us / 1_000_000.0
+                        if total_duration > 0:
+                            pct = min(100.0, max(0.0, (curr_sec / total_duration) * 100.0))
+                            progress_callback(pct, curr_sec, total_duration)
+                    except (ValueError, TypeError):
+                        pass
+                elif line.startswith("progress="):
+                    val = line.split("=", 1)[1]
+                    if val == "end" and total_duration > 0:
+                        progress_callback(100.0, total_duration, total_duration)
+            process.wait()
+            return process.returncode == 0 and os.path.exists(output_srt_path) and os.path.getsize(output_srt_path) > 0
+        else:
+            subprocess.run(
+                cmd, capture_output=True, text=True, check=True,
+                encoding="utf-8", errors="replace", startupinfo=startupinfo
+            )
+            return os.path.exists(output_srt_path) and os.path.getsize(output_srt_path) > 0
     except Exception:
         return False
 
@@ -685,6 +768,8 @@ class PyteTerminalWidget(QTextEdit):
 
     def clear_screen(self):
         self.screen.reset()
+        if hasattr(pyte, 'modes') and hasattr(pyte.modes, 'LNM'):
+            self.screen.set_mode(pyte.modes.LNM)
         if hasattr(self.screen, 'history'):
             self.screen.history.top.clear()
             self.screen.history.bottom.clear()
@@ -700,6 +785,9 @@ class PyteTerminalWidget(QTextEdit):
                 break
         self._dirty = False
         self.setHtml("")
+        cursor = QTextCursor(self.document())
+        cursor.select(QTextCursor.SelectionType.Document)
+        cursor.removeSelectedText()
 
     def _color_to_hex(self, color_name):
         if not color_name or color_name == 'default':
@@ -2613,6 +2701,11 @@ class TranslatorApp(QWidget):
             QMessageBox.warning(self, "API 키", "API 키를 하나 이상 입력해야 합니다.")
             return
 
+        # 새 작업 시작 전 이전 로그 및 터미널 화면 초기화
+        self.log_output.clear_screen()
+        logging.getLogger().handlers.clear()
+        QApplication.processEvents()
+
         is_transcribe_mode = self.cmb_task_mode.currentIndex() == 1
         primary_input_source_for_jobs = None
         source_is_media_only_for_jobs = False
@@ -2667,9 +2760,9 @@ class TranslatorApp(QWidget):
                 norm_target_langs = {l: _normalize_lang_name(l) for l in selected_languages}
                 total_vids = len(valid_video_paths)
 
-                self.progress_bar.setRange(0, total_vids)
+                self.progress_bar.setRange(0, 100)
                 self.progress_bar.setValue(0)
-                self.progress_bar.setFormat("자막 트랙 검사 및 추출 중... (%v/%m)")
+                self.progress_bar.setFormat("자막 트랙 검사 중... (0%)")
                 QApplication.processEvents()
 
                 for v_idx, vpath in enumerate(valid_video_paths):
@@ -2681,9 +2774,24 @@ class TranslatorApp(QWidget):
                     if not streams:
                         self.append_log(f"\x1b[33m  → 내장 자막 트랙 없음\x1b[0m")
                         videos_without_subs.append(vpath)
-                        self.progress_bar.setValue(v_idx + 1)
+                        overall_pct = int(((v_idx + 1) / total_vids) * 100)
+                        self.progress_bar.setValue(overall_pct)
+                        self.progress_bar.setFormat(f"자막 트랙 검사 중... ({v_idx+1}/{total_vids}) ({overall_pct}%)")
                         QApplication.processEvents()
                         continue
+
+                    def make_progress_cb(video_index, filename):
+                        last_update = [0.0]
+                        def _cb(pct, curr_sec, total_sec):
+                            # 과도한 UI 이벤트 방지를 위해 1% 단위 또는 마지막에 갱신
+                            if pct - last_update[0] >= 1.0 or pct >= 100.0:
+                                last_update[0] = pct
+                                vid_prog = (video_index + (pct / 100.0)) / total_vids
+                                overall_pct = int(min(100.0, max(0.0, vid_prog * 100.0)))
+                                self.progress_bar.setValue(overall_pct)
+                                self.progress_bar.setFormat(f"[{video_index+1}/{total_vids}] 자막 추출 중: {pct:.1f}% ({overall_pct}%)")
+                                QApplication.processEvents()
+                        return _cb
 
                     # 1) 목표 언어와 동일한 자막 트랙이 있는지 확인 -> 있으면 번역 없이 바로 추출/저장
                     same_lang_stream = None
@@ -2704,12 +2812,15 @@ class TranslatorApp(QWidget):
                         out_direct = os.path.join(self.output_dir, f"{v_basename}_{target_matched_lang}.srt")
                         self.append_log(f"\x1b[36m  → 목표 언어({target_matched_lang}) 트랙 #{stream_idx} 발견! 추출 중...\x1b[0m")
                         QApplication.processEvents()
-                        if _extract_subtitle_track(vpath, stream_idx, out_direct):
+                        cb = make_progress_cb(v_idx, os.path.basename(vpath))
+                        if _extract_subtitle_track(vpath, stream_idx, out_direct, progress_callback=cb):
                             saved_direct_count += 1
                             self.append_log(
                                 f"\x1b[32m  ✔ [추출 완료] 번역 불필요: '{os.path.basename(out_direct)}' 저장됨\x1b[0m"
                             )
-                        self.progress_bar.setValue(v_idx + 1)
+                        overall_pct = int(((v_idx + 1) / total_vids) * 100)
+                        self.progress_bar.setValue(overall_pct)
+                        self.progress_bar.setFormat(f"자막 트랙 검사/추출 완료 ({v_idx+1}/{total_vids}) ({overall_pct}%)")
                         QApplication.processEvents()
                         continue
 
@@ -2749,7 +2860,8 @@ class TranslatorApp(QWidget):
                     temp_srt_path = os.path.join(self.output_dir, f"{v_basename}_extracted.srt")
                     self.append_log(f"\x1b[36m  → 자막 트랙 #{stream_idx} 추출 중: '{os.path.basename(temp_srt_path)}'...\x1b[0m")
                     QApplication.processEvents()
-                    if _extract_subtitle_track(vpath, stream_idx, temp_srt_path):
+                    cb = make_progress_cb(v_idx, os.path.basename(vpath))
+                    if _extract_subtitle_track(vpath, stream_idx, temp_srt_path, progress_callback=cb):
                         extracted_sub_files.append((temp_srt_path, vpath))
                         self.append_log(
                             f"\x1b[32m  ✔ [추출 완료] '{os.path.basename(temp_srt_path)}' 추출 완료 → 번역 대상으로 등록됨\x1b[0m"
@@ -2757,7 +2869,9 @@ class TranslatorApp(QWidget):
                     else:
                         videos_without_subs.append(vpath)
 
-                    self.progress_bar.setValue(v_idx + 1)
+                    overall_pct = int(((v_idx + 1) / total_vids) * 100)
+                    self.progress_bar.setValue(overall_pct)
+                    self.progress_bar.setFormat(f"자막 트랙 검사/추출 완료 ({v_idx+1}/{total_vids}) ({overall_pct}%)")
                     QApplication.processEvents()
 
                 if extracted_sub_files:
