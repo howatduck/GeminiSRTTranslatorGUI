@@ -184,9 +184,42 @@ if gst is not None:
                 )
             return srt_subs
 
-        def _patched_save_subtitle_file(input_file: str, translated_subtitle: list, output_file: str):
+        def _patched_save_subtitle_file(*args, **kwargs):
             # 싱크 버그 방지: Subtitle 객체에 저장된 원본 start/end 타임스탬프를
             # 직접 사용하여 SRT 형식으로 안전하게 기록
+            #
+            # 하위/상위 버전 라이브러리 호출 시그니처 모두 호환:
+            # 1) v3.8.3 SubtitleSession: (input_file: str, translated_subtitle: list, output_file: str)
+            # 2) v3.7.x GeminiSRTTranslator 인스턴스 메서드: (self, translated_subtitle: list, output_file: str)
+            # 3) v3.7.x _write_translated_subtitles: (self, translated_subtitle: list) [output_file은 self.output_file]
+            if len(args) == 3:
+                input_file, translated_subtitle, output_file = args
+            elif len(args) == 2:
+                first, second = args
+                if isinstance(first, str):
+                    input_file = first
+                    translated_subtitle = second
+                    output_file = kwargs.get('output_file') or getattr(second, 'output_file', None) or input_file
+                else:
+                    # first is self
+                    input_file = getattr(first, 'input_file', '')
+                    translated_subtitle = second
+                    output_file = kwargs.get('output_file') or getattr(first, 'output_file', '')
+            elif len(args) == 1:
+                first = args[0]
+                if isinstance(first, list):
+                    input_file = kwargs.get('input_file', '')
+                    translated_subtitle = first
+                    output_file = kwargs.get('output_file', '')
+                else:
+                    input_file = getattr(first, 'input_file', '')
+                    translated_subtitle = getattr(first, 'translated_subtitle', []) or getattr(first, 'translated_subtitles', [])
+                    output_file = getattr(first, 'output_file', '')
+            else:
+                input_file = kwargs.get('input_file', '')
+                translated_subtitle = kwargs.get('translated_subtitle', [])
+                output_file = kwargs.get('output_file', '')
+
             def _ms_to_srt(td):
                 total_ms = int(round(td.total_seconds() * 1000))
                 if total_ms < 0:
@@ -197,9 +230,10 @@ if gst is not None:
                 ms = total_ms % 1_000
                 return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
 
-            ext = os.path.splitext(output_file)[1].lower()
-            temp_dir = os.path.dirname(os.path.abspath(output_file)) or "."
-            temp_out = os.path.join(temp_dir, f".tmp_{os.path.basename(output_file)}")
+            ext = os.path.splitext(output_file)[1].lower() if output_file else ".srt"
+            temp_dir = os.path.dirname(os.path.abspath(output_file)) if output_file else "."
+            temp_dir = temp_dir or "."
+            temp_out = os.path.join(temp_dir, f".tmp_{os.path.basename(output_file)}") if output_file else ".tmp_sub.srt"
 
             if ext == ".srt":
                 lines = []
@@ -316,39 +350,51 @@ if gst is not None:
                 )
             return result
 
-        GeminiSRTTranslator._parse_subtitle_file = staticmethod(_patched_parse_subtitle_file)
-        GeminiSRTTranslator._save_subtitle_file = staticmethod(_patched_save_subtitle_file)
-        GeminiSRTTranslator._process_translated_lines = _patched_process_translated_lines
+        # GeminiSRTTranslator 패치 등록
+        # 1) _save_subtitle_file: 구버전(v3.7.x) 및 신버전(v3.8.x) 모두에서 안전하게 호출되도록 등록
+        GeminiSRTTranslator._save_subtitle_file = _patched_save_subtitle_file
+        if hasattr(GeminiSRTTranslator, '_process_translated_lines'):
+            GeminiSRTTranslator._process_translated_lines = _patched_process_translated_lines
         if hasattr(GeminiSRTTranslator, '_parse_response'):
             GeminiSRTTranslator._parse_response = _patched_parse_response
 
-        if SubtitleSession is not None:
-            SubtitleSession._parse_subtitle_file = staticmethod(_patched_parse_subtitle_file)
-            SubtitleSession._save_subtitle_file = staticmethod(_patched_save_subtitle_file)
-            SubtitleSession._process_translated_lines = _patched_process_translated_lines
-
-        # [패치] SubtitleSession._process_batch: chunk.candidates[0].content가 None일 때
+        # [패치] GeminiSRTTranslator._process_batch: chunk.candidates[0].content가 None일 때
         # AttributeError 방지 (google-genai >= 2.18에서 빈 청크 발생)
-        if SubtitleSession is not None and hasattr(SubtitleSession, '_process_batch'):
-            _original_process_batch = SubtitleSession._process_batch
+        if hasattr(GeminiSRTTranslator, '_process_batch'):
+            _original_gst_process_batch = GeminiSRTTranslator._process_batch
 
-            def _patched_process_batch(self, *args, **kwargs):
-                import gemini_srt_translator.main as _gst_main
-                _orig_for_chunk = None
-                # 라이브러리의 generate_content_stream 청크 처리 로직의
-                # chunk.candidates[0].content.parts 접근 방식을 안전하게 래핑
+            def _patched_gst_process_batch(self, *args, **kwargs):
                 try:
-                    return _original_process_batch(self, *args, **kwargs)
+                    return _original_gst_process_batch(self, *args, **kwargs)
                 except (AttributeError, IndexError, TypeError) as _chunk_err:
                     _err_msg = str(_chunk_err)
-                    # chunk.candidates 관련 NoneType 오류는 재발생시켜 재시도 유도
                     if 'content' in _err_msg or 'candidates' in _err_msg or 'parts' in _err_msg:
                         raise RuntimeError(
                             f"Gemini API 스트림 청크 오류 (빈 응답 청크): {_chunk_err}"
                         ) from _chunk_err
                     raise
 
-            SubtitleSession._process_batch = _patched_process_batch
+            GeminiSRTTranslator._process_batch = _patched_gst_process_batch
+
+        # SubtitleSession 패치 등록 (v3.8.x 신규 클래스)
+        if SubtitleSession is not None:
+            # SubtitleSession._save_subtitle_file: SRT 싱크 보장 패치
+            SubtitleSession._save_subtitle_file = staticmethod(_patched_save_subtitle_file)
+            if hasattr(SubtitleSession, '_process_batch'):
+                _original_session_process_batch = SubtitleSession._process_batch
+
+                def _patched_session_process_batch(self, *args, **kwargs):
+                    try:
+                        return _original_session_process_batch(self, *args, **kwargs)
+                    except (AttributeError, IndexError, TypeError) as _chunk_err:
+                        _err_msg = str(_chunk_err)
+                        if 'content' in _err_msg or 'candidates' in _err_msg or 'parts' in _err_msg:
+                            raise RuntimeError(
+                                f"Gemini API 스트림 청크 오류 (빈 응답 청크): {_chunk_err}"
+                            ) from _chunk_err
+                        raise
+
+                SubtitleSession._process_batch = _patched_session_process_batch
 
         # [패치] ffmpeg_utils._run_command에서 sys.exit(1) 호출 방지 (GUI 크래시 방지)
         try:
@@ -1044,9 +1090,11 @@ class TranslationWorker(QThread):
                             if self.isInterruptionRequested():
                                 break
 
+                            import traceback as _tb
                             err_str = str(e).lower()
                             err_type = type(e).__name__.lower()
                             err_base = f"작업 실패 ({msg_key}): '{base_name}'"
+                            err_tb = _tb.format_exc()
 
                             if "blocked" in err_type or "blocked" in err_str:
                                 err_msg = f"{err_base} - AI 안전 설정 차단."
@@ -1077,10 +1125,13 @@ class TranslationWorker(QThread):
                             if err_logs.strip():
                                 self.progress_update.emit(f"\x1b[33m[라이브러리 로그]\n{err_logs}\x1b[0m\n")
                             self.progress_update.emit(f"\n\x1b[31m[오류] {err_msg}\x1b[0m\n")
+                            # Traceback 상세 로그 (디버그용)
+                            self.progress_update.emit(f"\x1b[33m[디버그 Traceback]\n{err_tb}\x1b[0m\n")
 
                         finally:
                             sys.stderr = original_thread_stderr
                             captured_stderr_io_for_lib.close()
+
 
                         if job_successful:
                             break
