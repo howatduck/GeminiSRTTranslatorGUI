@@ -60,12 +60,36 @@ def _setup_ffmpeg_path():
 _setup_ffmpeg_path()
 
 # =====================================================================
-# [패치 1] GUI 환경/워커 스레드에서 signal 호출 시 발생하는 ValueError 방지
-# (signal only works in main thread of the main interpreter)
+# [패치 1] GUI 환경 및 워커 스레드 안전화 패치
+# 1) signal.signal 및 signal.raise_signal: 메인 스레드가 아니거나 오류 시 예외 방지
+#    특히 라이브러리가 과부하/오류 3회 초과 시 signal.raise_signal(signal.SIGINT)를 호출하여
+#    메인 프로세스 전체를 비정상 종료(SIGINT/중지됨)시키는 현상을 방지
+# 2) exit/sys.exit: 워커 스레드에서 exit() 호출 시 전체 GUI 앱이 강제 종료되지 않고
+#    WorkerLibraryExit 예외를 발생시켜 번역 워커의 작업 재시도/실패 처리 로직으로 안전하게 회수
 # =====================================================================
+class WorkerLibraryExit(RuntimeError):
+    """라이브러리가 exit()를 호출하여 프로세스를 종료하려 할 때 워커 스레드에서 발생하는 안전 예외"""
+    def __init__(self, code=0):
+        self.code = code
+        super().__init__(f"라이브러리가 종료(exit {code})를 요청했습니다.")
+
+_original_sys_exit = sys.exit
+
+def _safe_app_exit(code=0):
+    if threading.current_thread() is threading.main_thread():
+        _original_sys_exit(code)
+    else:
+        raise WorkerLibraryExit(code)
+
+builtins.exit = _safe_app_exit
+sys.exit = _safe_app_exit
+
 _original_signal = signal.signal
 def _safe_signal(signalnum, handler):
     try:
+        # 워커 스레드에서는 signal 핸들러 등록을 시도하지 않고 무시
+        if threading.current_thread() is not threading.main_thread():
+            return None
         return _original_signal(signalnum, handler)
     except (ValueError, OSError, RuntimeError):
         return None
@@ -73,10 +97,13 @@ def _safe_signal(signalnum, handler):
 signal.signal = _safe_signal
 
 if hasattr(signal, 'raise_signal'):
-    _original_raise_signal = signal.raise_signal
     def _safe_raise_signal(signum):
+        # 라이브러리가 모델 오버로드 3회, 연속 오류 초과 등으로 SIGINT를 발생시킬 때
+        # GUI 프로세스 전체를 종료하지 않고 WorkerLibraryExit를 던져 안전하게 처리
+        if threading.current_thread() is not threading.main_thread():
+            raise WorkerLibraryExit(130)
         try:
-            return _original_raise_signal(signum)
+            return _original_signal(signum, signal.SIG_DFL)
         except (ValueError, OSError, RuntimeError):
             pass
     signal.raise_signal = _safe_raise_signal
@@ -1096,7 +1123,9 @@ class TranslationWorker(QThread):
                             err_base = f"작업 실패 ({msg_key}): '{base_name}'"
                             err_tb = _tb.format_exc()
 
-                            if "blocked" in err_type or "blocked" in err_str:
+                            if isinstance(e, WorkerLibraryExit):
+                                err_msg = f"{err_base} - AI 모델 과부하(Overloaded 3회) 또는 라이브러리 종료 요청으로 중단됨."
+                            elif "blocked" in err_type or "blocked" in err_str:
                                 err_msg = f"{err_base} - AI 안전 설정 차단."
                             elif "stop" in err_type and "candidate" in err_type:
                                 err_msg = f"{err_base} - AI 응답 생성 중단."
