@@ -475,6 +475,28 @@ if gst is not None:
         pass
 
 
+def reset_library_logger():
+    """라이브러리(gemini_srt_translator.logger)의 전역 진행 상태 및 이전 메시지 버퍼를 초기화"""
+    try:
+        import gemini_srt_translator.logger as gst_logger
+        gst_logger._has_started = False
+        gst_logger._last_chunk_size = 0
+        gst_logger._last_printed_lines = 0
+        gst_logger._last_progress = None
+        gst_logger._line_number = 1
+        gst_logger._loading_bars_index = -1
+        gst_logger._output_token_count = 0
+        if isinstance(getattr(gst_logger, '_previous_messages', None), list):
+            gst_logger._previous_messages.clear()
+        gst_logger._prompt_token_count = 0
+        if isinstance(getattr(gst_logger, '_thoughts_list', None), list):
+            gst_logger._thoughts_list.clear()
+        gst_logger._thoughts_token_count = 0
+        gst_logger._total_token_count = 0
+    except Exception:
+        pass
+
+
 # =====================================================================
 # [미디어/자막 헬퍼 함수] FFprobe 및 FFmpeg를 통한 자막 트랙 검사 및 추출
 # =====================================================================
@@ -784,10 +806,10 @@ class PyteTerminalWidget(QTextEdit):
             except queue.Empty:
                 break
         self._dirty = False
-        self.setHtml("")
+        self.clear()
         cursor = QTextCursor(self.document())
-        cursor.select(QTextCursor.SelectionType.Document)
-        cursor.removeSelectedText()
+        cursor.movePosition(QTextCursor.MoveOperation.Start)
+        self.setTextCursor(cursor)
 
     def _color_to_hex(self, color_name):
         if not color_name or color_name == 'default':
@@ -1127,6 +1149,7 @@ class TranslationWorker(QThread):
                                 f"\x1b[33m\n[작업 시작 ({msg_key})] [{target_language}] {base_name}\x1b[0m\n"
                             )
 
+                        reset_library_logger()
                         captured_stderr_io_for_lib = io.StringIO()
                         original_thread_stderr = sys.stderr
                         sys.stderr = captured_stderr_io_for_lib
@@ -2702,6 +2725,7 @@ class TranslatorApp(QWidget):
             return
 
         # 새 작업 시작 전 이전 로그 및 터미널 화면 초기화
+        reset_library_logger()
         self.log_output.clear_screen()
         logging.getLogger().handlers.clear()
         QApplication.processEvents()
@@ -3001,6 +3025,7 @@ class TranslatorApp(QWidget):
             'request_type': request_type,
         }
 
+        reset_library_logger()
         self.log_output.clear_screen()
         logging.getLogger().handlers.clear()
         QApplication.processEvents()
