@@ -167,6 +167,23 @@ TARGET_LANGUAGES = [
 DEFAULT_MODEL = "gemini-3.5-flash-lite"
 DEFAULT_BATCH_SIZE = 1000
 
+# mpv 등 미디어플레이어 호환 ISO 639-1 언어 코드 매핑
+LANG_TO_ISO = {
+    "Korean": "ko",
+    "English": "en",
+    "Bahasa Indonesia": "id",
+    "French": "fr",
+    "German": "de",
+    "Spanish": "es",
+    "Italian": "it",
+    "Russian": "ru",
+    "Simplified Chinese": "zh",
+    "Japanese": "ja",
+    "Portuguese": "pt",
+    "Shuddh Hindi": "hi",
+    "Arabic": "ar",
+}
+
 
 # =====================================================================
 # [패치] gemini-srt-translator 몽키패치 (v3.8.0~v3.8.3 대응)
@@ -471,6 +488,14 @@ if gst is not None:
             ff_utils._run_command = _patched_run_command
         except Exception:
             pass
+
+        # [패치] consecutive error 발생 시 배치 사이즈 감소 방지
+        # _reduce_batch_size를 no-op으로 대체하여 배치 사이즈를 항상 유지
+        def _noop_reduce_batch_size(self):
+            pass
+
+        GeminiSRTTranslator._reduce_batch_size = _noop_reduce_batch_size
+
     except Exception as _patch_err:
         pass
 
@@ -2078,7 +2103,15 @@ class TranslatorApp(QWidget):
 
         self.chk_append_lang = QCheckBox("출력 파일명에 언어명 접미사 추가")
         self.chk_append_lang.setChecked(True)
-        form_layout.addRow(self.chk_append_lang)
+        self.chk_reuse_extracted = QCheckBox("추출된 자막 재사용 (재추출 안 함)")
+        self.chk_reuse_extracted.setChecked(True)
+        lang_row_layout = QHBoxLayout()
+        lang_row_layout.setContentsMargins(0, 0, 0, 0)
+        lang_row_layout.addWidget(self.chk_append_lang)
+        lang_row_layout.addSpacing(16)
+        lang_row_layout.addWidget(self.chk_reuse_extracted)
+        lang_row_layout.addStretch()
+        form_layout.addRow(lang_row_layout)
 
         batch_layout = QHBoxLayout()
         self.spin_batch = QSpinBox()
@@ -2404,6 +2437,9 @@ class TranslatorApp(QWidget):
             self.chk_append_lang.setChecked(
                 self.settings.value("append_lang", True, type=bool)
             )
+            self.chk_reuse_extracted.setChecked(
+                self.settings.value("reuse_extracted", True, type=bool)
+            )
             self.spin_audio_chunk.setValue(
                 self.settings.value("audio_chunk_size", 300, type=int)
             )
@@ -2525,6 +2561,7 @@ class TranslatorApp(QWidget):
             self.settings.setValue("output_dir", self.output_dir)
             self.settings.setValue("task_mode_index", self.cmb_task_mode.currentIndex())
             self.settings.setValue("append_lang", self.chk_append_lang.isChecked())
+            self.settings.setValue("reuse_extracted", self.chk_reuse_extracted.isChecked())
             self.settings.setValue("audio_chunk_size", self.spin_audio_chunk.value())
             self.settings.setValue("isolate_voice", self.chk_isolate_voice.isChecked())
             self.settings.setValue("thinking_level", self.cmb_thinking_level.currentText())
@@ -2683,9 +2720,12 @@ class TranslatorApp(QWidget):
             for idx, src_file_path in enumerate(source_files_to_process):
                 try:
                     base_name, ext = os.path.splitext(os.path.basename(src_file_path))
+                    if base_name.endswith("_extracted"):
+                        base_name = base_name[:-10]
                     tag = "_transcribed" if is_transcribe_mode else ""
                     if append_lang:
-                        output_filename = f"{base_name}{tag}_{lang}.srt"
+                        iso_code = LANG_TO_ISO.get(lang, lang.lower().replace(" ", "-"))
+                        output_filename = f"{base_name}{tag}.{iso_code}.srt"
                     else:
                         output_filename = f"{base_name}{tag}.srt"
                     output_filepath = os.path.join(self.output_dir, output_filename)
@@ -2882,16 +2922,21 @@ class TranslatorApp(QWidget):
 
                     stream_idx = best_stream.get("index", 0)
                     temp_srt_path = os.path.join(self.output_dir, f"{v_basename}_extracted.srt")
-                    self.append_log(f"\x1b[36m  → 자막 트랙 #{stream_idx} 추출 중: '{os.path.basename(temp_srt_path)}'...\x1b[0m")
-                    QApplication.processEvents()
-                    cb = make_progress_cb(v_idx, os.path.basename(vpath))
-                    if _extract_subtitle_track(vpath, stream_idx, temp_srt_path, progress_callback=cb):
+                    reuse_extracted = self.chk_reuse_extracted.isChecked()
+                    if reuse_extracted and os.path.exists(temp_srt_path) and os.path.getsize(temp_srt_path) > 0:
+                        self.append_log(f"\x1b[32m  ✔ [재사용] '{os.path.basename(temp_srt_path)}' 이미 존재 → 재추출 생략\x1b[0m")
                         extracted_sub_files.append((temp_srt_path, vpath))
-                        self.append_log(
-                            f"\x1b[32m  ✔ [추출 완료] '{os.path.basename(temp_srt_path)}' 추출 완료 → 번역 대상으로 등록됨\x1b[0m"
-                        )
                     else:
-                        videos_without_subs.append(vpath)
+                        self.append_log(f"\x1b[36m  → 자막 트랙 #{stream_idx} 추출 중: '{os.path.basename(temp_srt_path)}'...\x1b[0m")
+                        QApplication.processEvents()
+                        cb = make_progress_cb(v_idx, os.path.basename(vpath))
+                        if _extract_subtitle_track(vpath, stream_idx, temp_srt_path, progress_callback=cb):
+                            extracted_sub_files.append((temp_srt_path, vpath))
+                            self.append_log(
+                                f"\x1b[32m  ✔ [추출 완료] '{os.path.basename(temp_srt_path)}' 추출 완료 → 번역 대상으로 등록됨\x1b[0m"
+                            )
+                        else:
+                            videos_without_subs.append(vpath)
 
                     overall_pct = int(((v_idx + 1) / total_vids) * 100)
                     self.progress_bar.setValue(overall_pct)
