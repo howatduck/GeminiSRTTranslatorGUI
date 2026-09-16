@@ -13,6 +13,7 @@ except NameError:
     builtins.exit = sys.exit
 
 import os
+import re
 import queue
 import threading
 import io
@@ -183,6 +184,17 @@ LANG_TO_ISO = {
     "Shuddh Hindi": "hi",
     "Arabic": "ar",
 }
+
+def _get_iso_lang_code(lang_name: str) -> str:
+    """언어 이름에 대응하는 ISO 639-1 코드 반환 (mpv 호환용)"""
+    if not lang_name:
+        return ""
+    code = LANG_TO_ISO.get(lang_name)
+    if not code:
+        code = LANG_TO_ISO.get(lang_name.strip().title())
+    if not code:
+        code = lang_name.strip().lower().replace(" ", "-")
+    return code
 
 
 # =====================================================================
@@ -645,36 +657,37 @@ def _extract_subtitle_track(video_path: str, stream_index: int, output_srt_path:
     except Exception:
         return False
 
+_LANG_NORM_MAP = {
+    "kor": "korean", "ko": "korean", "한국어": "korean", "korean": "korean",
+    "eng": "english", "en": "english", "영어": "english", "english": "english",
+    "fra": "french", "fre": "french", "fr": "french", "french": "french",
+    "deu": "german", "ger": "german", "de": "german", "german": "german",
+    "spa": "spanish", "es": "spanish", "spanish": "spanish",
+    "ita": "italian", "it": "italian", "italian": "italian",
+    "rus": "russian", "ru": "russian", "russian": "russian",
+    "zho": "chinese", "chi": "chinese", "zh": "chinese", "chinese": "chinese", "simplified chinese": "chinese",
+    "jpn": "japanese", "ja": "japanese", "japanese": "japanese",
+    "por": "portuguese", "pt": "portuguese", "portuguese": "portuguese",
+    "ara": "arabic", "ar": "arabic", "arabic": "arabic",
+    "hin": "hindi", "hi": "hindi", "hindi": "hindi",
+    "ind": "indonesian", "id": "indonesian", "indonesian": "indonesian",
+}
+_LANG_NORM_KEYS_SORTED = sorted(_LANG_NORM_MAP.keys(), key=len, reverse=True)
+
 def _normalize_lang_name(name: str) -> str:
     """언어 코드/이름을 소문자 키워드로 정규화"""
     if not name:
         return ""
-    import re
     n = name.lower().strip()
-    mapping = {
-        "kor": "korean", "ko": "korean", "한국어": "korean", "korean": "korean",
-        "eng": "english", "en": "english", "영어": "english", "english": "english",
-        "fra": "french", "fre": "french", "fr": "french", "french": "french",
-        "deu": "german", "ger": "german", "de": "german", "german": "german",
-        "spa": "spanish", "es": "spanish", "spanish": "spanish",
-        "ita": "italian", "it": "italian", "italian": "italian",
-        "rus": "russian", "ru": "russian", "russian": "russian",
-        "zho": "chinese", "chi": "chinese", "zh": "chinese", "chinese": "chinese", "simplified chinese": "chinese",
-        "jpn": "japanese", "ja": "japanese", "japanese": "japanese",
-        "por": "portuguese", "pt": "portuguese", "portuguese": "portuguese",
-        "ara": "arabic", "ar": "arabic", "arabic": "arabic",
-        "hin": "hindi", "hi": "hindi", "hindi": "hindi",
-        "ind": "indonesian", "id": "indonesian", "indonesian": "indonesian",
-    }
-    if n in mapping:
-        return mapping[n]
-    for k in sorted(mapping.keys(), key=len, reverse=True):
+    if n in _LANG_NORM_MAP:
+        return _LANG_NORM_MAP[n]
+    for k in _LANG_NORM_KEYS_SORTED:
         if len(k) <= 3:
             if re.search(rf"(?<![a-z0-9]){re.escape(k)}(?![a-z0-9])", n):
-                return mapping[k]
+                return _LANG_NORM_MAP[k]
         else:
             if k in n:
-                return mapping[k]
+                return _LANG_NORM_MAP[k]
     return n
 
 
@@ -2763,7 +2776,7 @@ class TranslatorApp(QWidget):
                         base_name = base_name[:-10]
                     tag = "_transcribed" if is_transcribe_mode else ""
                     if append_lang or len(target_languages) > 1:
-                        iso_code = LANG_TO_ISO.get(lang, lang.lower().replace(" ", "-"))
+                        iso_code = _get_iso_lang_code(lang)
                         output_filename = f"{base_name}{tag}.{iso_code}.srt"
                     else:
                         output_filename = f"{base_name}{tag}.srt"
@@ -2912,7 +2925,7 @@ class TranslatorApp(QWidget):
 
                     if same_lang_stream:
                         stream_idx = same_lang_stream.get("index", 0)
-                        iso_code = LANG_TO_ISO.get(target_matched_lang, target_matched_lang.lower().replace(" ", "-"))
+                        iso_code = _get_iso_lang_code(target_matched_lang)
                         out_direct = os.path.join(self.output_dir, f"{v_basename}.{iso_code}.srt")
                         reuse_extracted = self.chk_reuse_extracted.isChecked()
                         if reuse_extracted and os.path.exists(out_direct) and os.path.getsize(out_direct) > 0:
@@ -3012,7 +3025,8 @@ class TranslatorApp(QWidget):
                     if ret == QMessageBox.StandardButton.Yes:
                         self.cmb_task_mode.setCurrentIndex(1)
                         is_transcribe_mode = True
-                        primary_input_source_for_jobs = valid_video_paths
+                        primary_input_source_for_jobs = videos_without_subs
+                        valid_video_paths = videos_without_subs
                         source_is_media_only_for_jobs = True
                         media_type_for_jobs = 'video'
                     else:
