@@ -34,7 +34,7 @@ def _setup_ffmpeg_path():
         search_dirs.append(exe_dir)
         search_dirs.append(os.path.join(exe_dir, 'ffmpeg'))
     else:
-        app_dir = os.path.dirname(os.path.abspath(__file__))
+        app_dir = os.path.dirname(os.path.abspath(__file__)) if '__file__' in globals() else os.getcwd()
         search_dirs.append(app_dir)
         search_dirs.append(os.path.join(app_dir, 'ffmpeg'))
 
@@ -265,7 +265,12 @@ if gst is not None:
                 output_file = kwargs.get('output_file', '')
 
             def _ms_to_srt(td):
-                total_ms = int(round(td.total_seconds() * 1000))
+                if hasattr(td, 'total_seconds'):
+                    total_ms = int(round(td.total_seconds() * 1000))
+                elif isinstance(td, (int, float)):
+                    total_ms = int(round(td))
+                else:
+                    total_ms = 0
                 if total_ms < 0:
                     total_ms = 0
                 h = total_ms // 3_600_000
@@ -277,6 +282,7 @@ if gst is not None:
             ext = os.path.splitext(output_file)[1].lower() if output_file else ".srt"
             temp_dir = os.path.dirname(os.path.abspath(output_file)) if output_file else "."
             temp_dir = temp_dir or "."
+            os.makedirs(temp_dir, exist_ok=True)
             temp_out = os.path.join(temp_dir, f".tmp_{os.path.basename(output_file)}") if output_file else ".tmp_sub.srt"
 
             if ext == ".srt":
@@ -489,15 +495,27 @@ if gst is not None:
         except Exception:
             pass
 
-        # [패치] consecutive error 발생 시 배치 사이즈 감소 방지
-        # _reduce_batch_size를 no-op으로 대체하여 배치 사이즈를 항상 유지
-        def _noop_reduce_batch_size(self):
+        # [패치] consecutive error 발생 시 배치 사이즈 및 오디오 청크 감소 방지
+        # _reduce_batch_size, _reduce_transcribe_chunk_size를 no-op으로 대체하여 크기를 항상 유지
+        def _noop_reduce(self, *args, **kwargs):
             pass
 
-        GeminiSRTTranslator._reduce_batch_size = _noop_reduce_batch_size
+        GeminiSRTTranslator._reduce_batch_size = _noop_reduce
+        if hasattr(GeminiSRTTranslator, '_reduce_transcribe_chunk_size'):
+            GeminiSRTTranslator._reduce_transcribe_chunk_size = _noop_reduce
 
     except Exception as _patch_err:
         pass
+
+_GST_INIT_PARAMS = None
+def _get_gst_params():
+    global _GST_INIT_PARAMS
+    if _GST_INIT_PARAMS is None and GeminiSRTTranslator is not None:
+        import inspect as _inspect
+        params = set(_inspect.signature(GeminiSRTTranslator.__init__).parameters.keys())
+        params.discard('self')
+        _GST_INIT_PARAMS = params
+    return _GST_INIT_PARAMS or set()
 
 
 def reset_library_logger():
@@ -576,6 +594,10 @@ def _extract_subtitle_track(video_path: str, stream_index: int, output_srt_path:
     import subprocess
     total_duration = _get_media_duration(video_path) if progress_callback else 0.0
 
+    out_dir = os.path.dirname(os.path.abspath(output_srt_path))
+    if out_dir:
+        os.makedirs(out_dir, exist_ok=True)
+
     cmd = [
         "ffmpeg", "-y", "-v", "error",
         "-i", video_path,
@@ -627,6 +649,7 @@ def _normalize_lang_name(name: str) -> str:
     """언어 코드/이름을 소문자 키워드로 정규화"""
     if not name:
         return ""
+    import re
     n = name.lower().strip()
     mapping = {
         "kor": "korean", "ko": "korean", "한국어": "korean", "korean": "korean",
@@ -643,9 +666,15 @@ def _normalize_lang_name(name: str) -> str:
         "hin": "hindi", "hi": "hindi", "hindi": "hindi",
         "ind": "indonesian", "id": "indonesian", "indonesian": "indonesian",
     }
-    for k, v in mapping.items():
-        if k in n:
-            return v
+    if n in mapping:
+        return mapping[n]
+    for k in sorted(mapping.keys(), key=len, reverse=True):
+        if len(k) <= 3:
+            if re.search(rf"(?<![a-z0-9]){re.escape(k)}(?![a-z0-9])", n):
+                return mapping[k]
+        else:
+            if k in n:
+                return mapping[k]
     return n
 
 
@@ -836,25 +865,28 @@ class PyteTerminalWidget(QTextEdit):
         cursor.movePosition(QTextCursor.MoveOperation.Start)
         self.setTextCursor(cursor)
 
+    _COLOR_MAP = {
+        'black': '#0c0c0c', 'red': '#e74856', 'green': '#16c60c',
+        'brown': '#f9f1a5', 'blue': '#3b78ff', 'magenta': '#b4009e',
+        'cyan': '#61d6d6', 'white': '#cccccc',
+        'lightblack': '#767676', 'lightred': '#f96270', 'lightgreen': '#23d11b',
+        'lightbrown': '#fdf6af', 'lightblue': '#548cff', 'lightmagenta': '#c810b1',
+        'lightcyan': '#78e2e2', 'lightwhite': '#ffffff'
+    }
+
     def _color_to_hex(self, color_name):
         if not color_name or color_name == 'default':
             return None
-        if isinstance(color_name, str) and color_name.startswith('#'):
-            return color_name
-        colors = {
-            'black': '#0c0c0c', 'red': '#e74856', 'green': '#16c60c',
-            'brown': '#f9f1a5', 'blue': '#3b78ff', 'magenta': '#b4009e',
-            'cyan': '#61d6d6', 'white': '#cccccc',
-            'lightblack': '#767676', 'lightred': '#f96270', 'lightgreen': '#23d11b',
-            'lightbrown': '#fdf6af', 'lightblue': '#548cff', 'lightmagenta': '#c810b1',
-            'lightcyan': '#78e2e2', 'lightwhite': '#ffffff'
-        }
-        if color_name in colors:
-            return colors[color_name]
-        if isinstance(color_name, str) and len(color_name) == 6:
-            return f"#{color_name}"
-        if isinstance(color_name, str) and len(color_name) == 3:
-            return f"#{color_name[0]}{color_name[0]}{color_name[1]}{color_name[1]}{color_name[2]}{color_name[2]}"
+        if isinstance(color_name, str):
+            if color_name.startswith('#'):
+                return color_name
+            mapped = self._COLOR_MAP.get(color_name)
+            if mapped:
+                return mapped
+            if len(color_name) == 6:
+                return f"#{color_name}"
+            if len(color_name) == 3:
+                return f"#{color_name[0]*2}{color_name[1]*2}{color_name[2]*2}"
         return None
 
     def _line_last_col(self, line_dict):
@@ -869,7 +901,7 @@ class PyteTerminalWidget(QTextEdit):
         return last_col
 
     def _line_to_html(self, line_dict):
-        line_html = ""
+        chunks = []
         last_fg = None
         last_bg = None
         span_open = False
@@ -883,14 +915,14 @@ class PyteTerminalWidget(QTextEdit):
 
             if fg != last_fg or bg != last_bg:
                 if span_open:
-                    line_html += "</span>"
+                    chunks.append("</span>")
                 style = ""
                 if fg:
                     style += f"color: {fg};"
                 if bg:
                     style += f"background-color: {bg};"
                 if style:
-                    line_html += f"<span style='{style}'>"
+                    chunks.append(f"<span style='{style}'>")
                     span_open = True
                 else:
                     span_open = False
@@ -899,16 +931,17 @@ class PyteTerminalWidget(QTextEdit):
 
             ch = char_obj.data
             if ch == '<':
-                ch = '&lt;'
+                chunks.append('&lt;')
             elif ch == '>':
-                ch = '&gt;'
+                chunks.append('&gt;')
             elif ch == '&':
-                ch = '&amp;'
-            line_html += ch
+                chunks.append('&amp;')
+            else:
+                chunks.append(ch)
 
         if span_open:
-            line_html += "</span>"
-        return line_html
+            chunks.append("</span>")
+        return "".join(chunks)
 
     def _line_signature(self, line_dict):
         last_col = self._line_last_col(line_dict)
@@ -917,7 +950,8 @@ class PyteTerminalWidget(QTextEdit):
     def _lines_block_html(self, line_dicts):
         parts = [f"<div style='{self._div_style}'>"]
         for line_dict in line_dicts:
-            parts.append(self._line_to_html(line_dict) + "\n")
+            parts.append(self._line_to_html(line_dict))
+            parts.append("\n")
         parts.append("</div>")
         return "".join(parts)
 
@@ -1146,10 +1180,13 @@ class TranslationWorker(QThread):
                         audio_file_for_job = self.base_config.get('audio_file', None)
 
                     if os.path.exists(output_file_path):
-                        try:
-                            os.remove(output_file_path)
-                        except OSError:
+                        if actual_input_file_for_lib and os.path.abspath(output_file_path) == os.path.abspath(actual_input_file_for_lib):
                             pass
+                        else:
+                            try:
+                                os.remove(output_file_path)
+                            except OSError:
+                                pass
 
                     max_key_attempts = max(1, len(self.api_keys))
                     job_successful = False
@@ -1226,10 +1263,8 @@ class TranslationWorker(QThread):
 
                             filtered_params = {k: v for k, v in translator_args.items() if v is not None}
                             if GeminiSRTTranslator is not None:
-                                # 라이브러리 버전 호환성: 실제 __init__ 파라미터만 전달
-                                import inspect as _inspect
-                                _gst_params = set(_inspect.signature(GeminiSRTTranslator.__init__).parameters.keys())
-                                _gst_params.discard('self')
+                                # 라이브러리 버전 호환성: 실제 __init__ 파라미터만 전달 (캐시된 시그니처 활용)
+                                _gst_params = _get_gst_params()
                                 filtered_params = {k: v for k, v in filtered_params.items() if k in _gst_params}
                                 translator_instance = GeminiSRTTranslator(**filtered_params)
                                 if is_transcribe_mode:
@@ -1414,6 +1449,7 @@ I18N = {
         "btn_fetch": "모델 가져오기",
         "lbl_model": "사용 모델:",
         "chk_append_lang": "출력 파일명에 언어명 접미사 추가",
+        "chk_reuse_extracted": "추출된 자막 재사용 (재추출 안 함)",
         "lbl_batch": "배치 크기:",
         "lbl_prompt": "프롬프트/지침 입력 (선택):",
         "txt_desc_ph": "번역/전사 시 AI가 참고할 문맥을 입력하세요.",
@@ -1529,6 +1565,7 @@ I18N = {
         "btn_fetch": "Fetch Models",
         "lbl_model": "Model:",
         "chk_append_lang": "Append language suffix to output filename",
+        "chk_reuse_extracted": "Reuse extracted subtitles (do not re-extract)",
         "lbl_batch": "Batch Size:",
         "lbl_prompt": "Prompt / Instructions (Optional):",
         "txt_desc_ph": "Enter context or guidelines for AI to reference during translation/transcription.",
@@ -1743,6 +1780,8 @@ class TranslatorApp(QWidget):
             self.lbl_model.setText(self.tr_str("lbl_model"))
         if hasattr(self, 'chk_append_lang'):
             self.chk_append_lang.setText(self.tr_str("chk_append_lang"))
+        if hasattr(self, 'chk_reuse_extracted'):
+            self.chk_reuse_extracted.setText(self.tr_str("chk_reuse_extracted"))
         if hasattr(self, 'lbl_batch'):
             self.lbl_batch.setText(self.tr_str("lbl_batch"))
         if hasattr(self, 'lbl_prompt'):
@@ -2723,7 +2762,7 @@ class TranslatorApp(QWidget):
                     if base_name.endswith("_extracted"):
                         base_name = base_name[:-10]
                     tag = "_transcribed" if is_transcribe_mode else ""
-                    if append_lang:
+                    if append_lang or len(target_languages) > 1:
                         iso_code = LANG_TO_ISO.get(lang, lang.lower().replace(" ", "-"))
                         output_filename = f"{base_name}{tag}.{iso_code}.srt"
                     else:
@@ -2873,15 +2912,23 @@ class TranslatorApp(QWidget):
 
                     if same_lang_stream:
                         stream_idx = same_lang_stream.get("index", 0)
-                        out_direct = os.path.join(self.output_dir, f"{v_basename}_{target_matched_lang}.srt")
-                        self.append_log(f"\x1b[36m  → 목표 언어({target_matched_lang}) 트랙 #{stream_idx} 발견! 추출 중...\x1b[0m")
-                        QApplication.processEvents()
-                        cb = make_progress_cb(v_idx, os.path.basename(vpath))
-                        if _extract_subtitle_track(vpath, stream_idx, out_direct, progress_callback=cb):
+                        iso_code = LANG_TO_ISO.get(target_matched_lang, target_matched_lang.lower().replace(" ", "-"))
+                        out_direct = os.path.join(self.output_dir, f"{v_basename}.{iso_code}.srt")
+                        reuse_extracted = self.chk_reuse_extracted.isChecked()
+                        if reuse_extracted and os.path.exists(out_direct) and os.path.getsize(out_direct) > 0:
                             saved_direct_count += 1
                             self.append_log(
-                                f"\x1b[32m  ✔ [추출 완료] 번역 불필요: '{os.path.basename(out_direct)}' 저장됨\x1b[0m"
+                                f"\x1b[32m  ✔ [재사용] 목표 언어({target_matched_lang}) 자막 '{os.path.basename(out_direct)}' 이미 존재 → 추출 생략\x1b[0m"
                             )
+                        else:
+                            self.append_log(f"\x1b[36m  → 목표 언어({target_matched_lang}) 트랙 #{stream_idx} 발견! 추출 중...\x1b[0m")
+                            QApplication.processEvents()
+                            cb = make_progress_cb(v_idx, os.path.basename(vpath))
+                            if _extract_subtitle_track(vpath, stream_idx, out_direct, progress_callback=cb):
+                                saved_direct_count += 1
+                                self.append_log(
+                                    f"\x1b[32m  ✔ [추출 완료] 번역 불필요: '{os.path.basename(out_direct)}' 저장됨\x1b[0m"
+                                )
                         overall_pct = int(((v_idx + 1) / total_vids) * 100)
                         self.progress_bar.setValue(overall_pct)
                         self.progress_bar.setFormat(f"자막 트랙 검사/추출 완료 ({v_idx+1}/{total_vids}) ({overall_pct}%)")
@@ -3148,7 +3195,8 @@ class TranslatorApp(QWidget):
             self.spin_temp, self.spin_top_p, self.spin_top_k,
             self.chk_streaming, self.chk_thinking, self.spin_thinking_budget,
             self.cmb_thinking_level, self.spin_audio_chunk, self.chk_isolate_voice,
-            self.chk_append_lang, self.chk_token_stats, self.chk_preserve_context,
+            self.chk_append_lang, self.chk_reuse_extracted,
+            self.chk_token_stats, self.chk_preserve_context,
             self.chk_token_report, self.spin_resume_context,
             self.spin_batch_error_step, self.spin_audio_chunk_error_step,
             self.cmb_service_tier, self.chk_use_enterprise,
