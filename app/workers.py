@@ -8,6 +8,7 @@ import re
 import sys
 import threading
 import time
+import traceback
 
 from PyQt6.QtCore import Qt, QSettings, QThread, pyqtSignal, QObject, QTimer
 from PyQt6.QtGui import QFont, QTextCursor, QTextCharFormat, QColor, QStandardItemModel, QStandardItem
@@ -20,6 +21,7 @@ from PyQt6.QtWidgets import (
 )
 
 from core.config import DEFAULT_BATCH_SIZE, DEFAULT_MODEL, NUM_API_KEYS
+from core.errors import classify_worker_error
 from core.gst_compat import (
     GENAI_IMPORT_ERROR, GST_IMPORT_ERROR, GeminiSRTTranslator, Subtitle,
     SubtitleSession, _get_gst_params, genai, gst, reset_library_logger,
@@ -28,7 +30,6 @@ from core.languages import TARGET_LANGUAGES, _get_iso_lang_code, _normalize_lang
 from core.media import (
     _extract_subtitle_track, _get_media_duration, _get_video_subtitle_streams,
 )
-from core.safety import WorkerLibraryExit
 
 
 # =====================================================================
@@ -288,37 +289,10 @@ class TranslationWorker(QThread):
                             if self.isInterruptionRequested():
                                 break
 
-                            import traceback as _tb
-                            err_str = str(e).lower()
-                            err_type = type(e).__name__.lower()
-                            err_base = f"작업 실패 ({msg_key}): '{base_name}'"
-                            err_tb = _tb.format_exc()
-
-                            if isinstance(e, WorkerLibraryExit):
-                                err_msg = f"{err_base} - AI 모델 과부하(Overloaded 3회) 또는 라이브러리 종료 요청으로 중단됨."
-                            elif "blocked" in err_type or "blocked" in err_str:
-                                err_msg = f"{err_base} - AI 안전 설정 차단."
-                            elif "stop" in err_type and "candidate" in err_type:
-                                err_msg = f"{err_base} - AI 응답 생성 중단."
-                            elif err_type in ("attributeerror", "typeerror", "indexerror") and (
-                                "content" in err_str or "candidates" in err_str or "parts" in err_str
-                            ):
-                                # 라이브러리 내부 스트림 청크 None 접근 오류 (google-genai SDK 호환성 문제)
-                                err_msg = f"{err_base} - API 스트림 응답 오류 ({type(e).__name__}: {e})"
-                            elif err_type in ("attributeerror", "typeerror", "indexerror", "keyerror"):
-                                # 기타 Python 런타임 오류 - 실제 내용을 표시
-                                err_msg = f"{err_base} - 라이브러리 내부 오류 ({type(e).__name__}: {e})"
-                            elif 'content' in err_str or 'text' in err_str:
-                                # ValueError 등 라이브러리의 Schema/응답 검증 실패
-                                err_msg = f"{err_base} - API 응답 데이터(Schema) 오류 ({e})"
-                            elif "deadline" in err_str or "504" in err_str:
-                                err_msg = f"{err_base} - 서버 응답 시간 초과."
-                            elif "quota" in err_str or "429" in err_str:
-                                err_msg = f"{err_base} - API 할당량 고갈 (429)."
-                            elif "permission" in err_str or "403" in err_str:
-                                err_msg = f"{err_base} - 권한 없음 (API 인증 오류)."
-                            else:
-                                err_msg = f"{err_base} - 라이브러리 예외: {e}"
+                            err_msg = classify_worker_error(
+                                e, msg_key=msg_key, base_name=base_name
+                            )
+                            err_tb = traceback.format_exc()
 
                             last_error_msg = err_msg
                             err_logs = captured_stderr_io_for_lib.getvalue()
