@@ -142,6 +142,8 @@ class TranslatorApp(QWidget):
             self.btn_dialog_save.setText(self.tr_str("btn_save"))
         if hasattr(self, 'btn_dialog_close'):
             self.btn_dialog_close.setText(self.tr_str("btn_close"))
+        if hasattr(self, 'chk_show_api_keys'):
+            self.chk_show_api_keys.setText(self.tr_str("chk_show_api_keys"))
 
         # File & Language Group
         if hasattr(self, 'file_lang_group'):
@@ -372,7 +374,8 @@ class TranslatorApp(QWidget):
                 placeholder += " (gemini_api_key2로 사용)"
             label = QLabel(label_text)
             line_edit = QLineEdit()
-            line_edit.setEchoMode(QLineEdit.EchoMode.Normal)
+            # 보안 기본값: 키는 가려서 표시, 체크박스로 토글
+            line_edit.setEchoMode(QLineEdit.EchoMode.Password)
             line_edit.setPlaceholderText(placeholder)
             line_edit.textChanged.connect(self._update_api_keys_summary)
             form_layout.addRow(label, line_edit)
@@ -382,9 +385,13 @@ class TranslatorApp(QWidget):
         scroll.setWidget(scroll_content)
         outer_layout.addWidget(scroll)
 
+        self.chk_show_api_keys = QCheckBox("API 키 표시")
+        self.chk_show_api_keys.toggled.connect(self._toggle_api_keys_visibility)
+        outer_layout.addWidget(self.chk_show_api_keys)
+
         btn_row = QHBoxLayout()
         self.btn_dialog_save = QPushButton("저장")
-        self.btn_dialog_save.clicked.connect(self.save_settings)
+        self.btn_dialog_save.clicked.connect(self._save_api_keys_and_close)
         self.btn_dialog_close = QPushButton("닫기")
         self.btn_dialog_close.clicked.connect(dialog.accept)
         btn_row.addStretch()
@@ -399,6 +406,18 @@ class TranslatorApp(QWidget):
         self._update_api_keys_summary()
         self.api_keys_dialog.exec()
         self._update_api_keys_summary()
+
+    def _toggle_api_keys_visibility(self, checked):
+        mode = (
+            QLineEdit.EchoMode.Normal if checked
+            else QLineEdit.EchoMode.Password
+        )
+        for line_edit in self.api_key_inputs:
+            line_edit.setEchoMode(mode)
+
+    def _save_api_keys_and_close(self):
+        self.save_settings()
+        self.api_keys_dialog.accept()
 
     def _update_api_keys_summary(self):
         filled = sum(1 for le in self.api_key_inputs if le.text().strip())

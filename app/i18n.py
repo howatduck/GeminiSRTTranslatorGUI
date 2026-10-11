@@ -28,6 +28,7 @@ I18N = {
         "api_key_ph_primary": "기본 API 키 (필수)",
         "api_key_ph_extra": "추가 API 키 {index}",
         "api_key_ph_secondary_suffix": " (gemini_api_key2로 사용)",
+        "chk_show_api_keys": "API 키 표시",
         "btn_save": "저장",
         "btn_close": "닫기",
 
@@ -144,6 +145,7 @@ I18N = {
         "api_key_ph_primary": "Primary API Key (Required)",
         "api_key_ph_extra": "Additional API Key {index}",
         "api_key_ph_secondary_suffix": " (Used as gemini_api_key2)",
+        "chk_show_api_keys": "Show API keys",
         "btn_save": "Save",
         "btn_close": "Close",
 
