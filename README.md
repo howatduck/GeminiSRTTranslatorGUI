@@ -102,34 +102,33 @@ pyinstaller --clean --noconfirm GeminiSRTTranslator.spec
 | 무료 할당량 초과 (429) | API 키를 추가로 등록하거나 잠시 후 재시도. 키가 여러 개면 자동 순환됨 |
 | 모델 목록이 비어 있음 | "모델 가져오기" 버튼 클릭, API 키가 올바르게 등록됐는지 확인 |
 | PyQt6 설치 실패 | `pip install --upgrade pip` 후 재시도 |
-```
 
 ### 프로젝트 구조
 
 ```
 GeminiSRTTranslatorGUI/
-├── main.py                   # 얇은 진입점 (패치 → 임포트 가드 → GUI 실행)
-├── requirements.txt          # 실행용 의존성
-├── requirements-dev.txt      # 개발용 의존성 (pytest 등)
-├── build_win.bat / .ps1      # Windows 원클릭 빌드 스크립트
-├── GeminiSRTTranslator.spec  # PyInstaller 빌드 스펙
-├── README.md                 # 이 문서
-├── core/                     # GUI 무관 순수 로직
-│   ├── safety.py             # 프로세스 안전 패치 (exit/signal 가드, FFmpeg 경로)
-│   ├── config.py             # 앱 상수 (기본 모델, API 키 슬롯 등)
-│   ├── languages.py          # 언어 정규화 및 ISO 코드 변환
-│   ├── media.py              # FFmpeg 기반 미디어/자막 헬퍼
-│   ├── gst_compat.py         # gemini-srt-translator 호환 레이어 및 몽키패치
-│   ├── errors.py             # 워커 오류 분류 (순수 함수)
-│   ├── style_presets.py      # 번역 스타일 프리셋 정의 및 description 합성
-│   └── subtitle_io.py        # SRT 파싱/생성, CPS 계산 (순수 함수)
-├── app/                      # PyQt6 GUI
-│   ├── main_window.py        # TranslatorApp (메인 윈도우)
-│   ├── preview_editor.py     # 번역 결과 미리보기/편집 다이얼로그
-│   ├── widgets.py            # CheckableComboBox, PyteTerminalWidget
-│   ├── workers.py            # TranslationWorker, ModelFetcherThread
-│   └── i18n.py               # 한/영 UI 문자열
-└── tests/                    # pytest 테스트 스위트
+├── main.py                 # 얇은 진입점
+├── requirements.txt        # 실행용 의존성
+├── requirements-dev.txt    # 개발용 의존성
+├── build_win.bat / .ps1    # Windows 빌드 스크립트
+├── GeminiSRTTranslator.spec# PyInstaller 스펙
+├── README.md               # 이 문서
+├── core/                   # 순수 로직
+│   ├── safety.py         # 프로세스 안전 패치
+│   ├── config.py         # 앱 상수
+│   ├── languages.py      # 언어 정규화·ISO 코드
+│   ├── media.py          # FFmpeg 미디어 헬퍼
+│   ├── gst_compat.py     # 라이브러리 호환 레이어
+│   ├── errors.py         # 워커 오류 분류
+│   ├── style_presets.py  # 스타일 프리셋 정의
+│   └── subtitle_io.py    # SRT 입출력·CPS 계산
+├── app/                    # PyQt6 GUI
+│   ├── main_window.py    # 메인 윈도우
+│   ├── preview_editor.py # 결과 미리보기/편집
+│   ├── widgets.py        # 공용 위젯
+│   ├── workers.py        # 번역 워커 스레드
+│   └── i18n.py           # 한/영 UI 문자열
+└── tests/                  # pytest 테스트 스위트
 ```
 
 ### 사용 방법 요약
@@ -270,34 +269,33 @@ Output: `dist\GeminiSRTTranslator.exe`
 | Free quota exceeded (429) | Register additional API keys or wait and retry; multiple keys rotate automatically |
 | Empty model list | Click "Fetch Models" and verify the API key is registered correctly |
 | PyQt6 install failure | `pip install --upgrade pip`, then retry |
-```
 
 ### Project Structure
 
 ```
 GeminiSRTTranslatorGUI/
-├── main.py                   # Thin entry point (patches → import guard → GUI launch)
-├── requirements.txt          # Runtime dependencies
-├── requirements-dev.txt      # Dev dependencies (pytest, etc.)
-├── build_win.bat / .ps1      # Windows one-click build scripts
-├── GeminiSRTTranslator.spec  # PyInstaller build spec
-├── README.md                 # This document
-├── core/                     # GUI-independent pure logic
-│   ├── safety.py             # Process-safety patches (exit/signal guards, FFmpeg path)
-│   ├── config.py             # App constants (default model, API key slots, etc.)
-│   ├── languages.py          # Language normalization and ISO code conversion
-│   ├── media.py              # FFmpeg-based media/subtitle helpers
-│   ├── gst_compat.py         # gemini-srt-translator compatibility layer and monkeypatches
-│   ├── errors.py             # Worker error classification (pure functions)
-│   ├── style_presets.py      # Translation style preset definitions and description composition
-│   └── subtitle_io.py        # SRT parsing/generation, CPS calculation (pure functions)
-├── app/                      # PyQt6 GUI
-│   ├── main_window.py        # TranslatorApp (main window)
-│   ├── preview_editor.py     # Translation result preview/edit dialog
-│   ├── widgets.py            # CheckableComboBox, PyteTerminalWidget
-│   ├── workers.py            # TranslationWorker, ModelFetcherThread
-│   └── i18n.py               # Korean/English UI strings
-└── tests/                    # pytest test suite
+├── main.py                 # Thin entry point
+├── requirements.txt        # Runtime dependencies
+├── requirements-dev.txt    # Dev dependencies
+├── build_win.bat / .ps1    # Windows build scripts
+├── GeminiSRTTranslator.spec# PyInstaller build spec
+├── README.md               # This document
+├── core/                   # Pure logic
+│   ├── safety.py         # Process-safety patches
+│   ├── config.py         # App constants
+│   ├── languages.py      # Language normalization
+│   ├── media.py          # FFmpeg media helpers
+│   ├── gst_compat.py     # Library compat layer
+│   ├── errors.py         # Worker error classification
+│   ├── style_presets.py  # Style preset definitions
+│   └── subtitle_io.py    # SRT I/O and CPS calc
+├── app/                    # PyQt6 GUI
+│   ├── main_window.py    # Main window
+│   ├── preview_editor.py # Result preview/edit dialog
+│   ├── widgets.py        # Shared widgets
+│   ├── workers.py        # Translation worker threads
+│   └── i18n.py           # KO/EN UI strings
+└── tests/                  # pytest test suite
 ```
 
 ### Quick Usage Guide
