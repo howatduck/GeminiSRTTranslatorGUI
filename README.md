@@ -31,34 +31,77 @@ PyQt6 기반 GUI 애플리케이션으로, [gemini-srt-translator](https://githu
 ### 요구 사항
 
 - Windows 10 이상 (64-bit) 또는 Linux/macOS
+- Google 계정 (Gemini API 키 발급용, 무료)
 - Python 3.10 이상 (소스 코드 실행 시)
+- FFmpeg (비디오/오디오 전사·음성 추출 기능 사용 시 필수)
 
-### 📦 Windows 10+ 실행파일(.exe) 빌드 방법
+### 🚀 설치 가이드
 
-#### 1. 원클릭 자동 빌드 (추천)
-Windows 환경에서 프로젝트 폴더를 열고 `build_win.bat` 파일 또는 `build_win.ps1`을 실행하면 필요 패키지 설치부터 `.exe` 빌드까지 자동으로 진행됩니다.
+#### 1단계: Google AI Studio 가입 및 API 키 발급 (필수)
 
-```cmd
-build_win.bat
+이 앱은 Google Gemini API로 번역/전사를 수행하므로 API 키가 반드시 필요합니다. 무료로 발급받을 수 있습니다.
+
+1. [Google AI Studio](https://aistudio.google.com)에 접속해 Google 계정으로 로그인합니다.
+2. **"Get API key"** (API 키 받기)를 클릭합니다.
+3. **"Create API key"** → 새 Google Cloud 프로젝트를 만들거나 기존 프로젝트를 선택합니다.
+4. 발급된 API 키를 복사합니다.
+5. 앱 실행 후 **"API 키 관리..."** 버튼을 눌러 복사한 키를 붙여넣고 저장합니다.
+
+> 💡 **무료 할당량 극대화 팁**: Gemini API는 무료 티어를 제공합니다. Google 계정당 여러 프로젝트에서 키를 발급받아 앱에 최대 10개까지 등록하면, 작업(job)마다 키를 자동으로 돌려가며 사용하므로 무료 한도를 최대한 활용할 수 있습니다.
+> ⚠️ **보안 주의**: API 키는 비밀번호처럼 다루세요. 다른 사람에게 공유하거나 공개 저장소에 올리지 마세요.
+
+#### 2단계: FFmpeg 설치 (비디오/오디오 기능 사용 시 필수)
+
+비디오 파일에서 자막을 추출하거나 오디오 전사를 하려면 FFmpeg가 필요합니다. 자막 파일(SRT/ASS) 번역만 한다면 생략해도 됩니다.
+
+- **Windows**: `winget install Gyan.FFmpeg` 또는 [gyan.dev](https://www.gyan.dev/ffmpeg/builds/)에서 빌드를 받아 PATH에 추가
+- **macOS**: `brew install ffmpeg`
+- **Linux**: `sudo apt install ffmpeg`
+
+설치 확인:
+```bash
+ffmpeg -version
 ```
 
-빌드가 완료되면 `dist\GeminiSRTTranslator.exe` 단일 실행 파일이 생성됩니다.
+#### 3단계: 앱 설치 — 원하는 방식 선택
 
-#### 2. 수동 빌드 (Command Prompt / PowerShell)
+**A. 실행 파일 다운로드 (Windows, 가장 쉬움)**
+GitHub Release에서 `GeminiSRTTranslator-Windows.zip`을 받아 압축을 풀고 바로 실행합니다. Python 설치가 필요 없습니다.
+
+**B. 소스 코드 직접 실행**
+```bash
+# Python 3.10 이상 확인
+python --version
+
+# 가상환경 사용 권장
+python -m venv venv
+# Windows:
+venv\Scripts\activate
+# Linux/macOS:
+source venv/bin/activate
+
+pip install -r requirements.txt
+python main.py
+```
+
+**C. 실행 파일(.exe) 직접 빌드 (Windows)**
+1. 원클릭 자동 빌드 (추천): 프로젝트 폴더에서 `build_win.bat` (또는 `build_win.ps1`) 실행 — 패키지 설치부터 빌드까지 자동 진행
+2. 수동 빌드:
 ```cmd
 pip install -r requirements.txt
 pyinstaller --clean --noconfirm GeminiSRTTranslator.spec
 ```
-생성된 실행 파일 위치: `dist\GeminiSRTTranslator.exe`
+빌드 결과: `dist\GeminiSRTTranslator.exe`
 
-#### 3. GitHub Release 다운로드
-Release에서 `GeminiSRTTranslator-Windows.zip` 다운로드 후 압축 해제하여 바로 실행.
+### 🔧 문제 해결
 
-### 소스 코드 직접 실행 방법
-
-```bash
-pip install -r requirements.txt
-python main.py
+| 증상 | 해결 방법 |
+|---|---|
+| `ffmpeg`을(를) 찾을 수 없다는 오류 | 2단계 FFmpeg 설치 후 터미널을 다시 열거나 PC 재부팅 (PATH 반영) |
+| API 키 오류 / 400 에러 | AI Studio에서 키를 재발급받아 "API 키 관리"에서 교체 |
+| 무료 할당량 초과 (429) | API 키를 추가로 등록하거나 잠시 후 재시도. 키가 여러 개면 자동 순환됨 |
+| 모델 목록이 비어 있음 | "모델 가져오기" 버튼 클릭, API 키가 올바르게 등록됐는지 확인 |
+| PyQt6 설치 실패 | `pip install --upgrade pip` 후 재시도 |
 ```
 
 ### 프로젝트 구조
@@ -150,34 +193,77 @@ A PyQt6-based GUI application that leverages the [gemini-srt-translator](https:/
 ### Requirements
 
 - Windows 10 or later (64-bit), or Linux/macOS
+- Google account (for a free Gemini API key)
 - Python 3.10 or later (for running from source)
+- FFmpeg (required for video/audio transcription and audio extraction)
 
-### 📦 Build Windows 10+ Executable (.exe)
+### 🚀 Installation Guide
 
-#### Option 1 — One-click Auto Build (Recommended)
-Open the project folder on Windows and run `build_win.bat` or `build_win.ps1`. It automatically installs dependencies and builds the `.exe`.
+#### Step 1: Sign up for Google AI Studio and get an API key (required)
 
-```cmd
-build_win.bat
+This app performs translation/transcription via the Google Gemini API, so an API key is required. It's free.
+
+1. Go to [Google AI Studio](https://aistudio.google.com) and sign in with your Google account.
+2. Click **"Get API key"**.
+3. Click **"Create API key"** → create a new Google Cloud project or select an existing one.
+4. Copy the issued API key.
+5. In the app, click **"Manage API Keys..."**, paste the key, and save.
+
+> 💡 **Maximize the free quota**: The Gemini API offers a free tier. Issue keys from multiple projects under your Google account and register up to 10 in the app — keys are rotated automatically per job, maximizing your free usage.
+> ⚠️ **Security**: Treat your API key like a password. Never share it or commit it to a public repository.
+
+#### Step 2: Install FFmpeg (required for video/audio features)
+
+FFmpeg is required to extract subtitles from video files or transcribe audio. Skip this if you only translate subtitle files (SRT/ASS).
+
+- **Windows**: `winget install Gyan.FFmpeg`, or download a build from [gyan.dev](https://www.gyan.dev/ffmpeg/builds/) and add it to PATH
+- **macOS**: `brew install ffmpeg`
+- **Linux**: `sudo apt install ffmpeg`
+
+Verify:
+```bash
+ffmpeg -version
 ```
 
-When finished, the standalone executable is placed at `dist\GeminiSRTTranslator.exe`.
+#### Step 3: Install the app — pick your method
 
-#### Option 2 — Manual Build (Command Prompt / PowerShell)
+**A. Download the executable (Windows, easiest)**
+Download `GeminiSRTTranslator-Windows.zip` from the latest GitHub Release, extract, and run. No Python installation needed.
+
+**B. Run from source**
+```bash
+# Check Python 3.10+
+python --version
+
+# Virtual environment recommended
+python -m venv venv
+# Windows:
+venv\Scripts\activate
+# Linux/macOS:
+source venv/bin/activate
+
+pip install -r requirements.txt
+python main.py
+```
+
+**C. Build the executable (.exe) yourself (Windows)**
+1. One-click auto build (recommended): run `build_win.bat` (or `build_win.ps1`) in the project folder — installs packages and builds automatically
+2. Manual build:
 ```cmd
 pip install -r requirements.txt
 pyinstaller --clean --noconfirm GeminiSRTTranslator.spec
 ```
 Output: `dist\GeminiSRTTranslator.exe`
 
-#### Option 3 — GitHub Release Download
-Download `GeminiSRTTranslator-Windows.zip` from the latest Release, extract, and run directly.
+### 🔧 Troubleshooting
 
-### Running from Source
-
-```bash
-pip install -r requirements.txt
-python main.py
+| Symptom | Fix |
+|---|---|
+| `ffmpeg` not found error | Install FFmpeg (Step 2), then reopen the terminal or reboot (to refresh PATH) |
+| API key error / 400 | Reissue the key in AI Studio and replace it under "Manage API Keys" |
+| Free quota exceeded (429) | Register additional API keys or wait and retry; multiple keys rotate automatically |
+| Empty model list | Click "Fetch Models" and verify the API key is registered correctly |
+| PyQt6 install failure | `pip install --upgrade pip`, then retry |
 ```
 
 ### Project Structure
