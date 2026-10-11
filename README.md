@@ -18,6 +18,7 @@ PyQt6 기반 GUI 애플리케이션으로, [gemini-srt-translator](https://githu
 - **실시간 VT100 터미널 뷰**: 라이브러리의 콘솔 출력(색상 포함)을 앱 내에서 실시간 렌더링
 - **세부 튜닝 옵션**: temperature, top_p, top_k, 사고(thinking) 예산/수준, 배치 크기, 서비스 티어 등
 - **문맥 연속성 관리 (context_size)**: 번역 중 이전 자막 라인을 참조하는 슬라이딩 컨텍스트 크기 설정
+- **중단된 작업 이어하기 (resume, v3.8.3)**: 이전에 중단된 번역/전사 작업을 저장된 진행 상태부터 자동으로 이어서 수행. 체크 해제 시 처음부터 새로 시작
 - **적응형 배치/오디오 자동 감축 (v3.8.3)**: API 오류(429/500/503) 또는 파싱 오류 발생 시 배치 크기(`batch_size_error_step`)와 오디오 청크(`audio_chunk_error_step`)를 자동으로 줄여 복구 후 원래 크기로 복원
 - **Google Cloud / Vertex AI(Enterprise) 연동**: Cloud Project, API Key, Region, Request Type 설정 지원
 - **자동 재시도/백오프**: 연속 실패 시 지수 백오프로 대기하고, 임계치 초과 시 안전하게 작업 중단
@@ -58,6 +59,25 @@ pip install -r requirements.txt
 python main.py
 ```
 
+### 프로젝트 구조
+
+```
+main.py                 # 얇은 진입점 (패치 → 임포트 가드 → GUI 실행)
+core/
+  safety.py             # 프로세스 안전 패치 (exit/signal 가드, FFmpeg 경로)
+  config.py             # 앱 상수 (기본 모델, API 키 슬롯 등)
+  languages.py          # 언어 정규화 및 ISO 코드 변환
+  media.py              # FFmpeg 기반 미디어/자막 헬퍼
+  gst_compat.py         # gemini-srt-translator 호환 레이어 및 몽키패치
+  errors.py             # 워커 오류 분류 (순수 함수)
+app/
+  widgets.py            # CheckableComboBox, PyteTerminalWidget
+  workers.py            # TranslationWorker, ModelFetcherThread
+  i18n.py               # 한/영 UI 문자열
+  main_window.py        # TranslatorApp (메인 윈도우)
+tests/                  # pytest 테스트 스위트
+```
+
 ### 사용 방법 요약
 
 1. **API 키 설정**: "API 키 관리..." 버튼을 눌러 최소 1개 이상의 Gemini API 키를 입력하고 저장합니다.
@@ -81,6 +101,7 @@ python main.py
 | 사고 예산 / 수준 | Thinking 기능 예산 및 수준 설정 |
 | 오디오청크 | 오디오 컨텍스트 번역 청크 크기(초) |
 | Context Size | 슬라이딩 컨텍스트 참조 라인 수 (0 = 비활성) |
+| 작업 이어하기 | 중단된 작업의 저장된 진행 상태부터 자동 재개 (기본값: 켜짐) |
 | 배치 축소단위 | 오류 발생 시 배치 크기 자동 감축 단계 (기본: 100) |
 | 오디오 축소단위 | 오류 발생 시 오디오 청크 자동 감축 단계 (기본: 60) |
 
@@ -90,7 +111,7 @@ python main.py
 
 ### 주의 사항
 
-- API 키는 평문(Normal echo mode)으로 입력창에 표시됩니다. 화면 캡처나 공유 시 주의하세요.
+- API 키는 기본적으로 가려서(마스크) 표시됩니다. "API 키 표시" 체크박스로 보였다/가렸다 전환할 수 있습니다.
 - Enterprise(Vertex AI) 모드 사용 시 별도의 Google Cloud Project / 인증 정보가 필요합니다.
 - 이 GUI는 [gemini-srt-translator](https://pypi.org/project/gemini-srt-translator/) 라이브러리 **v3.8.3** 인터페이스 기반으로 작성되었습니다.
 - 라이브러리 버전이 다르면 일부 옵션이 동작하지 않을 수 있습니다.
@@ -111,6 +132,7 @@ A PyQt6-based GUI application that leverages the [gemini-srt-translator](https:/
 - **Real-time VT100 Terminal**: Renders library console output (with ANSI colors) live inside the app
 - **Fine-tuning Options**: temperature, top_p, top_k, thinking budget/level, batch size, service tier, etc.
 - **Context Management (context_size)**: Configure sliding context window size for improved translation continuity
+- **Resume Interrupted Jobs (v3.8.3)**: Automatically continue translation/transcription from saved progress. Uncheck to start fresh from the beginning
 - **Adaptive Batch & Audio Chunk Sizing (v3.8.3)**: Automatically reduces `batch_size` and `audio_chunk_size` on API errors (429/500/503) or parse failures, then restores original values on success
 - **Google Cloud / Vertex AI (Enterprise)**: Supports Cloud Project, API Key, Region, and Request Type configuration
 - **Auto Retry / Backoff**: Exponential backoff on consecutive failures; safely aborts when threshold is exceeded
@@ -151,6 +173,25 @@ pip install -r requirements.txt
 python main.py
 ```
 
+### Project Structure
+
+```
+main.py                 # Thin entry point (patches → import guard → GUI launch)
+core/
+  safety.py             # Process-safety patches (exit/signal guards, FFmpeg path)
+  config.py             # App constants (default model, API key slots, etc.)
+  languages.py          # Language normalization and ISO code conversion
+  media.py              # FFmpeg-based media/subtitle helpers
+  gst_compat.py         # gemini-srt-translator compatibility layer and monkeypatches
+  errors.py             # Worker error classification (pure functions)
+app/
+  widgets.py            # CheckableComboBox, PyteTerminalWidget
+  workers.py            # TranslationWorker, ModelFetcherThread
+  i18n.py               # Korean/English UI strings
+  main_window.py        # TranslatorApp (main window)
+tests/                  # pytest test suite
+```
+
 ### Quick Usage Guide
 
 1. **Set API Keys**: Click "Manage API Keys..." and enter at least one Gemini API key.
@@ -174,6 +215,7 @@ python main.py
 | Thinking Budget / Level | Configure thinking feature budget and level |
 | Audio Chunk | Audio context translation chunk size (seconds) |
 | Context Size | Sliding context reference line count (0 = disabled) |
+| Resume | Auto-resume interrupted jobs from saved progress (default: on) |
 | Batch Error Step | Auto-reduction step for batch size on errors (default: 100) |
 | Audio Error Step | Auto-reduction step for audio chunk on errors (default: 60) |
 
@@ -183,6 +225,6 @@ Settings are stored via `QSettings(SETTINGS_ORG="GeminiSrtTranslatorGUI", SETTIN
 
 ### Notes
 
-- API keys are displayed in plain text in the input field. Be careful when screen-sharing or taking screenshots.
+- API keys are masked by default. Use the "Show API keys" checkbox to toggle visibility.
 - Enterprise (Vertex AI) mode requires a separate Google Cloud Project and authentication credentials.
 - This GUI targets the **v3.8.3** interface of the [gemini-srt-translator](https://pypi.org/project/gemini-srt-translator/) library. Some options may not work with different library versions.
