@@ -107,23 +107,29 @@ pyinstaller --clean --noconfirm GeminiSRTTranslator.spec
 ### 프로젝트 구조
 
 ```
-main.py                 # 얇은 진입점 (패치 → 임포트 가드 → GUI 실행)
-core/
-  safety.py             # 프로세스 안전 패치 (exit/signal 가드, FFmpeg 경로)
-  config.py             # 앱 상수 (기본 모델, API 키 슬롯 등)
-  languages.py          # 언어 정규화 및 ISO 코드 변환
-  media.py              # FFmpeg 기반 미디어/자막 헬퍼
-  gst_compat.py         # gemini-srt-translator 호환 레이어 및 몽키패치
-  errors.py             # 워커 오류 분류 (순수 함수)
-  style_presets.py      # 번역 스타일 프리셋 정의 및 description 합성
-  subtitle_io.py        # SRT 파싱/생성, CPS 계산 (순수 함수)
-app/
-  widgets.py            # CheckableComboBox, PyteTerminalWidget
-  workers.py            # TranslationWorker, ModelFetcherThread
-  preview_editor.py     # 번역 결과 미리보기/편집 다이얼로그
-  i18n.py               # 한/영 UI 문자열
-  main_window.py        # TranslatorApp (메인 윈도우)
-tests/                  # pytest 테스트 스위트
+GeminiSRTTranslatorGUI/
+├── main.py                   # 얇은 진입점 (패치 → 임포트 가드 → GUI 실행)
+├── requirements.txt          # 실행용 의존성
+├── requirements-dev.txt      # 개발용 의존성 (pytest 등)
+├── build_win.bat / .ps1      # Windows 원클릭 빌드 스크립트
+├── GeminiSRTTranslator.spec  # PyInstaller 빌드 스펙
+├── README.md                 # 이 문서
+├── core/                     # GUI 무관 순수 로직
+│   ├── safety.py             # 프로세스 안전 패치 (exit/signal 가드, FFmpeg 경로)
+│   ├── config.py             # 앱 상수 (기본 모델, API 키 슬롯 등)
+│   ├── languages.py          # 언어 정규화 및 ISO 코드 변환
+│   ├── media.py              # FFmpeg 기반 미디어/자막 헬퍼
+│   ├── gst_compat.py         # gemini-srt-translator 호환 레이어 및 몽키패치
+│   ├── errors.py             # 워커 오류 분류 (순수 함수)
+│   ├── style_presets.py      # 번역 스타일 프리셋 정의 및 description 합성
+│   └── subtitle_io.py        # SRT 파싱/생성, CPS 계산 (순수 함수)
+├── app/                      # PyQt6 GUI
+│   ├── main_window.py        # TranslatorApp (메인 윈도우)
+│   ├── preview_editor.py     # 번역 결과 미리보기/편집 다이얼로그
+│   ├── widgets.py            # CheckableComboBox, PyteTerminalWidget
+│   ├── workers.py            # TranslationWorker, ModelFetcherThread
+│   └── i18n.py               # 한/영 UI 문자열
+└── tests/                    # pytest 테스트 스위트
 ```
 
 ### 사용 방법 요약
@@ -269,23 +275,29 @@ Output: `dist\GeminiSRTTranslator.exe`
 ### Project Structure
 
 ```
-main.py                 # Thin entry point (patches → import guard → GUI launch)
-core/
-  safety.py             # Process-safety patches (exit/signal guards, FFmpeg path)
-  config.py             # App constants (default model, API key slots, etc.)
-  languages.py          # Language normalization and ISO code conversion
-  media.py              # FFmpeg-based media/subtitle helpers
-  gst_compat.py         # gemini-srt-translator compatibility layer and monkeypatches
-  errors.py             # Worker error classification (pure functions)
-  style_presets.py      # Translation style preset definitions and description composition
-  subtitle_io.py        # SRT parsing/generation, CPS calculation (pure functions)
-app/
-  widgets.py            # CheckableComboBox, PyteTerminalWidget
-  workers.py            # TranslationWorker, ModelFetcherThread
-  preview_editor.py     # Translation result preview/edit dialog
-  i18n.py               # Korean/English UI strings
-  main_window.py        # TranslatorApp (main window)
-tests/                  # pytest test suite
+GeminiSRTTranslatorGUI/
+├── main.py                   # Thin entry point (patches → import guard → GUI launch)
+├── requirements.txt          # Runtime dependencies
+├── requirements-dev.txt      # Dev dependencies (pytest, etc.)
+├── build_win.bat / .ps1      # Windows one-click build scripts
+├── GeminiSRTTranslator.spec  # PyInstaller build spec
+├── README.md                 # This document
+├── core/                     # GUI-independent pure logic
+│   ├── safety.py             # Process-safety patches (exit/signal guards, FFmpeg path)
+│   ├── config.py             # App constants (default model, API key slots, etc.)
+│   ├── languages.py          # Language normalization and ISO code conversion
+│   ├── media.py              # FFmpeg-based media/subtitle helpers
+│   ├── gst_compat.py         # gemini-srt-translator compatibility layer and monkeypatches
+│   ├── errors.py             # Worker error classification (pure functions)
+│   ├── style_presets.py      # Translation style preset definitions and description composition
+│   └── subtitle_io.py        # SRT parsing/generation, CPS calculation (pure functions)
+├── app/                      # PyQt6 GUI
+│   ├── main_window.py        # TranslatorApp (main window)
+│   ├── preview_editor.py     # Translation result preview/edit dialog
+│   ├── widgets.py            # CheckableComboBox, PyteTerminalWidget
+│   ├── workers.py            # TranslationWorker, ModelFetcherThread
+│   └── i18n.py               # Korean/English UI strings
+└── tests/                    # pytest test suite
 ```
 
 ### Quick Usage Guide
