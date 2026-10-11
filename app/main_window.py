@@ -24,6 +24,7 @@ from app.widgets import CheckableComboBox, PyteTerminalWidget
 from app.workers import (
     ForceAbortException, ModelFetcherThread, TranslationWorker, WorkerStream,
 )
+from app.preview_editor import SubtitlePreviewDialog
 from core.config import (
     API_KEY_SETTINGS, APP_NAME, DEFAULT_BATCH_SIZE, DEFAULT_MODEL,
     NUM_API_KEYS, SETTINGS_APP, SETTINGS_ORG,
@@ -39,6 +40,7 @@ from core.media import (
     _extract_subtitle_track, _get_media_duration, _get_video_subtitle_streams,
 )
 from core.safety import WorkerLibraryExit
+from core.style_presets import STYLE_PRESETS, compose_description
 
 
 # =====================================================================
@@ -57,6 +59,8 @@ class TranslatorApp(QWidget):
         self.total_jobs = 0
         self.completed_jobs = 0
         self.job_completion_lock = threading.Lock()
+        self.jobs = []
+        self.recent_outputs = []
         self.api_key_inputs = []
         self.api_key_labels = []
         self._stop_requested = False
@@ -157,6 +161,8 @@ class TranslatorApp(QWidget):
             self.btn_files.setText(self.tr_str("btn_files"))
         if hasattr(self, 'btn_out'):
             self.btn_out.setText(self.tr_str("btn_out"))
+        if hasattr(self, 'btn_preview'):
+            self.btn_preview.setText(self.tr_str("btn_preview"))
         if hasattr(self, 'btn_video_file'):
             self.btn_video_file.setText(self.tr_str("btn_video_file"))
         if hasattr(self, 'lst_video_files'):
@@ -191,6 +197,10 @@ class TranslatorApp(QWidget):
             self.lbl_prompt.setText(self.tr_str("lbl_prompt"))
         if hasattr(self, 'txt_desc'):
             self.txt_desc.setPlaceholderText(self.tr_str("txt_desc_ph"))
+        if hasattr(self, 'lbl_style'):
+            self.lbl_style.setText(self.tr_str("lbl_style"))
+        if hasattr(self, 'cmb_style'):
+            self._refresh_style_combo()
 
         # Advanced Settings Dialog
         if hasattr(self, 'btn_advanced'):
@@ -476,6 +486,9 @@ class TranslatorApp(QWidget):
         self.lbl_out.setReadOnly(True)
         output_layout.addWidget(self.btn_out)
         output_layout.addWidget(self.lbl_out, 1)
+        self.btn_preview = QPushButton("번역 결과 미리보기/편집")
+        self.btn_preview.clicked.connect(self.open_preview_editor)
+        output_layout.addWidget(self.btn_preview)
         layout.addLayout(output_layout)
 
         video_file_layout = QHBoxLayout()
@@ -531,6 +544,20 @@ class TranslatorApp(QWidget):
         layout.addWidget(self.cmb_langs)
         self.file_lang_group.setLayout(layout)
         parent_layout.addWidget(self.file_lang_group)
+
+    def _refresh_style_combo(self):
+        """스타일 프리셋 콤보박스를 현재 UI 언어로 다시 채운다 (선택 유지)."""
+        current_id = None
+        if hasattr(self, 'cmb_style') and self.cmb_style.count() > 0:
+            current_id = self.cmb_style.currentData()
+        self.cmb_style.clear()
+        name_key = "name_ko" if getattr(self, 'app_lang', 'ko') == 'ko' else "name_en"
+        for p in STYLE_PRESETS:
+            self.cmb_style.addItem(p[name_key], p["id"])
+        if current_id:
+            idx = self.cmb_style.findData(current_id)
+            if idx >= 0:
+                self.cmb_style.setCurrentIndex(idx)
 
     def _on_task_mode_changed(self, index):
         is_transcribe = (index == 1)
@@ -588,6 +615,15 @@ class TranslatorApp(QWidget):
         self.txt_desc.setPlaceholderText("번역/전사 시 AI가 참고할 문맥을 입력하세요.")
         form_layout.addRow(self.lbl_prompt)
         form_layout.addRow(self.txt_desc)
+
+        self.lbl_style = QLabel("번역 스타일 프리셋:")
+        self.cmb_style = QComboBox()
+        self.cmb_style.setMinimumWidth(260)
+        style_layout = QHBoxLayout()
+        style_layout.addWidget(self.cmb_style)
+        style_layout.addStretch()
+        form_layout.addRow(self.lbl_style, style_layout)
+        self._refresh_style_combo()
 
         self.main_options_group.setLayout(form_layout)
         parent_layout.addWidget(self.main_options_group)
@@ -911,6 +947,10 @@ class TranslatorApp(QWidget):
             self.txt_desc.setText(
                 self.settings.value("prompt_desc", "", type=str)
             )
+            saved_style = str(self.settings.value("style_preset", "default") or "default")
+            idx = self.cmb_style.findData(saved_style)
+            if idx >= 0:
+                self.cmb_style.setCurrentIndex(idx)
 
             saved_video_paths_str = str(self.settings.value("video_file_paths", "") or "")
             saved_video_paths = saved_video_paths_str.split('\n') if saved_video_paths_str else []
@@ -1025,6 +1065,7 @@ class TranslatorApp(QWidget):
             self.settings.setValue("isolate_voice", self.chk_isolate_voice.isChecked())
             self.settings.setValue("thinking_level", self.cmb_thinking_level.currentText())
             self.settings.setValue("prompt_desc", self.txt_desc.toPlainText())
+            self.settings.setValue("style_preset", self.cmb_style.currentData())
 
             valid_video_paths = [p for p in self.video_file_paths if p and os.path.exists(p)]
             self.settings.setValue("video_file_paths", '\n'.join(valid_video_paths))
@@ -1469,8 +1510,10 @@ class TranslatorApp(QWidget):
             return
 
         self.job_queue = queue.Queue()
+        self.jobs = list(jobs)
         self.total_jobs = len(jobs)
         self.completed_jobs = 0
+        self.recent_outputs = []
         for job in jobs:
             self.job_queue.put(job)
 
@@ -1497,7 +1540,10 @@ class TranslatorApp(QWidget):
                 if len(self.api_key_inputs) > 1 else None
             ),
             'start_line': self.spin_start.value(),
-            'description': self.txt_desc.toPlainText().strip() or None,
+            'description': compose_description(
+                self.txt_desc.toPlainText(),
+                self.cmb_style.currentData() if hasattr(self, 'cmb_style') else "default",
+            ),
             'model_name': selected_model,
             'batch_size': self.spin_batch.value(),
             'free_quota': self.chk_free.isChecked(),
@@ -1560,11 +1606,47 @@ class TranslatorApp(QWidget):
             self.completed_jobs += 1
             current = self.completed_jobs
             total = self.total_jobs
+        # 미리보기 에디터용: 출력 파일 -> 원본 파일 매칭 기록
+        src_path = None
+        for job in self.jobs:
+            if len(job) >= 3 and job[2] == output_path:
+                src_path = job[0]
+                break
+        with self.job_completion_lock:
+            self.recent_outputs.append((output_path, src_path))
         self.progress_bar.setValue(current)
         self.progress_bar.setFormat(self.tr_str("progress_format", current=current, total=total))
         self.append_log(
             f"\x1b[32m{self.tr_str('log_job_success', current=current, total=total, lang=language, file=os.path.basename(output_path))}\x1b[0m"
         )
+
+    def open_preview_editor(self):
+        """번역 결과 미리보기/편집 다이얼로그 열기."""
+        translated, original = None, None
+        if self.recent_outputs:
+            if len(self.recent_outputs) == 1:
+                translated, original = self.recent_outputs[0]
+            else:
+                from PyQt6.QtWidgets import QInputDialog
+                items = [os.path.basename(p) for p, _ in self.recent_outputs]
+                choice, ok = QInputDialog.getItem(
+                    self, self.tr_str("preview_title"),
+                    self.tr_str("preview_choose_file"), items, 0, False)
+                if not ok:
+                    return
+                translated, original = self.recent_outputs[items.index(choice)]
+        else:
+            path, _ = QFileDialog.getOpenFileName(
+                self, self.tr_str("preview_open_translated"),
+                self.output_dir, "Subtitles (*.srt)")
+            if not path:
+                return
+            translated = path
+        # 원본이 자막 파일이 아니면 대조 표시 안 함
+        if original and not original.lower().endswith((".srt", ".ass")):
+            original = None
+        dlg = SubtitlePreviewDialog(self, translated, original)
+        dlg.exec()
 
     def _handle_job_error(self, error_message):
         with self.job_completion_lock:
@@ -1605,12 +1687,13 @@ class TranslatorApp(QWidget):
         widgets_to_toggle = [
             *self.api_key_inputs, *self.api_key_labels, self.btn_save_api,
             self.btn_manage_api_keys, self.btn_advanced,
-            self.cmb_task_mode, self.btn_out, self.lbl_out,
+            self.cmb_task_mode, self.btn_out, self.lbl_out, self.btn_preview,
             self.btn_clear_files,
             self.btn_video_file, self.lst_video_files, self.btn_clear_video_file,
             self.btn_audio_file, self.lbl_audio_file, self.btn_clear_audio_file,
             self.cmb_langs, self.btn_all_lang, self.btn_none_lang,
             self.cmb_model, self.spin_start, self.spin_batch, self.txt_desc,
+            self.lbl_style, self.cmb_style,
             self.chk_extract_audio, self.chk_free,
             self.spin_temp, self.spin_top_p, self.spin_top_k,
             self.chk_streaming, self.chk_thinking, self.spin_thinking_budget,

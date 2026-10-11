@@ -19,6 +19,8 @@ PyQt6 기반 GUI 애플리케이션으로, [gemini-srt-translator](https://githu
 - **세부 튜닝 옵션**: temperature, top_p, top_k, 사고(thinking) 예산/수준, 배치 크기, 서비스 티어 등
 - **문맥 연속성 관리 (context_size)**: 번역 중 이전 자막 라인을 참조하는 슬라이딩 컨텍스트 크기 설정
 - **중단된 작업 이어하기 (resume, v3.8.3)**: 이전에 중단된 번역/전사 작업을 저장된 진행 상태부터 자동으로 이어서 수행. 체크 해제 시 처음부터 새로 시작
+- **번역 스타일 프리셋**: 자연스러운 구어체, 드라마·영화 자막체, 다큐 내레이션체, 애니 더빙체, 어학용 직역, 예능·유튜브체, 어린이용 등 7종 프리셋. 선택한 스타일 지침이 번역 프롬프트에 자동 합성됨
+- **번역 결과 미리보기/편집**: 번역 완료 후 원문과 대조하며 번역문을 행 단위로 수정·저장. CPS(초당 글자수) 경고 표시, 검색, 저장 시 `.bak` 자동 백업
 - **적응형 배치/오디오 자동 감축 (v3.8.3)**: API 오류(429/500/503) 또는 파싱 오류 발생 시 배치 크기(`batch_size_error_step`)와 오디오 청크(`audio_chunk_error_step`)를 자동으로 줄여 복구 후 원래 크기로 복원
 - **Google Cloud / Vertex AI(Enterprise) 연동**: Cloud Project, API Key, Region, Request Type 설정 지원
 - **자동 재시도/백오프**: 연속 실패 시 지수 백오프로 대기하고, 임계치 초과 시 안전하게 작업 중단
@@ -70,9 +72,12 @@ core/
   media.py              # FFmpeg 기반 미디어/자막 헬퍼
   gst_compat.py         # gemini-srt-translator 호환 레이어 및 몽키패치
   errors.py             # 워커 오류 분류 (순수 함수)
+  style_presets.py      # 번역 스타일 프리셋 정의 및 description 합성
+  subtitle_io.py        # SRT 파싱/생성, CPS 계산 (순수 함수)
 app/
   widgets.py            # CheckableComboBox, PyteTerminalWidget
   workers.py            # TranslationWorker, ModelFetcherThread
+  preview_editor.py     # 번역 결과 미리보기/편집 다이얼로그
   i18n.py               # 한/영 UI 문자열
   main_window.py        # TranslatorApp (메인 윈도우)
 tests/                  # pytest 테스트 스위트
@@ -133,6 +138,8 @@ A PyQt6-based GUI application that leverages the [gemini-srt-translator](https:/
 - **Fine-tuning Options**: temperature, top_p, top_k, thinking budget/level, batch size, service tier, etc.
 - **Context Management (context_size)**: Configure sliding context window size for improved translation continuity
 - **Resume Interrupted Jobs (v3.8.3)**: Automatically continue translation/transcription from saved progress. Uncheck to start fresh from the beginning
+- **Translation Style Presets**: 7 presets — natural colloquial, drama & film subtitles, documentary narration, anime dubbing, literal (for language study), variety/YouTube style, and for kids. The selected style instruction is automatically merged into the translation prompt
+- **Result Preview & Editor**: After translation, review and edit translated lines side-by-side with the original. Includes CPS (chars/sec) warnings, search, and automatic `.bak` backup on save
 - **Adaptive Batch & Audio Chunk Sizing (v3.8.3)**: Automatically reduces `batch_size` and `audio_chunk_size` on API errors (429/500/503) or parse failures, then restores original values on success
 - **Google Cloud / Vertex AI (Enterprise)**: Supports Cloud Project, API Key, Region, and Request Type configuration
 - **Auto Retry / Backoff**: Exponential backoff on consecutive failures; safely aborts when threshold is exceeded
@@ -184,9 +191,12 @@ core/
   media.py              # FFmpeg-based media/subtitle helpers
   gst_compat.py         # gemini-srt-translator compatibility layer and monkeypatches
   errors.py             # Worker error classification (pure functions)
+  style_presets.py      # Translation style preset definitions and description composition
+  subtitle_io.py        # SRT parsing/generation, CPS calculation (pure functions)
 app/
   widgets.py            # CheckableComboBox, PyteTerminalWidget
   workers.py            # TranslationWorker, ModelFetcherThread
+  preview_editor.py     # Translation result preview/edit dialog
   i18n.py               # Korean/English UI strings
   main_window.py        # TranslatorApp (main window)
 tests/                  # pytest test suite
