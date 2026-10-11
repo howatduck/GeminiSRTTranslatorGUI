@@ -227,8 +227,8 @@ class TranslatorApp(QWidget):
             self.chk_streaming.setText(self.tr_str("chk_streaming"))
         if hasattr(self, 'chk_thinking'):
             self.chk_thinking.setText(self.tr_str("chk_thinking"))
-        if hasattr(self, 'chk_preserve_context'):
-            self.chk_preserve_context.setText(self.tr_str("chk_preserve_context"))
+        if hasattr(self, 'chk_resume'):
+            self.chk_resume.setText(self.tr_str("chk_resume"))
         if hasattr(self, 'chk_isolate_voice'):
             self.chk_isolate_voice.setText(self.tr_str("chk_isolate_voice"))
         if hasattr(self, 'chk_extract_audio'):
@@ -714,11 +714,11 @@ class TranslatorApp(QWidget):
         self.chk_streaming.setChecked(True)
         self.chk_thinking = QCheckBox("사고기능")
         self.chk_thinking.setChecked(True)
-        self.chk_preserve_context = QCheckBox("문맥 유지")
-        self.chk_preserve_context.setChecked(True)
+        self.chk_resume = QCheckBox("중단된 작업 이어하기")
+        self.chk_resume.setChecked(True)
         box1.addWidget(self.chk_streaming)
         box1.addWidget(self.chk_thinking)
-        box1.addWidget(self.chk_preserve_context)
+        box1.addWidget(self.chk_resume)
         main_form_layout.addRow(box1)
 
         box2 = QHBoxLayout()
@@ -931,8 +931,8 @@ class TranslatorApp(QWidget):
             self.chk_extract_audio.setChecked(
                 self.settings.value("extract_audio", False, type=bool)
             )
-            self.chk_preserve_context.setChecked(
-                self.settings.value("preserve_context", True, type=bool)
+            self.chk_resume.setChecked(
+                self.settings.value("resume", True, type=bool)
             )
             self.chk_token_stats.setChecked(
                 self.settings.value("token_stats", True, type=bool)
@@ -1033,7 +1033,7 @@ class TranslatorApp(QWidget):
                 self.audio_file_path if self.audio_file_path and os.path.exists(self.audio_file_path) else ""
             )
             self.settings.setValue("extract_audio", self.chk_extract_audio.isChecked())
-            self.settings.setValue("preserve_context", self.chk_preserve_context.isChecked())
+            self.settings.setValue("resume", self.chk_resume.isChecked())
             self.settings.setValue("token_stats", self.chk_token_stats.isChecked())
             self.settings.setValue("token_report", self.chk_token_report.isChecked())
 
@@ -1524,10 +1524,9 @@ class TranslatorApp(QWidget):
             ),
             'extract_audio': self.chk_extract_audio.isChecked(),
             'token_stats': self.chk_token_stats.isChecked(),
-            'preserve_context': self.chk_preserve_context.isChecked(),
+            'resume': self.chk_resume.isChecked(),
             'token_report': self.chk_token_report.isChecked(),
             'context_size': self.spin_resume_context.value(),
-            'resume_context_size': self.spin_resume_context.value(),
             'batch_size_error_step': self.spin_batch_error_step.value(),
             'audio_chunk_error_step': self.spin_audio_chunk_error_step.value(),
             'service_tier': service_tier,
