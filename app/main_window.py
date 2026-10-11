@@ -1616,7 +1616,7 @@ class TranslatorApp(QWidget):
             self.chk_streaming, self.chk_thinking, self.spin_thinking_budget,
             self.cmb_thinking_level, self.spin_audio_chunk, self.chk_isolate_voice,
             self.chk_append_lang, self.chk_reuse_extracted,
-            self.chk_token_stats, self.chk_preserve_context,
+            self.chk_token_stats,
             self.chk_token_report, self.spin_resume_context,
             self.spin_batch_error_step, self.spin_audio_chunk_error_step,
             self.cmb_service_tier, self.chk_use_enterprise,
