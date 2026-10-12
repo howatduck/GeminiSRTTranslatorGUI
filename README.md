@@ -30,6 +30,7 @@ PyQt6 기반 GUI 애플리케이션으로, [gemini-srt-translator](https://githu
 - **AI Agent Skill 설치**: 라이브러리의 SKILL.md를 Claude Code / Cursor·Codex·Cline / Antigravity에 원클릭 설치 (전역 또는 프로젝트 폴더)
 - **라이브러리 업데이트 확인**: PyPI에서 gemini-srt-translator 최신 버전을 백그라운드로 확인
 - **예상 비용 표시**: "비용 리포트 저장" 체크 시 작업별 토큰 리포트의 pricing.json 기반 예상 비용(USD)을 로그에 표시
+- **진행 로그**: 작업 진행 상황 로그 기록 옵션 ("사고 로그"와 함께 토글)
 
 ### 요구 사항
 
@@ -203,6 +204,7 @@ A PyQt6-based GUI application that leverages the [gemini-srt-translator](https:/
 - **AI Agent Skill Installer**: One-click install of the library's SKILL.md for Claude Code / Cursor·Codex·Cline / Antigravity (global or project folder)
 - **Library Update Check**: Check PyPI for the latest gemini-srt-translator version in the background
 - **Estimated Cost Display**: When "save cost report" is checked, per-job estimated cost (USD, from pricing.json) is shown in the log
+- **Progress Log**: Optional per-job progress logging (toggle alongside "Thinking Log")
 
 ### Requirements
 
