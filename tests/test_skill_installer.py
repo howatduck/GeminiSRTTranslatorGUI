@@ -1,1 +1,17 @@
-IyAtKi0gY29kaW5nOiB1dGYtOCAtKi0KIiIiYXBwLnNraWxsX2luc3RhbGxlciDthYzsiqTtirggKFF0IOyXhuydtCDsi6Ttlokg6rCA64ql7ZWcIOyInOyImCDrtoDrtoQpLiIiIgoKZnJvbSBhcHAuc2tpbGxfaW5zdGFsbGVyIGltcG9ydCBTS0lMTF9UQVJHRVRTLCB0YXJnZXRfaWRzCgoKZGVmIHRlc3RfdGFyZ2V0X2lkc191bmlxdWUoKToKICAgIGlkcyA9IHRhcmdldF9pZHMoKQogICAgYXNzZXJ0IGxlbihpZHMpID09IGxlbihzZXQoaWRzKSkKICAgIGFzc2VydCBzZXQoaWRzKSA9PSB7ImNsYXVkZSIsICJhZ2VudHMiLCAiYW50aWdyYXZpdHkiLCAiYWxsIn0KCgpkZWYgdGVzdF90YXJnZXRfbGFiZWxzX2JpbGluZ3VhbCgpOgogICAgZm9yIHRpZCwga28sIGVuIGluIFNLSUxMX1RBUkdFVFM6CiAgICAgICAgYXNzZXJ0IHRpZC5zdHJpcCgpCiAgICAgICAgYXNzZXJ0IGtvLnN0cmlwKCkKICAgICAgICBhc3NlcnQgZW4uc3RyaXAoKQo=
+# -*- coding: utf-8 -*-
+"""app.skill_installer 테스트 (Qt 없이 실행 가능한 순수 부분)."""
+
+from app.skill_installer import SKILL_TARGETS, target_ids
+
+
+def test_target_ids_unique():
+    ids = target_ids()
+    assert len(ids) == len(set(ids))
+    assert set(ids) == {"claude", "agents", "antigravity", "all"}
+
+
+def test_target_labels_bilingual():
+    for tid, ko, en in SKILL_TARGETS:
+        assert tid.strip()
+        assert ko.strip()
+        assert en.strip()

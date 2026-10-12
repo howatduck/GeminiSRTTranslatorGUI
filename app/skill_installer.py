@@ -1,1 +1,129 @@
-IyAtKi0gY29kaW5nOiB1dGYtOCAtKi0KIiIiQUkgQWdlbnQgU2tpbGwg7ISk7LmYIOuLpOydtOyWvOuhnOq3uC4KCuudvOydtOu4jOufrOumrChnZW1pbmktc3J0LXRyYW5zbGF0b3Ip7J2YIGBpbnN0YWxsX3NraWxsKClg7J2EIOydtOyaqe2VtApTS0lMTC5tZOulvCBBSSDsvZTrlKkg7JeQ7J207KCE7Yq4KENsYXVkZSBDb2RlLCBDdXJzb3IsIEFudGlncmF2aXR5IOuTsSnsl5Ag7ISk7LmY7ZWc64ukLgoiIiIKCmltcG9ydCBvcwoKZnJvbSBQeVF0Ni5RdFdpZGdldHMgaW1wb3J0ICgKICAgIFFEaWFsb2csIFFWQm94TGF5b3V0LCBRSEJveExheW91dCwgUUxhYmVsLCBRUHVzaEJ1dHRvbiwgUUNvbWJvQm94LAogICAgUVJhZGlvQnV0dG9uLCBRTGluZUVkaXQsIFFGaWxlRGlhbG9nLCBRVGV4dEVkaXQsIFFNZXNzYWdlQm94LCBRR3JvdXBCb3gsCikKCmZyb20gY29yZS5nc3RfY29tcGF0IGltcG9ydCBpbnN0YWxsX3NraWxsCgojICh0YXJnZXRfaWQsIOudvOuyqF9rbywg652867KoX2VuKQpTS0lMTF9UQVJHRVRTID0gWwogICAgKCJjbGF1ZGUiLCAiQ2xhdWRlIENvZGUiLCAiQ2xhdWRlIENvZGUiKSwKICAgICgiYWdlbnRzIiwgIkN1cnNvciAvIENvZGV4IC8gQ2xpbmUgKOuylOyaqSkiLCAiQ3Vyc29yIC8gQ29kZXggLyBDbGluZSAoZ2VuZXJpYykiKSwKICAgICgiYW50aWdyYXZpdHkiLCAiQW50aWdyYXZpdHkgLyBHZW1pbmkiLCAiQW50aWdyYXZpdHkgLyBHZW1pbmkiKSwKICAgICgiYWxsIiwgIuyghOyytCIsICJBbGwiKSwKXQoKCmRlZiB0YXJnZXRfaWRzKCk6CiAgICByZXR1cm4gW3RbMF0gZm9yIHQgaW4gU0tJTExfVEFSR0VUU10KCgpjbGFzcyBTa2lsbEluc3RhbGxEaWFsb2coUURpYWxvZyk6CiAgICBkZWYgX19pbml0X18oc2VsZiwgcGFyZW50KToKICAgICAgICBzdXBlcigpLl9faW5pdF9fKHBhcmVudCkKICAgICAgICBzZWxmLl9wYXJlbnQgPSBwYXJlbnQKICAgICAgICBzZWxmLnNldFdpbmRvd1RpdGxlKHNlbGYuX3QoInNraWxsX2RpYWxvZ190aXRsZSIpKQogICAgICAgIHNlbGYucmVzaXplKDU2MCwgNDIwKQoKICAgICAgICBsYXlvdXQgPSBRVkJveExheW91dCgpCgogICAgICAgICMgLS0tIO2UjOueq+2PvCDshKDtg50gLS0tCiAgICAgICAgcGxhdF9ib3ggPSBRR3JvdXBCb3goc2VsZi5fdCgic2tpbGxfbGJsX3BsYXRmb3JtIikpCiAgICAgICAgcGxhdF9sYXlvdXQgPSBRVkJveExheW91dCgpCiAgICAgICAgc2VsZi5jbWJfcGxhdGZvcm0gPSBRQ29tYm9Cb3goKQogICAgICAgIG5hbWVfa2V5ID0gMSBpZiBnZXRhdHRyKHBhcmVudCwgJ2FwcF9sYW5nJywgJ2tvJykgPT0gJ2tvJyBlbHNlIDIKICAgICAgICBmb3IgdGlkLCBrbywgZW4gaW4gU0tJTExfVEFSR0VUUzoKICAgICAgICAgICAgc2VsZi5jbWJfcGxhdGZvcm0uYWRkSXRlbShrbyBpZiBuYW1lX2tleSA9PSAxIGVsc2UgZW4sIHRpZCkKICAgICAgICBwbGF0X2xheW91dC5hZGRXaWRnZXQoc2VsZi5jbWJfcGxhdGZvcm0pCiAgICAgICAgcGxhdF9ib3guc2V0TGF5b3V0KHBsYXRfbGF5b3V0KQogICAgICAgIGxheW91dC5hZGRXaWRnZXQocGxhdF9ib3gpCgogICAgICAgICMgLS0tIOuylOychCDshKDtg50gLS0tCiAgICAgICAgc2NvcGVfYm94ID0gUUdyb3VwQm94KHNlbGYuX3QoInNraWxsX2xibF9zY29wZSIpKQogICAgICAgIHNjb3BlX2xheW91dCA9IFFWQm94TGF5b3V0KCkKICAgICAgICBzZWxmLnJhZGlvX2dsb2JhbCA9IFFSYWRpb0J1dHRvbihzZWxmLl90KCJza2lsbF9zY29wZV9nbG9iYWwiKSkKICAgICAgICBzZWxmLnJhZGlvX2dsb2JhbC5zZXRDaGVja2VkKFRydWUpCiAgICAgICAgc2VsZi5yYWRpb19wcm9qZWN0ID0gUVJhZGlvQnV0dG9uKHNlbGYuX3QoInNraWxsX3Njb3BlX3Byb2plY3QiKSkKICAgICAgICBmb2xkZXJfcm93ID0gUUhCb3hMYXlvdXQoKQogICAgICAgIHNlbGYuZWRpdF9mb2xkZXIgPSBRTGluZUVkaXQob3MucGF0aC5leHBhbmR1c2VyKCJ+IikpCiAgICAgICAgc2VsZi5lZGl0X2ZvbGRlci5zZXRFbmFibGVkKEZhbHNlKQogICAgICAgIHNlbGYuYnRuX2Jyb3dzZSA9IFFQdXNoQnV0dG9uKHNlbGYuX3QoInNraWxsX2J0bl9icm93c2UiKSkKICAgICAgICBzZWxmLmJ0bl9icm93c2Uuc2V0RW5hYmxlZChGYWxzZSkKICAgICAgICBzZWxmLmJ0bl9icm93c2UuY2xpY2tlZC5jb25uZWN0KHNlbGYuX2Jyb3dzZV9mb2xkZXIpCiAgICAgICAgZm9sZGVyX3Jvdy5hZGRXaWRnZXQoc2VsZi5lZGl0X2ZvbGRlciwgMSkKICAgICAgICBmb2xkZXJfcm93LmFkZFdpZGdldChzZWxmLmJ0bl9icm93c2UpCiAgICAgICAgc2VsZi5yYWRpb19wcm9qZWN0LnRvZ2dsZWQuY29ubmVjdChzZWxmLl9vbl9zY29wZV90b2dnbGVkKQogICAgICAgIHNjb3BlX2xheW91dC5hZGRXaWRnZXQoc2VsZi5yYWRpb19nbG9iYWwpCiAgICAgICAgc2NvcGVfbGF5b3V0LmFkZFdpZGdldChzZWxmLnJhZGlvX3Byb2plY3QpCiAgICAgICAgc2NvcGVfbGF5b3V0LmFkZExheW91dChmb2xkZXJfcm93KQogICAgICAgIHNjb3BlX2JveC5zZXRMYXlvdXQoc2NvcGVfbGF5b3V0KQogICAgICAgIGxheW91dC5hZGRXaWRnZXQoc2NvcGVfYm94KQoKICAgICAgICAjIC0tLSDqsrDqs7wgLS0tCiAgICAgICAgc2VsZi5yZXN1bHRfdmlldyA9IFFUZXh0RWRpdCgpCiAgICAgICAgc2VsZi5yZXN1bHRfdmlldy5zZXRSZWFkT25seShUcnVlKQogICAgICAgIHNlbGYucmVzdWx0X3ZpZXcuc2V0UGxhY2Vob2xkZXJUZXh0KHNlbGYuX3QoInNraWxsX3Jlc3VsdF9waCIpKQogICAgICAgIGxheW91dC5hZGRXaWRnZXQoc2VsZi5yZXN1bHRfdmlldywgMSkKCiAgICAgICAgIyAtLS0g67KE7Yq8IC0tLQogICAgICAgIGJ0bl9yb3cgPSBRSEJveExheW91dCgpCiAgICAgICAgYnRuX3Jvdy5hZGRTdHJldGNoKCkKICAgICAgICBzZWxmLmJ0bl9pbnN0YWxsID0gUVB1c2hCdXR0b24oc2VsZi5fdCgic2tpbGxfYnRuX2luc3RhbGwiKSkKICAgICAgICBzZWxmLmJ0bl9pbnN0YWxsLmNsaWNrZWQuY29ubmVjdChzZWxmLl9kb19pbnN0YWxsKQogICAgICAgIHNlbGYuYnRuX2Nsb3NlID0gUVB1c2hCdXR0b24oc2VsZi5fdCgiYnRuX2Nsb3NlIikpCiAgICAgICAgc2VsZi5idG5fY2xvc2UuY2xpY2tlZC5jb25uZWN0KHNlbGYucmVqZWN0KQogICAgICAgIGJ0bl9yb3cuYWRkV2lkZ2V0KHNlbGYuYnRuX2luc3RhbGwpCiAgICAgICAgYnRuX3Jvdy5hZGRXaWRnZXQoc2VsZi5idG5fY2xvc2UpCiAgICAgICAgbGF5b3V0LmFkZExheW91dChidG5fcm93KQoKICAgICAgICBzZWxmLnNldExheW91dChsYXlvdXQpCgogICAgICAgIGlmIGluc3RhbGxfc2tpbGwgaXMgTm9uZToKICAgICAgICAgICAgc2VsZi5idG5faW5zdGFsbC5zZXRFbmFibGVkKEZhbHNlKQogICAgICAgICAgICBzZWxmLnJlc3VsdF92aWV3LnNldFBsYWluVGV4dChzZWxmLl90KCJza2lsbF9ub19saWJyYXJ5IikpCgogICAgZGVmIF90KHNlbGYsIGtleSwgKiprd2FyZ3MpOgogICAgICAgIHRyeToKICAgICAgICAgICAgcmV0dXJuIHNlbGYuX3BhcmVudC50cl9zdHIoa2V5LCAqKmt3YXJncykKICAgICAgICBleGNlcHQgRXhjZXB0aW9uOgogICAgICAgICAgICByZXR1cm4ga2V5CgogICAgZGVmIF9vbl9zY29wZV90b2dnbGVkKHNlbGYsIGNoZWNrZWQpOgogICAgICAgIHNlbGYuZWRpdF9mb2xkZXIuc2V0RW5hYmxlZChjaGVja2VkKQogICAgICAgIHNlbGYuYnRuX2Jyb3dzZS5zZXRFbmFibGVkKGNoZWNrZWQpCgogICAgZGVmIF9icm93c2VfZm9sZGVyKHNlbGYpOgogICAgICAgIGQgPSBRRmlsZURpYWxvZy5nZXRFeGlzdGluZ0RpcmVjdG9yeShzZWxmLCBzZWxmLl90KCJza2lsbF9waWNrX2ZvbGRlciIpLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBzZWxmLmVkaXRfZm9sZGVyLnRleHQoKSkKICAgICAgICBpZiBkOgogICAgICAgICAgICBzZWxmLmVkaXRfZm9sZGVyLnNldFRleHQoZCkKCiAgICBkZWYgX2RvX2luc3RhbGwoc2VsZik6CiAgICAgICAgdGFyZ2V0ID0gc2VsZi5jbWJfcGxhdGZvcm0uY3VycmVudERhdGEoKQogICAgICAgIHRyeToKICAgICAgICAgICAgaWYgc2VsZi5yYWRpb19nbG9iYWwuaXNDaGVja2VkKCk6CiAgICAgICAgICAgICAgICBwYXRocyA9IGluc3RhbGxfc2tpbGwodGFyZ2V0PXRhcmdldCwgaXNfZ2xvYmFsPVRydWUpCiAgICAgICAgICAgIGVsc2U6CiAgICAgICAgICAgICAgICBmb2xkZXIgPSBzZWxmLmVkaXRfZm9sZGVyLnRleHQoKS5zdHJpcCgpCiAgICAgICAgICAgICAgICBpZiBub3QgZm9sZGVyIG9yIG5vdCBvcy5wYXRoLmlzZGlyKGZvbGRlcik6CiAgICAgICAgICAgICAgICAgICAgUU1lc3NhZ2VCb3gud2FybmluZyhzZWxmLCBzZWxmLl90KCJza2lsbF9kaWFsb2dfdGl0bGUiKSwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHNlbGYuX3QoInNraWxsX2ludmFsaWRfZm9sZGVyIikpCiAgICAgICAgICAgICAgICAgICAgcmV0dXJuCiAgICAgICAgICAgICAgICBwYXRocyA9IGluc3RhbGxfc2tpbGwodGFyZ2V0PXRhcmdldCwgaXNfZ2xvYmFsPUZhbHNlLCBjd2Q9Zm9sZGVyKQogICAgICAgIGV4Y2VwdCBFeGNlcHRpb24gYXMgZToKICAgICAgICAgICAgc2VsZi5yZXN1bHRfdmlldy5zZXRQbGFpblRleHQoc2VsZi5fdCgic2tpbGxfaW5zdGFsbF9mYWlsZWQiLCBlcnI9c3RyKGUpKSkKICAgICAgICAgICAgcmV0dXJuCiAgICAgICAgaWYgcGF0aHM6CiAgICAgICAgICAgIHNlbGYucmVzdWx0X3ZpZXcuc2V0UGxhaW5UZXh0KAogICAgICAgICAgICAgICAgc2VsZi5fdCgic2tpbGxfaW5zdGFsbGVkIiwgcGF0aHM9IlxuIi5qb2luKHBhdGhzKSkpCiAgICAgICAgZWxzZToKICAgICAgICAgICAgc2VsZi5yZXN1bHRfdmlldy5zZXRQbGFpblRleHQoc2VsZi5fdCgic2tpbGxfaW5zdGFsbF9lbXB0eSIpKQo=
+# -*- coding: utf-8 -*-
+"""AI Agent Skill 설치 다이얼로그.
+
+라이브러리(gemini-srt-translator)의 `install_skill()`을 이용해
+SKILL.md를 AI 코딩 에이전트(Claude Code, Cursor, Antigravity 등)에 설치한다.
+"""
+
+import os
+
+from PyQt6.QtWidgets import (
+    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox,
+    QRadioButton, QLineEdit, QFileDialog, QTextEdit, QMessageBox, QGroupBox,
+)
+
+from core.gst_compat import install_skill
+
+# (target_id, 라벨_ko, 라벨_en)
+SKILL_TARGETS = [
+    ("claude", "Claude Code", "Claude Code"),
+    ("agents", "Cursor / Codex / Cline (범용)", "Cursor / Codex / Cline (generic)"),
+    ("antigravity", "Antigravity / Gemini", "Antigravity / Gemini"),
+    ("all", "전체", "All"),
+]
+
+
+def target_ids():
+    return [t[0] for t in SKILL_TARGETS]
+
+
+class SkillInstallDialog(QDialog):
+    def __init__(self, parent):
+        super().__init__(parent)
+        self._parent = parent
+        self.setWindowTitle(self._t("skill_dialog_title"))
+        self.resize(560, 420)
+
+        layout = QVBoxLayout()
+
+        # --- 플랫폼 선택 ---
+        plat_box = QGroupBox(self._t("skill_lbl_platform"))
+        plat_layout = QVBoxLayout()
+        self.cmb_platform = QComboBox()
+        name_key = 1 if getattr(parent, 'app_lang', 'ko') == 'ko' else 2
+        for tid, ko, en in SKILL_TARGETS:
+            self.cmb_platform.addItem(ko if name_key == 1 else en, tid)
+        plat_layout.addWidget(self.cmb_platform)
+        plat_box.setLayout(plat_layout)
+        layout.addWidget(plat_box)
+
+        # --- 범위 선택 ---
+        scope_box = QGroupBox(self._t("skill_lbl_scope"))
+        scope_layout = QVBoxLayout()
+        self.radio_global = QRadioButton(self._t("skill_scope_global"))
+        self.radio_global.setChecked(True)
+        self.radio_project = QRadioButton(self._t("skill_scope_project"))
+        folder_row = QHBoxLayout()
+        self.edit_folder = QLineEdit(os.path.expanduser("~"))
+        self.edit_folder.setEnabled(False)
+        self.btn_browse = QPushButton(self._t("skill_btn_browse"))
+        self.btn_browse.setEnabled(False)
+        self.btn_browse.clicked.connect(self._browse_folder)
+        folder_row.addWidget(self.edit_folder, 1)
+        folder_row.addWidget(self.btn_browse)
+        self.radio_project.toggled.connect(self._on_scope_toggled)
+        scope_layout.addWidget(self.radio_global)
+        scope_layout.addWidget(self.radio_project)
+        scope_layout.addLayout(folder_row)
+        scope_box.setLayout(scope_layout)
+        layout.addWidget(scope_box)
+
+        # --- 결과 ---
+        self.result_view = QTextEdit()
+        self.result_view.setReadOnly(True)
+        self.result_view.setPlaceholderText(self._t("skill_result_ph"))
+        layout.addWidget(self.result_view, 1)
+
+        # --- 버튼 ---
+        btn_row = QHBoxLayout()
+        btn_row.addStretch()
+        self.btn_install = QPushButton(self._t("skill_btn_install"))
+        self.btn_install.clicked.connect(self._do_install)
+        self.btn_close = QPushButton(self._t("btn_close"))
+        self.btn_close.clicked.connect(self.reject)
+        btn_row.addWidget(self.btn_install)
+        btn_row.addWidget(self.btn_close)
+        layout.addLayout(btn_row)
+
+        self.setLayout(layout)
+
+        if install_skill is None:
+            self.btn_install.setEnabled(False)
+            self.result_view.setPlainText(self._t("skill_no_library"))
+
+    def _t(self, key, **kwargs):
+        try:
+            return self._parent.tr_str(key, **kwargs)
+        except Exception:
+            return key
+
+    def _on_scope_toggled(self, checked):
+        self.edit_folder.setEnabled(checked)
+        self.btn_browse.setEnabled(checked)
+
+    def _browse_folder(self):
+        d = QFileDialog.getExistingDirectory(self, self._t("skill_pick_folder"),
+                                             self.edit_folder.text())
+        if d:
+            self.edit_folder.setText(d)
+
+    def _do_install(self):
+        target = self.cmb_platform.currentData()
+        try:
+            if self.radio_global.isChecked():
+                paths = install_skill(target=target, is_global=True)
+            else:
+                folder = self.edit_folder.text().strip()
+                if not folder or not os.path.isdir(folder):
+                    QMessageBox.warning(self, self._t("skill_dialog_title"),
+                                        self._t("skill_invalid_folder"))
+                    return
+                paths = install_skill(target=target, is_global=False, cwd=folder)
+        except Exception as e:
+            self.result_view.setPlainText(self._t("skill_install_failed", err=str(e)))
+            return
+        if paths:
+            self.result_view.setPlainText(
+                self._t("skill_installed", paths="\n".join(paths)))
+        else:
+            self.result_view.setPlainText(self._t("skill_install_empty"))

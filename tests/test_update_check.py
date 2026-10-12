@@ -1,1 +1,34 @@
-IyAtKi0gY29kaW5nOiB1dGYtOCAtKi0KIiIiY29yZS51cGRhdGVfY2hlY2sg7YWM7Iqk7Yq4ICjrhKTtirjsm4ztgawg7Zi47LacIOygnOyZuCkuIiIiCgpmcm9tIGNvcmUudXBkYXRlX2NoZWNrIGltcG9ydCBfcGFyc2VfdmVyc2lvbiwgaXNfbmV3ZXIKCgpkZWYgdGVzdF9wYXJzZV9zaW1wbGUoKToKICAgIGFzc2VydCBfcGFyc2VfdmVyc2lvbigiMy44LjMiKSA9PSAoMywgOCwgMykKICAgIGFzc2VydCBfcGFyc2VfdmVyc2lvbigiMTAuMCIpID09ICgxMCwgMCkKCgpkZWYgdGVzdF9wYXJzZV9wcmVyZWxlYXNlX2lzX25vbmUoKToKICAgIGFzc2VydCBfcGFyc2VfdmVyc2lvbigiMy44LjNiMSIpIGlzIE5vbmUKICAgIGFzc2VydCBfcGFyc2VfdmVyc2lvbigiMy44LjNyYzEiKSBpcyBOb25lCiAgICBhc3NlcnQgX3BhcnNlX3ZlcnNpb24oIjMuOC4zLmRldjAiKSBpcyBOb25lCgoKZGVmIHRlc3RfcGFyc2VfaW52YWxpZF9pc19ub25lKCk6CiAgICBhc3NlcnQgX3BhcnNlX3ZlcnNpb24oIiIpIGlzIE5vbmUKICAgIGFzc2VydCBfcGFyc2VfdmVyc2lvbihOb25lKSBpcyBOb25lCiAgICBhc3NlcnQgX3BhcnNlX3ZlcnNpb24oIm5vdC1hLXZlcnNpb24iKSBpcyBOb25lCgoKZGVmIHRlc3RfaXNfbmV3ZXIoKToKICAgIGFzc2VydCBpc19uZXdlcigiMy44LjQiLCAiMy44LjMiKSBpcyBUcnVlCiAgICBhc3NlcnQgaXNfbmV3ZXIoIjMuOC4zIiwgIjMuOC4zIikgaXMgRmFsc2UKICAgIGFzc2VydCBpc19uZXdlcigiMy44LjMiLCAiMy44LjQiKSBpcyBGYWxzZQogICAgYXNzZXJ0IGlzX25ld2VyKCI0LjAiLCAiMy45LjkiKSBpcyBUcnVlCgoKZGVmIHRlc3RfaXNfbmV3ZXJfdW5jb21wYXJhYmxlKCk6CiAgICBhc3NlcnQgaXNfbmV3ZXIoTm9uZSwgIjMuOC4zIikgaXMgRmFsc2UKICAgIGFzc2VydCBpc19uZXdlcigiMy44LjQiLCBOb25lKSBpcyBGYWxzZQogICAgYXNzZXJ0IGlzX25ld2VyKCIzLjguNGIxIiwgIjMuOC4zIikgaXMgRmFsc2UK
+# -*- coding: utf-8 -*-
+"""core.update_check 테스트 (네트워크 호출 제외)."""
+
+from core.update_check import _parse_version, is_newer
+
+
+def test_parse_simple():
+    assert _parse_version("3.8.3") == (3, 8, 3)
+    assert _parse_version("10.0") == (10, 0)
+
+
+def test_parse_prerelease_is_none():
+    assert _parse_version("3.8.3b1") is None
+    assert _parse_version("3.8.3rc1") is None
+    assert _parse_version("3.8.3.dev0") is None
+
+
+def test_parse_invalid_is_none():
+    assert _parse_version("") is None
+    assert _parse_version(None) is None
+    assert _parse_version("not-a-version") is None
+
+
+def test_is_newer():
+    assert is_newer("3.8.4", "3.8.3") is True
+    assert is_newer("3.8.3", "3.8.3") is False
+    assert is_newer("3.8.3", "3.8.4") is False
+    assert is_newer("4.0", "3.9.9") is True
+
+
+def test_is_newer_uncomparable():
+    assert is_newer(None, "3.8.3") is False
+    assert is_newer("3.8.4", None) is False
+    assert is_newer("3.8.4b1", "3.8.3") is False

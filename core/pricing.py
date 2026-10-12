@@ -1,1 +1,100 @@
-IyAtKi0gY29kaW5nOiB1dGYtOCAtKi0KIiIi66qo642467OEIO2GoO2BsCDri6jqsIAocHJpY2luZy5qc29uKSDquLDrsJgg67mE7JqpIOy2lOyglSAo7Iic7IiYIO2VqOyImCkuCgrri6jqsIDtkZzripQgZ2VtaW5pLXNydC10cmFuc2xhdG9yIO2MqO2CpOyngOyXkCDrgrTsnqXrkJwgcHJpY2luZy5qc29u7J2EIOyCrOyaqe2VnOuLpC4KIiIiCgppbXBvcnQganNvbgppbXBvcnQgb3MKClRPS0VOX1JFUE9SVF9ESVJOQU1FID0gIi50b2tlbl9yZXBvcnRzIgoKCmRlZiBfcHJpY2luZ19wYXRoKCk6CiAgICAiIiLshKTsuZjrkJwg65287J2067iM65+s66as7J2YIHByaWNpbmcuanNvbiDqsr3roZwuIOyXhuycvOuptCBOb25lLiIiIgogICAgdHJ5OgogICAgICAgIGltcG9ydCBpbXBvcnRsaWIudXRpbAogICAgICAgIHNwZWMgPSBpbXBvcnRsaWIudXRpbC5maW5kX3NwZWMoImdlbWluaV9zcnRfdHJhbnNsYXRvciIpCiAgICAgICAgaWYgc3BlYyBhbmQgc3BlYy5vcmlnaW46CiAgICAgICAgICAgIHAgPSBvcy5wYXRoLmpvaW4ob3MucGF0aC5kaXJuYW1lKHNwZWMub3JpZ2luKSwgInByaWNpbmcuanNvbiIpCiAgICAgICAgICAgIGlmIG9zLnBhdGguaXNmaWxlKHApOgogICAgICAgICAgICAgICAgcmV0dXJuIHAKICAgIGV4Y2VwdCBFeGNlcHRpb246CiAgICAgICAgcGFzcwogICAgcmV0dXJuIE5vbmUKCgpkZWYgbG9hZF9wcmljaW5nKCk6CiAgICAiIiJwcmljaW5nLmpzb24g7KCE7LK0IGRpY3QuIOyLpO2MqCDsi5wge30uIiIiCiAgICBwYXRoID0gX3ByaWNpbmdfcGF0aCgpCiAgICBpZiBub3QgcGF0aDoKICAgICAgICByZXR1cm4ge30KICAgIHRyeToKICAgICAgICB3aXRoIG9wZW4ocGF0aCwgZW5jb2Rpbmc9InV0Zi04IikgYXMgZjoKICAgICAgICAgICAgcmV0dXJuIGpzb24ubG9hZChmKQogICAgZXhjZXB0IEV4Y2VwdGlvbjoKICAgICAgICByZXR1cm4ge30KCgpkZWYgX25vcm1hbGl6ZV9tb2RlbChtb2RlbF9uYW1lKToKICAgIHJldHVybiAobW9kZWxfbmFtZSBvciAiIikuc3RyaXAoKS5sb3dlcigpCgoKZGVmIGdldF9tb2RlbF9yYXRlcyhtb2RlbF9uYW1lLCB0aWVyPSJzdGFuZGFyZCIsIHByaWNpbmc9Tm9uZSk6CiAgICAiIiIoaW5wdXQgJC8xTSwgb3V0cHV0ICQvMU0pIOuwmO2ZmC4g66qo66W066m0IE5vbmUuIiIiCiAgICBwcmljaW5nID0gcHJpY2luZyBpZiBwcmljaW5nIGlzIG5vdCBOb25lIGVsc2UgbG9hZF9wcmljaW5nKCkKICAgIG1vZGVscyA9IHByaWNpbmcuZ2V0KCJtb2RlbHMiLCB7fSkKICAgICMg7KCV7ZmV7ZWcIOydtOumhCDsmrDshKAsIOyXhuycvOuptCDshozrrLjsnpAg66ek7LmtCiAgICBlbnRyeSA9IG1vZGVscy5nZXQobW9kZWxfbmFtZSkgb3IgbW9kZWxzLmdldChfbm9ybWFsaXplX21vZGVsKG1vZGVsX25hbWUpKQogICAgaWYgbm90IGVudHJ5OgogICAgICAgICMgJ21vZGVscy8nIOygkeuRkOyCrCDrk7Eg67OA7ZiVIOuMgOydkQogICAgICAgIHNob3J0ID0gX25vcm1hbGl6ZV9tb2RlbChtb2RlbF9uYW1lKS5zcGxpdCgiLyIpWy0xXQogICAgICAgIGZvciBrLCB2IGluIG1vZGVscy5pdGVtcygpOgogICAgICAgICAgICBpZiBfbm9ybWFsaXplX21vZGVsKGspID09IHNob3J0OgogICAgICAgICAgICAgICAgZW50cnkgPSB2CiAgICAgICAgICAgICAgICBicmVhawogICAgaWYgbm90IGVudHJ5OgogICAgICAgIHJldHVybiBOb25lCiAgICByYXRlcyA9IGVudHJ5LmdldCh0aWVyKSBvciBlbnRyeS5nZXQoInN0YW5kYXJkIikKICAgIGlmIG5vdCByYXRlcyBvciAiaW5wdXQiIG5vdCBpbiByYXRlcyBvciAib3V0cHV0IiBub3QgaW4gcmF0ZXM6CiAgICAgICAgcmV0dXJuIE5vbmUKICAgIHJldHVybiBmbG9hdChyYXRlc1siaW5wdXQiXSksIGZsb2F0KHJhdGVzWyJvdXRwdXQiXSkKCgpkZWYgZXN0aW1hdGVfY29zdChtb2RlbF9uYW1lLCBwcm9tcHRfdG9rZW5zLCBvdXRwdXRfdG9rZW5zLCB0aWVyPSJzdGFuZGFyZCIsCiAgICAgICAgICAgICAgICAgIHByaWNpbmc9Tm9uZSk6CiAgICAiIiLsmIjsg4Eg67mE7JqpIGRpY3QgeydpbnB1dCc6ICQsICdvdXRwdXQnOiAkLCAndG90YWwnOiAkLCAndGllcic6IHRpZXJ9LgogICAg64uo6rCA66W8IOuqqOultOuptCBOb25lLiIiIgogICAgcmF0ZXMgPSBnZXRfbW9kZWxfcmF0ZXMobW9kZWxfbmFtZSwgdGllciwgcHJpY2luZykKICAgIGlmIG5vdCByYXRlczoKICAgICAgICByZXR1cm4gTm9uZQogICAgaW5fcmF0ZSwgb3V0X3JhdGUgPSByYXRlcwogICAgaW5wdXRfY29zdCA9IChwcm9tcHRfdG9rZW5zIG9yIDApIC8gMV8wMDBfMDAwICogaW5fcmF0ZQogICAgb3V0cHV0X2Nvc3QgPSAob3V0cHV0X3Rva2VucyBvciAwKSAvIDFfMDAwXzAwMCAqIG91dF9yYXRlCiAgICByZXR1cm4gewogICAgICAgICJpbnB1dCI6IHJvdW5kKGlucHV0X2Nvc3QsIDYpLAogICAgICAgICJvdXRwdXQiOiByb3VuZChvdXRwdXRfY29zdCwgNiksCiAgICAgICAgInRvdGFsIjogcm91bmQoaW5wdXRfY29zdCArIG91dHB1dF9jb3N0LCA2KSwKICAgICAgICAidGllciI6IHRpZXIsCiAgICB9CgoKZGVmIHRva2VuX3JlcG9ydF9wYXRoX2ZvcihvdXRwdXRfZmlsZV9wYXRoKToKICAgICIiIuyekeyXhSDstpzroKUg7YyM7J287JeQIOuMgOydke2VmOuKlCDthqDtgbAg66as7Y+s7Yq4IOqyveuhnC4iIiIKICAgIGJhc2UgPSBvcy5wYXRoLnNwbGl0ZXh0KG9zLnBhdGguYmFzZW5hbWUob3V0cHV0X2ZpbGVfcGF0aCBvciAiIikpWzBdCiAgICBkID0gb3MucGF0aC5qb2luKG9zLnBhdGguZGlybmFtZShvdXRwdXRfZmlsZV9wYXRoIG9yICIiKSBvciAiLiIsCiAgICAgICAgICAgICAgICAgICAgIFRPS0VOX1JFUE9SVF9ESVJOQU1FKQogICAgcmV0dXJuIG9zLnBhdGguam9pbihkLCBmIntiYXNlfV90b2tlbnMuanNvbiIpCgoKZGVmIHJlYWRfcmVwb3J0X2Nvc3QocmVwb3J0X3BhdGgpOgogICAgIiIi7Yag7YGwIOumrO2PrO2KuOyXkOyEnCBjb3N0IGRpY3Qg7J296riwLiDsl4bsnLzrqbQgTm9uZS4iIiIKICAgIHRyeToKICAgICAgICB3aXRoIG9wZW4ocmVwb3J0X3BhdGgsIGVuY29kaW5nPSJ1dGYtOCIpIGFzIGY6CiAgICAgICAgICAgIHJlcG9ydCA9IGpzb24ubG9hZChmKQogICAgICAgIGNvc3QgPSByZXBvcnQuZ2V0KCJjb3N0IikKICAgICAgICBpZiBpc2luc3RhbmNlKGNvc3QsIGRpY3QpIGFuZCAidG90YWwiIGluIGNvc3Q6CiAgICAgICAgICAgIHJldHVybiBjb3N0CiAgICBleGNlcHQgRXhjZXB0aW9uOgogICAgICAgIHBhc3MKICAgIHJldHVybiBOb25lCg==
+# -*- coding: utf-8 -*-
+"""모델별 토큰 단가(pricing.json) 기반 비용 추정 (순수 함수).
+
+단가표는 gemini-srt-translator 패키지에 내장된 pricing.json을 사용한다.
+"""
+
+import json
+import os
+
+TOKEN_REPORT_DIRNAME = ".token_reports"
+
+
+def _pricing_path():
+    """설치된 라이브러리의 pricing.json 경로. 없으면 None."""
+    try:
+        import importlib.util
+        spec = importlib.util.find_spec("gemini_srt_translator")
+        if spec and spec.origin:
+            p = os.path.join(os.path.dirname(spec.origin), "pricing.json")
+            if os.path.isfile(p):
+                return p
+    except Exception:
+        pass
+    return None
+
+
+def load_pricing():
+    """pricing.json 전체 dict. 실패 시 {}."""
+    path = _pricing_path()
+    if not path:
+        return {}
+    try:
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def _normalize_model(model_name):
+    return (model_name or "").strip().lower()
+
+
+def get_model_rates(model_name, tier="standard", pricing=None):
+    """(input $/1M, output $/1M) 반환. 모르면 None."""
+    pricing = pricing if pricing is not None else load_pricing()
+    models = pricing.get("models", {})
+    # 정확한 이름 우선, 없으면 소문자 매칭
+    entry = models.get(model_name) or models.get(_normalize_model(model_name))
+    if not entry:
+        # 'models/' 접두사 등 변형 대응
+        short = _normalize_model(model_name).split("/")[-1]
+        for k, v in models.items():
+            if _normalize_model(k) == short:
+                entry = v
+                break
+    if not entry:
+        return None
+    rates = entry.get(tier) or entry.get("standard")
+    if not rates or "input" not in rates or "output" not in rates:
+        return None
+    return float(rates["input"]), float(rates["output"])
+
+
+def estimate_cost(model_name, prompt_tokens, output_tokens, tier="standard",
+                  pricing=None):
+    """예상 비용 dict {'input': $, 'output': $, 'total': $, 'tier': tier}.
+    단가를 모르면 None."""
+    rates = get_model_rates(model_name, tier, pricing)
+    if not rates:
+        return None
+    in_rate, out_rate = rates
+    input_cost = (prompt_tokens or 0) / 1_000_000 * in_rate
+    output_cost = (output_tokens or 0) / 1_000_000 * out_rate
+    return {
+        "input": round(input_cost, 6),
+        "output": round(output_cost, 6),
+        "total": round(input_cost + output_cost, 6),
+        "tier": tier,
+    }
+
+
+def token_report_path_for(output_file_path):
+    """작업 출력 파일에 대응하는 토큰 리포트 경로."""
+    base = os.path.splitext(os.path.basename(output_file_path or ""))[0]
+    d = os.path.join(os.path.dirname(output_file_path or "") or ".",
+                     TOKEN_REPORT_DIRNAME)
+    return os.path.join(d, f"{base}_tokens.json")
+
+
+def read_report_cost(report_path):
+    """토큰 리포트에서 cost dict 읽기. 없으면 None."""
+    try:
+        with open(report_path, encoding="utf-8") as f:
+            report = json.load(f)
+        cost = report.get("cost")
+        if isinstance(cost, dict) and "total" in cost:
+            return cost
+    except Exception:
+        pass
+    return None

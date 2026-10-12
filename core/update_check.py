@@ -1,1 +1,67 @@
-IyAtKi0gY29kaW5nOiB1dGYtOCAtKi0KIiIiZ2VtaW5pLXNydC10cmFuc2xhdG9yIOudvOydtOu4jOufrOumrCDsl4XrjbDsnbTtirgg7ZmV7J24ICjsiJzsiJgg7ZWo7IiYKS4KCuudvOydtOu4jOufrOumrCDrgrTsnqUgYHV0aWxzLmdldF9sYXRlc3RfcHlwaV92ZXJzaW9uKClg7J2AIO2DgOyehOyVhOybg+ydtCDsl4bslrQKR1VJIOyKpOugiOuTnOyXkOyEnCDsp4HsoJEg7Zi47Lac7ZWY6riwIOychO2XmO2VmOuvgOuhnCwg7YOA7J6E7JWE7JuD7J2EIOyggeyaqe2VnCDsnpDssrQg6rWs7ZiE7J2EIOyCrOyaqe2VnOuLpC4KIiIiCgppbXBvcnQganNvbgppbXBvcnQgdXJsbGliLnJlcXVlc3QKClBBQ0tBR0VfTkFNRSA9ICJnZW1pbmktc3J0LXRyYW5zbGF0b3IiClBZUElfVVJMID0gZiJodHRwczovL3B5cGkub3JnL3B5cGkve1BBQ0tBR0VfTkFNRX0vanNvbiIKUkVRVUVTVF9USU1FT1VUID0gMTAKCgpkZWYgZ2V0X2luc3RhbGxlZF92ZXJzaW9uKCk6CiAgICAiIiLshKTsuZjrkJwg65287J2067iM65+s66asIOuyhOyghC4g7JeG7Jy866m0IE5vbmUuIiIiCiAgICB0cnk6CiAgICAgICAgZnJvbSBpbXBvcnRsaWIubWV0YWRhdGEgaW1wb3J0IHZlcnNpb24sIFBhY2thZ2VOb3RGb3VuZEVycm9yCiAgICAgICAgcmV0dXJuIHZlcnNpb24oUEFDS0FHRV9OQU1FKQogICAgZXhjZXB0IEV4Y2VwdGlvbjoKICAgICAgICByZXR1cm4gTm9uZQoKCmRlZiBfcGFyc2VfdmVyc2lvbih2X3N0cik6CiAgICAiIiInMy44LjMnIC0+ICgzLCA4LCAzKS4g7Iir7J6QIOu2gOu2hOunjCDruYTqtZAsIHByZS1yZWxlYXNl64qUIE5vbmUuIiIiCiAgICBpbXBvcnQgcmUKICAgIHZfc3RyID0gKHZfc3RyIG9yICIiKS5zdHJpcCgpCiAgICAjIHByZS1yZWxlYXNlL2RldiDtg5zqt7jqsIAg7J6I7Jy866m0IHN0YWJsZeydtCDslYTri5gKICAgIGlmIHJlLnNlYXJjaChyIihhfGJ8cmN8YWxwaGF8YmV0YXxkZXZ8cG9zdClcZCokIiwgdl9zdHIsIHJlLklHTk9SRUNBU0UpOgogICAgICAgIHJldHVybiBOb25lCiAgICBwYXJ0cyA9IFtdCiAgICBmb3IgcCBpbiB2X3N0ci5zcGxpdCgiLiIpOgogICAgICAgIG0gPSByZS5tYXRjaChyIihcZCspIiwgcCkKICAgICAgICBpZiBub3QgbToKICAgICAgICAgICAgcmV0dXJuIE5vbmUKICAgICAgICBwYXJ0cy5hcHBlbmQoaW50KG0uZ3JvdXAoMSkpKQogICAgcmV0dXJuIHR1cGxlKHBhcnRzKSBpZiBwYXJ0cyBlbHNlIE5vbmUKCgpkZWYgZmV0Y2hfbGF0ZXN0X3ZlcnNpb24odGltZW91dD1SRVFVRVNUX1RJTUVPVVQpOgogICAgIiIiUHlQSeyXkOyEnCDstZzsi6Agc3RhYmxlIOuyhOyghCDsobDtmowuIOyLpO2MqCDsi5wgTm9uZS4iIiIKICAgIHRyeToKICAgICAgICByZXEgPSB1cmxsaWIucmVxdWVzdC5SZXF1ZXN0KAogICAgICAgICAgICBQWVBJX1VSTCwgaGVhZGVycz17IlVzZXItQWdlbnQiOiAiR2VtaW5pU1JUVHJhbnNsYXRvckdVSSJ9KQogICAgICAgIHdpdGggdXJsbGliLnJlcXVlc3QudXJsb3BlbihyZXEsIHRpbWVvdXQ9dGltZW91dCkgYXMgcmVzcDoKICAgICAgICAgICAgaWYgcmVzcC5zdGF0dXMgIT0gMjAwOgogICAgICAgICAgICAgICAgcmV0dXJuIE5vbmUKICAgICAgICAgICAgZGF0YSA9IGpzb24ubG9hZHMocmVzcC5yZWFkKCkuZGVjb2RlKCJ1dGYtOCIpKQogICAgICAgIHZlcnNpb25zID0gW10KICAgICAgICBmb3Igdl9zdHIgaW4gZGF0YS5nZXQoInJlbGVhc2VzIiwge30pOgogICAgICAgICAgICB2ID0gX3BhcnNlX3ZlcnNpb24odl9zdHIpCiAgICAgICAgICAgIGlmIHY6CiAgICAgICAgICAgICAgICB2ZXJzaW9ucy5hcHBlbmQoKHYsIHZfc3RyKSkKICAgICAgICBpZiB2ZXJzaW9uczoKICAgICAgICAgICAgcmV0dXJuIG1heCh2ZXJzaW9ucylbMV0KICAgIGV4Y2VwdCBFeGNlcHRpb246CiAgICAgICAgcGFzcwogICAgcmV0dXJuIE5vbmUKCgpkZWYgaXNfbmV3ZXIobGF0ZXN0LCBpbnN0YWxsZWQpOgogICAgIiIibGF0ZXN06rCAIGluc3RhbGxlZOuztOuLpCDsg4gg67KE7KCE7J2066m0IFRydWUuIOu5hOq1kCDrtojqsIAg7IucIEZhbHNlLiIiIgogICAgbHYsIGl2ID0gX3BhcnNlX3ZlcnNpb24obGF0ZXN0KSwgX3BhcnNlX3ZlcnNpb24oaW5zdGFsbGVkKQogICAgaWYgbm90IGx2IG9yIG5vdCBpdjoKICAgICAgICByZXR1cm4gRmFsc2UKICAgIHJldHVybiBsdiA+IGl2Cg==
+# -*- coding: utf-8 -*-
+"""gemini-srt-translator 라이브러리 업데이트 확인 (순수 함수).
+
+라이브러리 내장 `utils.get_latest_pypi_version()`은 타임아웃이 없어
+GUI 스레드에서 직접 호출하기 위험하므로, 타임아웃을 적용한 자체 구현을 사용한다.
+"""
+
+import json
+import urllib.request
+
+PACKAGE_NAME = "gemini-srt-translator"
+PYPI_URL = f"https://pypi.org/pypi/{PACKAGE_NAME}/json"
+REQUEST_TIMEOUT = 10
+
+
+def get_installed_version():
+    """설치된 라이브러리 버전. 없으면 None."""
+    try:
+        from importlib.metadata import version, PackageNotFoundError
+        return version(PACKAGE_NAME)
+    except Exception:
+        return None
+
+
+def _parse_version(v_str):
+    """'3.8.3' -> (3, 8, 3). 숫자 부분만 비교, pre-release는 None."""
+    import re
+    v_str = (v_str or "").strip()
+    # pre-release/dev 태그가 있으면 stable이 아님
+    if re.search(r"(a|b|rc|alpha|beta|dev|post)\d*$", v_str, re.IGNORECASE):
+        return None
+    parts = []
+    for p in v_str.split("."):
+        m = re.match(r"(\d+)", p)
+        if not m:
+            return None
+        parts.append(int(m.group(1)))
+    return tuple(parts) if parts else None
+
+
+def fetch_latest_version(timeout=REQUEST_TIMEOUT):
+    """PyPI에서 최신 stable 버전 조회. 실패 시 None."""
+    try:
+        req = urllib.request.Request(
+            PYPI_URL, headers={"User-Agent": "GeminiSRTTranslatorGUI"})
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            if resp.status != 200:
+                return None
+            data = json.loads(resp.read().decode("utf-8"))
+        versions = []
+        for v_str in data.get("releases", {}):
+            v = _parse_version(v_str)
+            if v:
+                versions.append((v, v_str))
+        if versions:
+            return max(versions)[1]
+    except Exception:
+        pass
+    return None
+
+
+def is_newer(latest, installed):
+    """latest가 installed보다 새 버전이면 True. 비교 불가 시 False."""
+    lv, iv = _parse_version(latest), _parse_version(installed)
+    if not lv or not iv:
+        return False
+    return lv > iv
