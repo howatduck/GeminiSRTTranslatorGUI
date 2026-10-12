@@ -71,6 +71,8 @@ I18N = {
         "lbl_model": "사용 모델:",
         "chk_append_lang": "출력 파일명에 언어명 접미사 추가",
         "chk_reuse_extracted": "추출된 자막 재사용 (재추출 안 함)",
+        "chk_keep_extracted": "추출된 원본 자막 유지 (대조 미리보기용)",
+        "chk_keep_extracted_tt": "체크하면 비디오에서 추출한 원본 자막(_extracted.srt)을 번역 후에도 유지하여 미리보기에서 원문 대조가 가능합니다. 체크 해제 시 번역 완료 후 추출 파일이 삭제되고 미리보기에는 번역문만 표시됩니다.",
         "lbl_batch": "배치 크기:",
         "lbl_prompt": "프롬프트/지침 입력 (선택):",
         "txt_desc_ph": "번역/전사 시 AI가 참고할 문맥을 입력하세요.",
@@ -137,6 +139,7 @@ I18N = {
         "log_skipped": "==== ⚠️ 일부 작업 누락됨 ({completed}/{total}) ====",
         "log_job_success": "[성공] ({current}/{total}): [{lang}] {file}",
         "log_job_fail": "[실패] ({current}/{total}): {err}",
+        "log_extracted_cleaned": "🧹 추출 원본 자막 {count}개 삭제됨 (유지 옵션 꺼짐)",
 
         "fd_select_video": "비디오 파일 선택 (다중 선택 가능)",
         "fd_select_audio": "오디오 파일 선택",
@@ -208,6 +211,8 @@ I18N = {
         "lbl_model": "Model:",
         "chk_append_lang": "Append language suffix to output filename",
         "chk_reuse_extracted": "Reuse extracted subtitles (do not re-extract)",
+        "chk_keep_extracted": "Keep extracted source subtitles (for comparison preview)",
+        "chk_keep_extracted_tt": "When checked, source subtitles extracted from video (_extracted.srt) are kept after translation so you can compare them side-by-side in the preview. When unchecked, extracted files are deleted after translation and the preview shows only the translated text.",
         "lbl_batch": "Batch Size:",
         "lbl_prompt": "Prompt / Instructions (Optional):",
         "txt_desc_ph": "Enter context or guidelines for AI to reference during translation/transcription.",
@@ -274,6 +279,7 @@ I18N = {
         "log_skipped": "==== ⚠️ Some tasks were skipped ({completed}/{total}) ====",
         "log_job_success": "[Success] ({current}/{total}): [{lang}] {file}",
         "log_job_fail": "[Failed] ({current}/{total}): {err}",
+        "log_extracted_cleaned": "🧹 Removed {count} extracted source subtitle file(s) (keep option off)",
 
         "fd_select_video": "Select Video Files (Multiple allowed)",
         "fd_select_audio": "Select Audio File",

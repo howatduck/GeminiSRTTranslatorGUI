@@ -61,6 +61,7 @@ class TranslatorApp(QWidget):
         self.job_completion_lock = threading.Lock()
         self.jobs = []
         self.recent_outputs = []
+        self.extracted_temp_files = []
         self.api_key_inputs = []
         self.api_key_labels = []
         self._stop_requested = False
@@ -191,6 +192,9 @@ class TranslatorApp(QWidget):
             self.chk_append_lang.setText(self.tr_str("chk_append_lang"))
         if hasattr(self, 'chk_reuse_extracted'):
             self.chk_reuse_extracted.setText(self.tr_str("chk_reuse_extracted"))
+        if hasattr(self, 'chk_keep_extracted'):
+            self.chk_keep_extracted.setText(self.tr_str("chk_keep_extracted"))
+            self.chk_keep_extracted.setToolTip(self.tr_str("chk_keep_extracted_tt"))
         if hasattr(self, 'lbl_batch'):
             self.lbl_batch.setText(self.tr_str("lbl_batch"))
         if hasattr(self, 'lbl_prompt'):
@@ -591,11 +595,19 @@ class TranslatorApp(QWidget):
         self.chk_append_lang.setChecked(True)
         self.chk_reuse_extracted = QCheckBox("추출된 자막 재사용 (재추출 안 함)")
         self.chk_reuse_extracted.setChecked(True)
+        self.chk_keep_extracted = QCheckBox("추출된 원본 자막 유지 (대조 미리보기용)")
+        self.chk_keep_extracted.setChecked(False)
+        self.chk_keep_extracted.setToolTip(
+            "체크하면 비디오에서 추출한 원본 자막(_extracted.srt)을 번역 후에도 유지하여 "
+            "미리보기에서 원문 대조가 가능합니다. 체크 해제 시 번역 완료 후 추출 파일이 "
+            "삭제되고 미리보기에는 번역문만 표시됩니다.")
         lang_row_layout = QHBoxLayout()
         lang_row_layout.setContentsMargins(0, 0, 0, 0)
         lang_row_layout.addWidget(self.chk_append_lang)
         lang_row_layout.addSpacing(16)
         lang_row_layout.addWidget(self.chk_reuse_extracted)
+        lang_row_layout.addSpacing(16)
+        lang_row_layout.addWidget(self.chk_keep_extracted)
         lang_row_layout.addStretch()
         form_layout.addRow(lang_row_layout)
 
@@ -935,6 +947,9 @@ class TranslatorApp(QWidget):
             self.chk_reuse_extracted.setChecked(
                 self.settings.value("reuse_extracted", True, type=bool)
             )
+            self.chk_keep_extracted.setChecked(
+                self.settings.value("keep_extracted", False, type=bool)
+            )
             self.spin_audio_chunk.setValue(
                 self.settings.value("audio_chunk_size", 300, type=int)
             )
@@ -1061,6 +1076,7 @@ class TranslatorApp(QWidget):
             self.settings.setValue("task_mode_index", self.cmb_task_mode.currentIndex())
             self.settings.setValue("append_lang", self.chk_append_lang.isChecked())
             self.settings.setValue("reuse_extracted", self.chk_reuse_extracted.isChecked())
+            self.settings.setValue("keep_extracted", self.chk_keep_extracted.isChecked())
             self.settings.setValue("audio_chunk_size", self.spin_audio_chunk.value())
             self.settings.setValue("isolate_voice", self.chk_isolate_voice.isChecked())
             self.settings.setValue("thinking_level", self.cmb_thinking_level.currentText())
@@ -1274,6 +1290,7 @@ class TranslatorApp(QWidget):
         primary_input_source_for_jobs = None
         source_is_media_only_for_jobs = False
         media_type_for_jobs = None
+        self.extracted_temp_files = []
 
         valid_video_paths = [p for p in self.video_file_paths if os.path.exists(p)]
 
@@ -1454,6 +1471,7 @@ class TranslatorApp(QWidget):
                 if extracted_sub_files:
                     primary_input_source_for_jobs = [item[0] for item in extracted_sub_files]
                     valid_video_paths = [item[1] for item in extracted_sub_files]
+                    self.extracted_temp_files = [item[0] for item in extracted_sub_files]
                 elif saved_direct_count > 0 and not videos_without_subs:
                     QMessageBox.information(
                         self, "완료",
@@ -1645,6 +1663,9 @@ class TranslatorApp(QWidget):
         # 원본이 자막 파일이 아니면 대조 표시 안 함
         if original and not original.lower().endswith((".srt", ".ass")):
             original = None
+        # 원본 파일이 삭제됐으면(유지 옵션 꺼짐) 번역문만 표시
+        if original and not os.path.isfile(original):
+            original = None
         dlg = SubtitlePreviewDialog(self, translated, original)
         dlg.exec()
 
@@ -1699,6 +1720,7 @@ class TranslatorApp(QWidget):
             self.chk_streaming, self.chk_thinking, self.spin_thinking_budget,
             self.cmb_thinking_level, self.spin_audio_chunk, self.chk_isolate_voice,
             self.chk_append_lang, self.chk_reuse_extracted,
+            self.chk_keep_extracted,
             self.chk_token_stats,
             self.chk_token_report, self.spin_resume_context,
             self.spin_batch_error_step, self.spin_audio_chunk_error_step,
@@ -1743,6 +1765,25 @@ class TranslatorApp(QWidget):
             self.progress_bar.setFormat(
                 self.tr_str("progress_interrupted", current=self.completed_jobs, total=self.total_jobs)
             )
+
+        # 추출 원본 자막 정리: 유지 체크 해제 + 재사용 체크 해제 시에만 삭제
+        # (재사용이 켜져 있으면 다음 실행을 위해 파일이 필요하므로 유지)
+        if (hasattr(self, 'chk_keep_extracted') and hasattr(self, 'chk_reuse_extracted')
+                and not self.chk_keep_extracted.isChecked()
+                and not self.chk_reuse_extracted.isChecked()):
+            removed = 0
+            for p in getattr(self, 'extracted_temp_files', []) or []:
+                try:
+                    if p and os.path.isfile(p):
+                        os.remove(p)
+                        removed += 1
+                except OSError:
+                    pass
+            if removed:
+                self.append_log(
+                    f"\x1b[33m{self.tr_str('log_extracted_cleaned', count=removed)}\x1b[0m"
+                )
+        self.extracted_temp_files = []
 
         self.set_ui_enabled(True)
 
