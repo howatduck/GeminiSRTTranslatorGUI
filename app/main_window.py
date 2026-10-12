@@ -606,10 +606,14 @@ class TranslatorApp(QWidget):
         lang_row_layout.addWidget(self.chk_append_lang)
         lang_row_layout.addSpacing(16)
         lang_row_layout.addWidget(self.chk_reuse_extracted)
-        lang_row_layout.addSpacing(16)
-        lang_row_layout.addWidget(self.chk_keep_extracted)
         lang_row_layout.addStretch()
         form_layout.addRow(lang_row_layout)
+
+        keep_row_layout = QHBoxLayout()
+        keep_row_layout.setContentsMargins(0, 0, 0, 0)
+        keep_row_layout.addWidget(self.chk_keep_extracted)
+        keep_row_layout.addStretch()
+        form_layout.addRow(keep_row_layout)
 
         batch_layout = QHBoxLayout()
         self.spin_batch = QSpinBox()
