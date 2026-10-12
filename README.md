@@ -1,1 +1,348 @@
-IyBHZW1pbmkgU1JUIFRyYW5zbGF0b3IgR1VJCgo+IPCfh7Dwn4e3IO2VnOq1reyWtCAvIPCfh7rwn4e4IEVuZ2xpc2gg4oCUICpzY3JvbGwgZG93biBmb3IgRW5nbGlzaCoKCi0tLQoKIyMg8J+HsPCfh7cg7ZWc6rWt7Ja0CgpQeVF0NiDquLDrsJggR1VJIOyVoO2UjOumrOy8gOydtOyFmOycvOuhnCwgW2dlbWluaS1zcnQtdHJhbnNsYXRvcl0oaHR0cHM6Ly9naXRodWIuY29tL01hS1RhaUwvZ2VtaW5pLXNydC10cmFuc2xhdG9yKSDrnbzsnbTruIzrn6zrpqwodjMuOC4zKeulvCDtmZzsmqntlZjsl6wg7J6Q66eJKFNSVC9BU1MpIOuyiOyXreqzvCDruYTrlJTsmKQv7Jik65SU7JikIOyghOyCrChUcmFuc2NyaWJlKeulvCDshpDsib3qsowg7IiY7ZaJ7ZWgIOyImCDsnojsirXri4jri6QuIFB5dGUg6riw67CYIFZUMTAwIO2EsOuvuOuEkCDsl5DrrqzroIjsnbTthLDrpbwg64K07J6l7ZWY7JesIOy9mOyGlCDstpzroKUo7IOJ7IOBLCDsp4TtlonrpaAg65OxKeydhCBHVUkg7JWI7JeQ7IScIOq3uOuMgOuhnCDtmZXsnbjtlaAg7IiYIOyeiOyKteuLiOuLpC4KCiMjIyDso7zsmpQg6riw64qlCgotICoq7J6Q66eJIOuyiOyXrSAoVHJhbnNsYXRlKSoqOiBTUlQvQVNTIOyekOuniSDtjIzsnbzsnYQg7JuQ7ZWY64qUIOyWuOyWtOuhnCDrsojsl60KLSAqKuu5hOuUlOyYpC/smKTrlJTsmKQg7KCE7IKsIChUcmFuc2NyaWJlKSoqOiDruYTrlJTsmKTCt+yYpOuUlOyYpCDtjIzsnbzsl5DshJwg7J6Q66eJ7J2EIOyDiOuhnCDsg53shLEKLSAqKuuLpOykkSDslrjslrQg64+Z7IucIOyymOumrCoqOiDssrTtgazrsJXsiqQg7L2k67O067CV7Iqk66GcIOyXrOufrCDrjIDsg4Eg7Ja47Ja066W8IO2VnCDrsojsl5Ag7ISg7YOd7ZW0IOydvOq0hCDsnpHsl4UKLSAqKuuLpOykkSBBUEkg7YKkIOuhnO2FjOydtOyFmCoqOiDstZzrjIAgMTDqsJzsnZggR2VtaW5pIEFQSSDtgqTrpbwg65Ox66Gd7ZW0IOustOujjCDtlaDri7nrn4nsnYQg7Iic7ZmYIOyCrOyaqQotICoq64uk7KSRIO2MjOydvCDtgZAg7LKY66asKio6IOyekOuniS/ruYTrlJTsmKQg7YyM7J287J2EIOyXrOufrCDqsJwg7ISg7YOd7ZWY66m0IOyInOywqOyggeycvOuhnCDsspjrpqwKLSAqKuyLpOyLnOqwhCBWVDEwMCDthLDrr7jrhJAg67ewKio6IOudvOydtOu4jOufrOumrOydmCDsvZjshpQg7Lac66ClKOyDieyDgSDtj6ztlagp7J2EIOyVsSDrgrTsl5DshJwg7Iuk7Iuc6rCEIOugjOuNlOungQotICoq7IS467aAIO2KnOuLnSDsmLXshZgqKjogdGVtcGVyYXR1cmUsIHRvcF9wLCB0b3Bfaywg7IKs6rOgKHRoaW5raW5nKSDsmIjsgrAv7IiY7KSALCDrsLDsuZgg7YGs6riwLCDshJzruYTsiqQg7Yuw7Ja0IOuTsQotICoq66y466elIOyXsOyGjeyEsSDqtIDrpqwgKGNvbnRleHRfc2l6ZSkqKjog67KI7JetIOykkSDsnbTsoIQg7J6Q66eJIOudvOyduOydhCDssLjsobDtlZjripQg7Iqs65287J2065SpIOy7qO2FjeyKpO2KuCDtgazquLAg7ISk7KCVCi0gKirspJHri6jrkJwg7J6R7JeFIOydtOyWtO2VmOq4sCAocmVzdW1lLCB2My44LjMpKio6IOydtOyghOyXkCDspJHri6jrkJwg67KI7JetL+yghOyCrCDsnpHsl4XsnYQg7KCA7J6l65CcIOynhO2WiSDsg4Htg5zrtoDthLAg7J6Q64+Z7Jy866GcIOydtOyWtOyEnCDsiJjtlokuIOyytO2BrCDtlbTsoJwg7IucIOyymOydjOu2gO2EsCDsg4jroZwg7Iuc7J6RCi0gKirrsojsl60g7Iqk7YOA7J28IO2UhOumrOyFiyoqOiDsnpDsl7DsiqTrn6zsmrQg6rWs7Ja07LK0LCDrk5zrnbzrp4jCt+yYge2ZlCDsnpDrp4nssrQsIOuLpO2BkCDrgrTroIjsnbTshZjssrQsIOyVoOuLiCDrjZTruZnssrQsIOyWtO2VmeyaqSDsp4Hsl60sIOyYiOuKpcK37Jyg7Yqc67iM7LK0LCDslrTrprDsnbTsmqkg65OxIDfsooUg7ZSE66as7IWLLiDshKDtg53tlZwg7Iqk7YOA7J28IOyngOy5qOydtCDrsojsl60g7ZSE66Gs7ZSE7Yq47JeQIOyekOuPmSDtlanshLHrkKgKLSAqKuuyiOyXrSDqsrDqs7wg66+466as67O06riwL+2OuOynkSoqOiDrsojsl60g7JmE66OMIO2bhCDsm5DrrLjqs7wg64yA7KGw7ZWY66mwIOuyiOyXreusuOydhCDtlokg64uo7JyE66GcIOyImOyglcK37KCA7J6lLiBDUFMo7LSI64u5IOq4gOyekOyImCkg6rK96rOgIO2RnOyLnCwg6rKA7IOJLCDsoIDsnqUg7IucIGAuYmFrYCDsnpDrj5kg67Cx7JeFLiAi7LaU7Lac65CcIOybkOuzuCDsnpDrp4kg7Jyg7KeAIiDssrTtgawg7IucIOu5hOuUlOyYpOyXkOyEnCDstpTstpztlZwg7JuQ67O4IOyekOunieydhCDrgqjqsqgg64yA7KGwIOqwgOuKpSwg7ZW07KCcIOyLnCDstpTstpwg7YyM7J28IOyCreygnCDtm4Qg67KI7Jet66y466eMIO2RnOyLnAotICoq7KCB7J2R7ZiVIOuwsOy5mC/smKTrlJTsmKQg7J6Q64+ZIOqwkOy2lSAodjMuOC4zKSoqOiBBUEkg7Jik66WYKDQyOS81MDAvNTAzKSDrmJDripQg7YyM7IuxIOyYpOulmCDrsJzsg50g7IucIOuwsOy5mCDtgazquLAoYGJhdGNoX3NpemVfZXJyb3Jfc3RlcGAp7JmAIOyYpOuUlOyYpCDssq3tgawoYGF1ZGlvX2NodW5rX2Vycm9yX3N0ZXBgKeulvCDsnpDrj5nsnLzroZwg7KSE7JesIOuzteq1rCDtm4Qg7JuQ656YIO2BrOq4sOuhnCDrs7Xsm5AKLSAqKkdvb2dsZSBDbG91ZCAvIFZlcnRleCBBSShFbnRlcnByaXNlKSDsl7Drj5kqKjogQ2xvdWQgUHJvamVjdCwgQVBJIEtleSwgUmVnaW9uLCBSZXF1ZXN0IFR5cGUg7ISk7KCVIOyngOybkAotICoq7J6Q64+ZIOyerOyLnOuPhC/rsLHsmKTtlIQqKjog7Jew7IaNIOyLpO2MqCDsi5wg7KeA7IiYIOuwseyYpO2UhOuhnCDrjIDquLDtlZjqs6AsIOyehOqzhOy5mCDstIjqs7wg7IucIOyViOyghO2VmOqyjCDsnpHsl4Ug7KSR64uoCi0gKirsm5DsnpDsoIEg7YyM7J28IOyggOyepSoqOiDsnpDrp4kg7KCA7J6lIOyLnCDsnoTsi5wg7YyM7J28IOq4sOuhnSDtm4QgYG9zLnJlcGxhY2UoKWAg6rWQ7LK0IOuwqeyLneycvOuhnCDtjIzsnbwg7IaQ7IOBIOuwqeyngAotICoq7ISk7KCVIOyekOuPmSDsoIDsnqUv67O17JuQKio6IGBRU2V0dGluZ3NgIOq4sOuwmOycvOuhnCBBUEkg7YKkLCDsmLXshZgsIO2MjOydvCDqsr3roZwg65Ox7J2EIOyerOyLpO2WiSDsi5wg7J6Q64+ZIOuhnOuTnAotICoqVUkg7Ja47Ja0IOyghO2ZmCoqOiDtlZzqta3slrQgLyBFbmdsaXNoIOyLpOyLnOqwhCDsoITtmZgg7KeA7JuQCi0gKipBSSBBZ2VudCBTa2lsbCDshKTsuZgqKjog65287J2067iM65+s66as7J2YIFNLSUxMLm1k66W8IENsYXVkZSBDb2RlIC8gQ3Vyc29ywrdDb2RleMK3Q2xpbmUgLyBBbnRpZ3Jhdml0eeyXkCDsm5DtgbTrpq0g7ISk7LmYICjsoITsl60g65iQ64qUIO2UhOuhnOygne2KuCDtj7TrjZQpCi0gKirrnbzsnbTruIzrn6zrpqwg7JeF642w7J207Yq4IO2ZleyduCoqOiBQeVBJ7JeQ7IScIGdlbWluaS1zcnQtdHJhbnNsYXRvciDstZzsi6Ag67KE7KCE7J2EIOuwseq3uOudvOyatOuTnOuhnCDtmZXsnbgKLSAqKuyYiOyDgSDruYTsmqkg7ZGc7IucKio6ICLruYTsmqkg66as7Y+s7Yq4IOyggOyepSIg7LK07YGsIOyLnCDsnpHsl4Xrs4Qg7Yag7YGwIOumrO2PrO2KuOydmCBwcmljaW5nLmpzb24g6riw67CYIOyYiOyDgSDruYTsmqkoVVNEKeydhCDroZzqt7jsl5Ag7ZGc7IucCgojIyMg7JqU6rWsIOyCrO2VrQoKLSBXaW5kb3dzIDEwIOydtOyDgSAoNjQtYml0KSDrmJDripQgTGludXgvbWFjT1MKLSBHb29nbGUg6rOE7KCVIChHZW1pbmkgQVBJIO2CpCDrsJzquInsmqksIOustOujjCkKLSBQeXRob24gMy4xMCDsnbTsg4EgKOyGjOyKpCDsvZTrk5wg7Iuk7ZaJIOyLnCkKLSBGRm1wZWcgKOu5hOuUlOyYpC/smKTrlJTsmKQg7KCE7IKswrfsnYzshLEg7LaU7LacIOq4sOuKpSDsgqzsmqkg7IucIO2VhOyImCkKCiMjIyDwn5qAIOyEpOy5mCDqsIDsnbTrk5wKCiMjIyMgMeuLqOqzhDogR29vZ2xlIEFJIFN0dWRpbyDqsIDsnoUg67CPIEFQSSDtgqQg67Cc6riJICjtlYTsiJgpCgrsnbQg7JWx7J2AIEdvb2dsZSBHZW1pbmkgQVBJ66GcIOuyiOyXrS/soITsgqzrpbwg7IiY7ZaJ7ZWY66+A66GcIEFQSSDtgqTqsIAg67CY65Oc7IucIO2VhOyalO2VqeuLiOuLpC4g66y066OM66GcIOuwnOq4ieuwm+ydhCDsiJgg7J6I7Iq164uI64ukLgoKMS4gW0dvb2dsZSBBSSBTdHVkaW9dKGh0dHBzOi8vYWlzdHVkaW8uZ29vZ2xlLmNvbSnsl5Ag7KCR7IaN7ZW0IEdvb2dsZSDqs4TsoJXsnLzroZwg66Gc6re47J247ZWp64uI64ukLgoyLiAqKiJHZXQgQVBJIGtleSIqKiAoQVBJIO2CpCDrsJvquLAp66W8IO2BtOumre2VqeuLiOuLpC4KMy4gKioiQ3JlYXRlIEFQSSBrZXkiKiog4oaSIOyDiCBHb29nbGUgQ2xvdWQg7ZSE66Gc7KCd7Yq466W8IOunjOuTpOqxsOuCmCDquLDsobQg7ZSE66Gc7KCd7Yq466W8IOyEoO2Dne2VqeuLiOuLpC4KNC4g67Cc6riJ65CcIEFQSSDtgqTrpbwg67O17IKs7ZWp64uI64ukLgo1LiDslbEg7Iuk7ZaJIO2bhCAqKiJBUEkg7YKkIOq0gOumrC4uLiIqKiDrsoTtirzsnYQg64iM65+sIOuzteyCrO2VnCDtgqTrpbwg67aZ7Jes64Sj6rOgIOyggOyepe2VqeuLiOuLpC4KCj4g8J+SoSAqKuustOujjCDtlaDri7nrn4kg6re564yA7ZmUIO2MgSoqOiBHZW1pbmkgQVBJ64qUIOustOujjCDti7DslrTrpbwg7KCc6rO17ZWp64uI64ukLiBHb29nbGUg6rOE7KCV64u5IOyXrOufrCDtlITroZzsoJ3tirjsl5DshJwg7YKk66W8IOuwnOq4ieuwm+yVhCDslbHsl5Ag7LWc64yAIDEw6rCc6rmM7KeAIOuTseuhne2VmOuptCwg7J6R7JeFKGpvYinrp4jri6Qg7YKk66W8IOyekOuPmeycvOuhnCDrj4zroKTqsIDrqbAg7IKs7Jqp7ZWY66+A66GcIOustOujjCDtlZzrj4Trpbwg7LWc64yA7ZWcIO2ZnOyaqe2VoCDsiJgg7J6I7Iq164uI64ukLgo+IOKaoO+4jyAqKuuztOyViCDso7zsnZgqKjogQVBJIO2CpOuKlCDruYTrsIDrsojtmLjsspjrn7wg64uk66Oo7IS47JqULiDri6Trpbgg7IKs656M7JeQ6rKMIOqzteycoO2VmOqxsOuCmCDqs7XqsJwg7KCA7J6l7IaM7JeQIOyYrOumrOyngCDrp4jshLjsmpQuCgojIyMjIDLri6jqs4Q6IEZGbXBlZyDshKTsuZggKOu5hOuUlOyYpC/smKTrlJTsmKQg6riw64qlIOyCrOyaqSDsi5wg7ZWE7IiYKQoK67mE65SU7JikIO2MjOydvOyXkOyEnCDsnpDrp4nsnYQg7LaU7Lac7ZWY6rGw64KYIOyYpOuUlOyYpCDsoITsgqzrpbwg7ZWY66Ck66m0IEZGbXBlZ+qwgCDtlYTsmpTtlanri4jri6QuIOyekOuniSDtjIzsnbwoU1JUL0FTUykg67KI7Jet66eMIO2VnOuLpOuptCDsg53rnrXtlbTrj4Qg65Cp64uI64ukLgoKLSAqKldpbmRvd3MqKjogYHdpbmdldCBpbnN0YWxsIEd5YW4uRkZtcGVnYCDrmJDripQgW2d5YW4uZGV2XShodHRwczovL3d3dy5neWFuLmRldi9mZm1wZWcvYnVpbGRzLynsl5DshJwg67mM65Oc66W8IOuwm+yVhCBQQVRI7JeQIOy2lOqwgAotICoqbWFjT1MqKjogYGJyZXcgaW5zdGFsbCBmZm1wZWdgCi0gKipMaW51eCoqOiBgc3VkbyBhcHQgaW5zdGFsbCBmZm1wZWdgCgrshKTsuZgg7ZmV7J24OgpgYGBiYXNoCmZmbXBlZyAtdmVyc2lvbgpgYGAKCiMjIyMgM+uLqOqzhDog7JWxIOyEpOy5mCDigJQg7JuQ7ZWY64qUIOuwqeyLnSDshKDtg50KCioqQS4g7Iuk7ZaJIO2MjOydvCDri6TsmrTroZzrk5wgKFdpbmRvd3MsIOqwgOyepSDsiazsm4ApKioKR2l0SHViIFJlbGVhc2Xsl5DshJwgYEdlbWluaVNSVFRyYW5zbGF0b3ItV2luZG93cy56aXBg7J2EIOuwm+yVhCDslZXstpXsnYQg7ZKA6rOgIOuwlOuhnCDsi6Ttlontlanri4jri6QuIFB5dGhvbiDshKTsuZjqsIAg7ZWE7JqUIOyXhuyKteuLiOuLpC4KCioqQi4g7IaM7IqkIOy9lOuTnCDsp4HsoJEg7Iuk7ZaJKioKYGBgYmFzaAojIFB5dGhvbiAzLjEwIOydtOyDgSDtmZXsnbgKcHl0aG9uIC0tdmVyc2lvbgoKIyDqsIDsg4HtmZjqsr0g7IKs7JqpIOq2jOyepQpweXRob24gLW0gdmVudiB2ZW52CiMgV2luZG93czoKdmVudlxTY3JpcHRzXGFjdGl2YXRlCiMgTGludXgvbWFjT1M6CnNvdXJjZSB2ZW52L2Jpbi9hY3RpdmF0ZQoKcGlwIGluc3RhbGwgLXIgcmVxdWlyZW1lbnRzLnR4dApweXRob24gbWFpbi5weQpgYGAKCioqQy4g7Iuk7ZaJIO2MjOydvCguZXhlKSDsp4HsoJEg67mM65OcIChXaW5kb3dzKSoqCjEuIOybkO2BtOumrSDsnpDrj5kg67mM65OcICjstpTsspwpOiDtlITroZzsoJ3tirgg7Y+0642U7JeQ7IScIGBidWlsZF93aW4uYmF0YCAo65iQ64qUIGBidWlsZF93aW4ucHMxYCkg7Iuk7ZaJIOKAlCDtjKjtgqTsp4Ag7ISk7LmY67aA7YSwIOu5jOuTnOq5jOyngCDsnpDrj5kg7KeE7ZaJCjIuIOyImOuPmSDruYzrk5w6CmBgYGNtZApwaXAgaW5zdGFsbCAtciByZXF1aXJlbWVudHMudHh0CnB5aW5zdGFsbGVyIC0tY2xlYW4gLS1ub2NvbmZpcm0gR2VtaW5pU1JUVHJhbnNsYXRvci5zcGVjCmBgYArruYzrk5wg6rKw6rO8OiBgZGlzdFxHZW1pbmlTUlRUcmFuc2xhdG9yLmV4ZWAKCiMjIyDwn5SnIOusuOygnCDtlbTqsrAKCnwg7Kad7IOBIHwg7ZW06rKwIOuwqeuylSB8CnwtLS18LS0tfAp8IGBmZm1wZWdg7J2EKOulvCkg7LC+7J2EIOyImCDsl4bri6TripQg7Jik66WYIHwgMuuLqOqzhCBGRm1wZWcg7ISk7LmYIO2bhCDthLDrr7jrhJDsnYQg64uk7IucIOyXtOqxsOuCmCBQQyDsnqzrtoDtjIUgKFBBVEgg67CY7JiBKSB8CnwgQVBJIO2CpCDsmKTrpZggLyA0MDAg7JeQ65+sIHwgQUkgU3R1ZGlv7JeQ7IScIO2CpOulvCDsnqzrsJzquInrsJvslYQgIkFQSSDtgqQg6rSA66asIuyXkOyEnCDqtZDssrQgfAp8IOustOujjCDtlaDri7nrn4kg7LSI6rO8ICg0MjkpIHwgQVBJIO2CpOulvCDstpTqsIDroZwg65Ox66Gd7ZWY6rGw64KYIOyeoOyLnCDtm4Qg7J6s7Iuc64+ELiDtgqTqsIAg7Jes65+sIOqwnOuptCDsnpDrj5kg7Iic7ZmY65CoIHwKfCDrqqjrjbgg66qp66Gd7J20IOu5hOyWtCDsnojsnYwgfCAi66qo6424IOqwgOyguOyYpOq4sCIg67KE7Yq8IO2BtOumrSwgQVBJIO2CpOqwgCDsmKzrsJTrpbTqsowg65Ox66Gd65CQ64qU7KeAIO2ZleyduCB8CnwgUHlRdDYg7ISk7LmYIOyLpO2MqCB8IGBwaXAgaW5zdGFsbCAtLXVwZ3JhZGUgcGlwYCDtm4Qg7J6s7Iuc64+EIHwKCiMjIyDtlITroZzsoJ3tirgg6rWs7KGwCgpgYGAKR2VtaW5pU1JUVHJhbnNsYXRvckdVSS8K4pSc4pSA4pSAIG1haW4ucHkgICAgICAgICAgICAgICAgICMg7JaH7J2AIOynhOyeheygkArilJzilIDilIAgcmVxdWlyZW1lbnRzLnR4dCAgICAgICAgIyDsi6Ttlonsmqkg7J2Y7KG07ISxCuKUnOKUgOKUgCByZXF1aXJlbWVudHMtZGV2LnR4dCAgICAjIOqwnOuwnOyaqSDsnZjsobTshLEK4pSc4pSA4pSAIGJ1aWxkX3dpbi5iYXQgLyAucHMxICAgICMgV2luZG93cyDruYzrk5wg7Iqk7YGs66a97Yq4CuKUnOKUgOKUgCBHZW1pbmlTUlRUcmFuc2xhdG9yLnNwZWMjIFB5SW5zdGFsbGVyIOyKpO2OmQrilJzilIDilIAgUkVBRE1FLm1kICAgICAgICAgICAgICAgIyDsnbQg66y47IScCuKUnOKUgOKUgCBjb3JlLyAgICAgICAgICAgICAgICAgICAjIOyInOyImCDroZzsp4EK4pSCICAg4pSc4pSA4pSAIHNhZmV0eS5weSAgICAgICAgICMg7ZSE66Gc7IS47IqkIOyViOyghCDtjKjsuZgK4pSCICAg4pSc4pSA4pSAIGNvbmZpZy5weSAgICAgICAgICMg7JWxIOyDgeyImArilIIgICDilJzilIDilIAgbGFuZ3VhZ2VzLnB5ICAgICAgIyDslrjslrQg7KCV6rec7ZmUwrdJU08g7L2U65OcCuKUgiAgIOKUnOKUgOKUgCBtZWRpYS5weSAgICAgICAgICAjIEZGbXBlZyDrr7jrlJTslrQg7Zes7Y28CuKUgiAgIOKUnOKUgOKUgCBnc3RfY29tcGF0LnB5ICAgICAjIOudvOydtOu4jOufrOumrCDtmLjtmZgg66CI7J207Ja0CuKUgiAgIOKUnOKUgOKUgCBlcnJvcnMucHkgICAgICAgICAjIOybjOy7pCDsmKTrpZgg67aE66WYCuKUgiAgIOKUnOKUgOKUgCBzdHlsZV9wcmVzZXRzLnB5ICAjIOyKpO2DgOydvCDtlITrpqzshYsg7KCV7J2YCuKUgiAgIOKUnOKUgOKUgCBzdWJ0aXRsZV9pby5weSAgICAjIFNSVCDsnoXstpzroKXCt0NQUyDqs4TsgrAK4pSCICAg4pSc4pSA4pSAIHByaWNpbmcucHkgICAgICAgICAgIyDthqDtgbAg64uo6rCAwrfruYTsmqkg7LaU7KCVCuKUgiAgIOKUlOKUgOKUgCB1cGRhdGVfY2hlY2sucHkgICAgICMg65287J2067iM65+s66asIOyXheuNsOydtO2KuCDtmZXsnbgK4pSc4pSA4pSAIGFwcC8gICAgICAgICAgICAgICAgICAgICMgUHlRdDYgR1VJCuKUgiAgIOKUnOKUgOKUgCBtYWluX3dpbmRvdy5weSAgICAjIOuplOyduCDsnIjrj4TsmrAK4pSCICAg4pSc4pSA4pSAIHByZXZpZXdfZWRpdG9yLnB5ICMg6rKw6rO8IOuvuOumrOuztOq4sC/tjrjsp5EK4pSCICAg4pSc4pSA4pSAIHdpZGdldHMucHkgICAgICAgICMg6rO17JqpIOychOygrwrilIIgICDilJzilIDilIAgd29ya2Vycy5weSAgICAgICAgIyDrsojsl60g7JuM7LukIOyKpOugiOuTnArilIIgICDilJzilIDilIAgaTE4bi5weSAgICAgICAgICAgIyDtlZwv7JiBIFVJIOusuOyekOyXtArilIIgICDilJTilIDilIAgc2tpbGxfaW5zdGFsbGVyLnB5ICAjIEFJIEFnZW50IFNraWxsIOyEpOy5mCDri6TsnbTslrzroZzqt7gK4pSU4pSA4pSAIHRlc3RzLyAgICAgICAgICAgICAgICAgICMgcHl0ZXN0IO2FjOyKpO2KuCDsiqTsnITtirgKYGBgCgojIyMg7IKs7JqpIOuwqeuylSDsmpTslb0KCjEuICoqQVBJIO2CpCDshKTsoJUqKjogIkFQSSDtgqQg6rSA66asLi4uIiDrsoTtirzsnYQg64iM65+sIOy1nOyGjCAx6rCcIOydtOyDgeydmCBHZW1pbmkgQVBJIO2CpOulvCDsnoXroKXtlZjqs6Ag7KCA7J6l7ZWp64uI64ukLgoyLiAqKuyekeyXhSDrqqjrk5wg7ISg7YOdKio6IOyekOuniSDrsojsl60g65iQ64qUIOu5hOuUlOyYpC/smKTrlJTsmKQg7KCE7IKsIOykkSDshKDtg53tlanri4jri6QuCjMuICoq7J6F66ClIO2MjOydvCDsp4DsoJUqKjoKICAgLSDrsojsl606IFNSVC9BU1Mg7YyM7J28IOyEoO2DnQogICAtIOyghOyCrDog67mE65SU7JikIOuYkOuKlCDsmKTrlJTsmKQg7YyM7J28IOyEoO2DnQo0LiAqKuy2nOugpSDtj7TrjZQg7KeA7KCVKioKNS4gKirrjIDsg4Eg7Ja47Ja0IOyEoO2DnSoqOiDri6TspJEg7ISg7YOdIOy9pOuztOuwleyKpOyXkOyEnCDsm5DtlZjripQg7Ja47Ja066W8IOyytO2BrAo2LiAo7ISg7YOdKSAqKuq4sOuzuCDshKTsoJUgLyDqs6DquIkg7ISk7KCVKirsl5DshJwg66qo6424LCDrsLDsuZgg7YGs6riwLCB0ZW1wZXJhdHVyZSwg66y466elIO2BrOq4sCwg7KCB7J2R7ZiVIOqwkOy2lSDri6jsnIQg65OxIOyEuOu2gCDsmLXshZgg7KGw7KCVCjcuICoq8J+agCDsnpHsl4Ug7Iuc7J6RKiog7YG066atIOKGkiDtlZjri6gg7YSw66+464SQIOywveyXkOyEnCDsi6Tsi5zqsIQg7KeE7ZaJIOyDge2ZqSDtmZXsnbgKOC4g7ZWE7JqUIOyLnCAqKvCfm5Eg7J6R7JeFIOykkeuLqCoq7Jy866GcIOyViOyghO2VmOqyjCDspJHsp4Ag6rCA64qlICjsp4Ttlokg7KSR7J24IOuwsOy5mCDsmYTro4wg7ZuEIOyiheujjCkKCiMjIyDqs6DquIkg7ISk7KCVICjimpkg6rOg6riJIOyEpOyglSDrsI8g7Yqc64udKQoKfCDsmLXshZggfCDshKTrqoUgfAp8LS0tLS0tfC0tLS0tLXwKfCDshJzruYTsiqQg7Yuw7Ja0IHwgRGVmYXVsdCAvIHN0YW5kYXJkIC8gZmxleCAvIHByaW9yaXR5IOyEoO2DnSB8Cnwg7Iuc7J6RIOudvOyduCB8IOuyiOyXreydhCDsi5zsnpHtlaAg7J6Q66eJIOudvOyduCDrsojtmLggfAp8IFRlbXBlcmF0dXJlIC8gVG9wLVAgLyBUb3AtSyB8IOyDneyEsSDtjIzrnbzrr7jthLAg7KGw7KCVIHwKfCDsgqzqs6Ag7JiI7IKwIC8g7IiY7KSAIHwgVGhpbmtpbmcg6riw64qlIOyYiOyCsCDrsI8g7IiY7KSAIOyEpOyglSB8Cnwg7Jik65SU7Jik7LKt7YGsIHwg7Jik65SU7JikIOy7qO2FjeyKpO2KuCDrsojsl60g7LKt7YGsIO2BrOq4sCjstIgpIHwKfCBDb250ZXh0IFNpemUgfCDsiqzrnbzsnbTrlKkg7Luo7YWN7Iqk7Yq4IOywuOyhsCDrnbzsnbgg7IiYICgwID0g67mE7Zmc7ISxKSB8Cnwg7J6R7JeFIOydtOyWtO2VmOq4sCB8IOykkeuLqOuQnCDsnpHsl4XsnZgg7KCA7J6l65CcIOynhO2WiSDsg4Htg5zrtoDthLAg7J6Q64+ZIOyerOqwnCAo6riw67O46rCSOiDsvJzsp5ApIHwKfCDrsLDsuZgg7LaV7IaM64uo7JyEIHwg7Jik66WYIOuwnOyDnSDsi5wg67Cw7LmYIO2BrOq4sCDsnpDrj5kg6rCQ7LaVIOuLqOqzhCAo6riw67O4OiAxMDApIHwKfCDsmKTrlJTsmKQg7LaV7IaM64uo7JyEIHwg7Jik66WYIOuwnOyDnSDsi5wg7Jik65SU7JikIOyyre2BrCDsnpDrj5kg6rCQ7LaVIOuLqOqzhCAo6riw67O4OiA2MCkgfAoKIyMjIO2PtOuNlC/shKTsoJUg7KCA7J6lIOychOy5mAoK7ISk7KCV7J2AIGBRU2V0dGluZ3MoU0VUVElOR1NfT1JHPSJHZW1pbmlTcnRUcmFuc2xhdG9yR1VJIiwgU0VUVElOR1NfQVBQPSJHZW1pbmlTcnRUcmFuc2xhdG9yR1VJIilg66W8IO2Gte2VtCBPUyDtkZzspIAg7JyE7LmYKFdpbmRvd3Mg66CI7KeA7Iqk7Yq466asKeyXkCDsoIDsnqXrkKnri4jri6QuCgojIyMg7KO87J2YIOyCrO2VrQoKLSBBUEkg7YKk64qUIOq4sOuzuOyggeycvOuhnCDqsIDroKTshJwo66eI7Iqk7YGsKSDtkZzsi5zrkKnri4jri6QuICJBUEkg7YKkIO2RnOyLnCIg7LK07YGs67CV7Iqk66GcIOuztOyYgOuLpC/qsIDroLjri6Qg7KCE7ZmY7ZWgIOyImCDsnojsirXri4jri6QuCi0gRW50ZXJwcmlzZShWZXJ0ZXggQUkpIOuqqOuTnCDsgqzsmqkg7IucIOuzhOuPhOydmCBHb29nbGUgQ2xvdWQgUHJvamVjdCAvIOyduOymnSDsoJXrs7TqsIAg7ZWE7JqU7ZWp64uI64ukLgotIOydtCBHVUnripQgW2dlbWluaS1zcnQtdHJhbnNsYXRvcl0oaHR0cHM6Ly9weXBpLm9yZy9wcm9qZWN0L2dlbWluaS1zcnQtdHJhbnNsYXRvci8pIOudvOydtOu4jOufrOumrCAqKnYzLjguMyoqIOyduO2EsO2OmOydtOyKpCDquLDrsJjsnLzroZwg7J6R7ISx65CY7JeI7Iq164uI64ukLgotIOudvOydtOu4jOufrOumrCDrsoTsoITsnbQg64uk66W066m0IOydvOu2gCDsmLXshZjsnbQg64+Z7J6R7ZWY7KeAIOyViuydhCDsiJgg7J6I7Iq164uI64ukLgoKLS0tCgojIyDwn4e68J+HuCBFbmdsaXNoCgpBIFB5UXQ2LWJhc2VkIEdVSSBhcHBsaWNhdGlvbiB0aGF0IGxldmVyYWdlcyB0aGUgW2dlbWluaS1zcnQtdHJhbnNsYXRvcl0oaHR0cHM6Ly9naXRodWIuY29tL01hS1RhaUwvZ2VtaW5pLXNydC10cmFuc2xhdG9yKSBsaWJyYXJ5ICh2My44LjMpIHRvIGVhc2lseSB0cmFuc2xhdGUgc3VidGl0bGVzIChTUlQvQVNTKSBhbmQgdHJhbnNjcmliZSB2aWRlby9hdWRpbyBmaWxlcy4gSXQgaW5jbHVkZXMgYSBidWlsdC1pbiBQeXRlIFZUMTAwIHRlcm1pbmFsIGVtdWxhdG9yIHNvIHlvdSBjYW4gdmlldyByZWFsLXRpbWUgY29uc29sZSBvdXRwdXQgKGluY2x1ZGluZyBjb2xvcnMgYW5kIHByb2dyZXNzIGJhcnMpIGRpcmVjdGx5IHdpdGhpbiB0aGUgR1VJLgoKIyMjIEtleSBGZWF0dXJlcwoKLSAqKlN1YnRpdGxlIFRyYW5zbGF0aW9uKio6IFRyYW5zbGF0ZSBTUlQvQVNTIHN1YnRpdGxlIGZpbGVzIGludG8gYW55IGRlc2lyZWQgbGFuZ3VhZ2UKLSAqKlZpZGVvL0F1ZGlvIFRyYW5zY3JpcHRpb24qKjogR2VuZXJhdGUgbmV3IHN1YnRpdGxlcyBkaXJlY3RseSBmcm9tIHZpZGVvIG9yIGF1ZGlvIGZpbGVzCi0gKipNdWx0aS1sYW5ndWFnZSBCYXRjaCBQcm9jZXNzaW5nKio6IFNlbGVjdCBtdWx0aXBsZSB0YXJnZXQgbGFuZ3VhZ2VzIGF0IG9uY2UgdmlhIGEgY2hlY2thYmxlIGNvbWJvIGJveAotICoqTXVsdGkgQVBJIEtleSBSb3RhdGlvbioqOiBSZWdpc3RlciB1cCB0byAxMCBHZW1pbmkgQVBJIGtleXMgYW5kIHJvdGF0ZSB0aGVtIHRvIG1heGltaXplIGZyZWUgcXVvdGEKLSAqKk11bHRpLWZpbGUgUXVldWUqKjogU2VsZWN0IG11bHRpcGxlIHN1YnRpdGxlL3ZpZGVvIGZpbGVzIGFuZCBwcm9jZXNzIHRoZW0gc2VxdWVudGlhbGx5Ci0gKipSZWFsLXRpbWUgVlQxMDAgVGVybWluYWwqKjogUmVuZGVycyBsaWJyYXJ5IGNvbnNvbGUgb3V0cHV0ICh3aXRoIEFOU0kgY29sb3JzKSBsaXZlIGluc2lkZSB0aGUgYXBwCi0gKipGaW5lLXR1bmluZyBPcHRpb25zKio6IHRlbXBlcmF0dXJlLCB0b3BfcCwgdG9wX2ssIHRoaW5raW5nIGJ1ZGdldC9sZXZlbCwgYmF0Y2ggc2l6ZSwgc2VydmljZSB0aWVyLCBldGMuCi0gKipDb250ZXh0IE1hbmFnZW1lbnQgKGNvbnRleHRfc2l6ZSkqKjogQ29uZmlndXJlIHNsaWRpbmcgY29udGV4dCB3aW5kb3cgc2l6ZSBmb3IgaW1wcm92ZWQgdHJhbnNsYXRpb24gY29udGludWl0eQotICoqUmVzdW1lIEludGVycnVwdGVkIEpvYnMgKHYzLjguMykqKjogQXV0b21hdGljYWxseSBjb250aW51ZSB0cmFuc2xhdGlvbi90cmFuc2NyaXB0aW9uIGZyb20gc2F2ZWQgcHJvZ3Jlc3MuIFVuY2hlY2sgdG8gc3RhcnQgZnJlc2ggZnJvbSB0aGUgYmVnaW5uaW5nCi0gKipUcmFuc2xhdGlvbiBTdHlsZSBQcmVzZXRzKio6IDcgcHJlc2V0cyDigJQgbmF0dXJhbCBjb2xsb3F1aWFsLCBkcmFtYSAmIGZpbG0gc3VidGl0bGVzLCBkb2N1bWVudGFyeSBuYXJyYXRpb24sIGFuaW1lIGR1YmJpbmcsIGxpdGVyYWwgKGZvciBsYW5ndWFnZSBzdHVkeSksIHZhcmlldHkvWW91VHViZSBzdHlsZSwgYW5kIGZvciBraWRzLiBUaGUgc2VsZWN0ZWQgc3R5bGUgaW5zdHJ1Y3Rpb24gaXMgYXV0b21hdGljYWxseSBtZXJnZWQgaW50byB0aGUgdHJhbnNsYXRpb24gcHJvbXB0Ci0gKipSZXN1bHQgUHJldmlldyAmIEVkaXRvcioqOiBBZnRlciB0cmFuc2xhdGlvbiwgcmV2aWV3IGFuZCBlZGl0IHRyYW5zbGF0ZWQgbGluZXMgc2lkZS1ieS1zaWRlIHdpdGggdGhlIG9yaWdpbmFsLiBJbmNsdWRlcyBDUFMgKGNoYXJzL3NlYykgd2FybmluZ3MsIHNlYXJjaCwgYW5kIGF1dG9tYXRpYyBgLmJha2AgYmFja3VwIG9uIHNhdmUuICJLZWVwIGV4dHJhY3RlZCBzb3VyY2Ugc3VidGl0bGVzIiBrZWVwcyB2aWRlby1leHRyYWN0ZWQgb3JpZ2luYWxzIGZvciBjb21wYXJpc29uOyB3aGVuIG9mZiwgZXh0cmFjdGVkIGZpbGVzIGFyZSByZW1vdmVkIGFuZCBvbmx5IHRoZSB0cmFuc2xhdGlvbiBpcyBzaG93bgotICoqQWRhcHRpdmUgQmF0Y2ggJiBBdWRpbyBDaHVuayBTaXppbmcgKHYzLjguMykqKjogQXV0b21hdGljYWxseSByZWR1Y2VzIGBiYXRjaF9zaXplYCBhbmQgYGF1ZGlvX2NodW5rX3NpemVgIG9uIEFQSSBlcnJvcnMgKDQyOS81MDAvNTAzKSBvciBwYXJzZSBmYWlsdXJlcywgdGhlbiByZXN0b3JlcyBvcmlnaW5hbCB2YWx1ZXMgb24gc3VjY2VzcwotICoqR29vZ2xlIENsb3VkIC8gVmVydGV4IEFJIChFbnRlcnByaXNlKSoqOiBTdXBwb3J0cyBDbG91ZCBQcm9qZWN0LCBBUEkgS2V5LCBSZWdpb24sIGFuZCBSZXF1ZXN0IFR5cGUgY29uZmlndXJhdGlvbgotICoqQXV0byBSZXRyeSAvIEJhY2tvZmYqKjogRXhwb25lbnRpYWwgYmFja29mZiBvbiBjb25zZWN1dGl2ZSBmYWlsdXJlczsgc2FmZWx5IGFib3J0cyB3aGVuIHRocmVzaG9sZCBpcyBleGNlZWRlZAotICoqQXRvbWljIEZpbGUgU2F2ZSoqOiBTdWJ0aXRsZXMgYXJlIHdyaXR0ZW4gYXRvbWljYWxseSB2aWEgdGVtcCBmaWxlICsgYG9zLnJlcGxhY2UoKWAgdG8gcHJldmVudCBjb3JydXB0aW9uCi0gKipBdXRvIFNhdmUgLyBSZXN0b3JlIFNldHRpbmdzKio6IEFQSSBrZXlzLCBvcHRpb25zLCBhbmQgZmlsZSBwYXRocyBhcmUgcGVyc2lzdGVkIGFuZCByZXN0b3JlZCB2aWEgYFFTZXR0aW5nc2AKLSAqKlVJIExhbmd1YWdlIFRvZ2dsZSoqOiBTd2l0Y2ggYmV0d2VlbiBLb3JlYW4gKO2VnOq1reyWtCkgYW5kIEVuZ2xpc2ggYXQgcnVudGltZQotICoqQUkgQWdlbnQgU2tpbGwgSW5zdGFsbGVyKio6IE9uZS1jbGljayBpbnN0YWxsIG9mIHRoZSBsaWJyYXJ5J3MgU0tJTEwubWQgZm9yIENsYXVkZSBDb2RlIC8gQ3Vyc29ywrdDb2RleMK3Q2xpbmUgLyBBbnRpZ3Jhdml0eSAoZ2xvYmFsIG9yIHByb2plY3QgZm9sZGVyKQotICoqTGlicmFyeSBVcGRhdGUgQ2hlY2sqKjogQ2hlY2sgUHlQSSBmb3IgdGhlIGxhdGVzdCBnZW1pbmktc3J0LXRyYW5zbGF0b3IgdmVyc2lvbiBpbiB0aGUgYmFja2dyb3VuZAotICoqRXN0aW1hdGVkIENvc3QgRGlzcGxheSoqOiBXaGVuICJzYXZlIGNvc3QgcmVwb3J0IiBpcyBjaGVja2VkLCBwZXItam9iIGVzdGltYXRlZCBjb3N0IChVU0QsIGZyb20gcHJpY2luZy5qc29uKSBpcyBzaG93biBpbiB0aGUgbG9nCgojIyMgUmVxdWlyZW1lbnRzCgotIFdpbmRvd3MgMTAgb3IgbGF0ZXIgKDY0LWJpdCksIG9yIExpbnV4L21hY09TCi0gR29vZ2xlIGFjY291bnQgKGZvciBhIGZyZWUgR2VtaW5pIEFQSSBrZXkpCi0gUHl0aG9uIDMuMTAgb3IgbGF0ZXIgKGZvciBydW5uaW5nIGZyb20gc291cmNlKQotIEZGbXBlZyAocmVxdWlyZWQgZm9yIHZpZGVvL2F1ZGlvIHRyYW5zY3JpcHRpb24gYW5kIGF1ZGlvIGV4dHJhY3Rpb24pCgojIyMg8J+agCBJbnN0YWxsYXRpb24gR3VpZGUKCiMjIyMgU3RlcCAxOiBTaWduIHVwIGZvciBHb29nbGUgQUkgU3R1ZGlvIGFuZCBnZXQgYW4gQVBJIGtleSAocmVxdWlyZWQpCgpUaGlzIGFwcCBwZXJmb3JtcyB0cmFuc2xhdGlvbi90cmFuc2NyaXB0aW9uIHZpYSB0aGUgR29vZ2xlIEdlbWluaSBBUEksIHNvIGFuIEFQSSBrZXkgaXMgcmVxdWlyZWQuIEl0J3MgZnJlZS4KCjEuIEdvIHRvIFtHb29nbGUgQUkgU3R1ZGlvXShodHRwczovL2Fpc3R1ZGlvLmdvb2dsZS5jb20pIGFuZCBzaWduIGluIHdpdGggeW91ciBHb29nbGUgYWNjb3VudC4KMi4gQ2xpY2sgKioiR2V0IEFQSSBrZXkiKiouCjMuIENsaWNrICoqIkNyZWF0ZSBBUEkga2V5IioqIOKGkiBjcmVhdGUgYSBuZXcgR29vZ2xlIENsb3VkIHByb2plY3Qgb3Igc2VsZWN0IGFuIGV4aXN0aW5nIG9uZS4KNC4gQ29weSB0aGUgaXNzdWVkIEFQSSBrZXkuCjUuIEluIHRoZSBhcHAsIGNsaWNrICoqIk1hbmFnZSBBUEkgS2V5cy4uLiIqKiwgcGFzdGUgdGhlIGtleSwgYW5kIHNhdmUuCgo+IPCfkqEgKipNYXhpbWl6ZSB0aGUgZnJlZSBxdW90YSoqOiBUaGUgR2VtaW5pIEFQSSBvZmZlcnMgYSBmcmVlIHRpZXIuIElzc3VlIGtleXMgZnJvbSBtdWx0aXBsZSBwcm9qZWN0cyB1bmRlciB5b3VyIEdvb2dsZSBhY2NvdW50IGFuZCByZWdpc3RlciB1cCB0byAxMCBpbiB0aGUgYXBwIOKAlCBrZXlzIGFyZSByb3RhdGVkIGF1dG9tYXRpY2FsbHkgcGVyIGpvYiwgbWF4aW1pemluZyB5b3VyIGZyZWUgdXNhZ2UuCj4g4pqg77iPICoqU2VjdXJpdHkqKjogVHJlYXQgeW91ciBBUEkga2V5IGxpa2UgYSBwYXNzd29yZC4gTmV2ZXIgc2hhcmUgaXQgb3IgY29tbWl0IGl0IHRvIGEgcHVibGljIHJlcG9zaXRvcnkuCgojIyMjIFN0ZXAgMjogSW5zdGFsbCBGRm1wZWcgKHJlcXVpcmVkIGZvciB2aWRlby9hdWRpbyBmZWF0dXJlcykKCkZGbXBlZyBpcyByZXF1aXJlZCB0byBleHRyYWN0IHN1YnRpdGxlcyBmcm9tIHZpZGVvIGZpbGVzIG9yIHRyYW5zY3JpYmUgYXVkaW8uIFNraXAgdGhpcyBpZiB5b3Ugb25seSB0cmFuc2xhdGUgc3VidGl0bGUgZmlsZXMgKFNSVC9BU1MpLgoKLSAqKldpbmRvd3MqKjogYHdpbmdldCBpbnN0YWxsIEd5YW4uRkZtcGVnYCwgb3IgZG93bmxvYWQgYSBidWlsZCBmcm9tIFtneWFuLmRldl0oaHR0cHM6Ly93d3cuZ3lhbi5kZXYvZmZtcGVnL2J1aWxkcy8pIGFuZCBhZGQgaXQgdG8gUEFUSAotICoqbWFjT1MqKjogYGJyZXcgaW5zdGFsbCBmZm1wZWdgCi0gKipMaW51eCoqOiBgc3VkbyBhcHQgaW5zdGFsbCBmZm1wZWdgCgpWZXJpZnk6CmBgYGJhc2gKZmZtcGVnIC12ZXJzaW9uCmBgYAoKIyMjIyBTdGVwIDM6IEluc3RhbGwgdGhlIGFwcCDigJQgcGljayB5b3VyIG1ldGhvZAoKKipBLiBEb3dubG9hZCB0aGUgZXhlY3V0YWJsZSAoV2luZG93cywgZWFzaWVzdCkqKgpEb3dubG9hZCBgR2VtaW5pU1JUVHJhbnNsYXRvci1XaW5kb3dzLnppcGAgZnJvbSB0aGUgbGF0ZXN0IEdpdEh1YiBSZWxlYXNlLCBleHRyYWN0LCBhbmQgcnVuLiBObyBQeXRob24gaW5zdGFsbGF0aW9uIG5lZWRlZC4KCioqQi4gUnVuIGZyb20gc291cmNlKioKYGBgYmFzaAojIENoZWNrIFB5dGhvbiAzLjEwKwpweXRob24gLS12ZXJzaW9uCgojIFZpcnR1YWwgZW52aXJvbm1lbnQgcmVjb21tZW5kZWQKcHl0aG9uIC1tIHZlbnYgdmVudgojIFdpbmRvd3M6CnZlbnZcU2NyaXB0c1xhY3RpdmF0ZQojIExpbnV4L21hY09TOgpzb3VyY2UgdmVudi9iaW4vYWN0aXZhdGUKCnBpcCBpbnN0YWxsIC1yIHJlcXVpcmVtZW50cy50eHQKcHl0aG9uIG1haW4ucHkKYGBgCgoqKkMuIEJ1aWxkIHRoZSBleGVjdXRhYmxlICguZXhlKSB5b3Vyc2VsZiAoV2luZG93cykqKgoxLiBPbmUtY2xpY2sgYXV0byBidWlsZCAocmVjb21tZW5kZWQpOiBydW4gYGJ1aWxkX3dpbi5iYXRgIChvciBgYnVpbGRfd2luLnBzMWApIGluIHRoZSBwcm9qZWN0IGZvbGRlciDigJQgaW5zdGFsbHMgcGFja2FnZXMgYW5kIGJ1aWxkcyBhdXRvbWF0aWNhbGx5CjIuIE1hbnVhbCBidWlsZDoKYGBgY21kCnBpcCBpbnN0YWxsIC1yIHJlcXVpcmVtZW50cy50eHQKcHlpbnN0YWxsZXIgLS1jbGVhbiAtLW5vY29uZmlybSBHZW1pbmlTUlRUcmFuc2xhdG9yLnNwZWMKYGBgCk91dHB1dDogYGRpc3RcR2VtaW5pU1JUVHJhbnNsYXRvci5leGVgCgojIyMg8J+UpyBUcm91Ymxlc2hvb3RpbmcKCnwgU3ltcHRvbSB8IEZpeCB8CnwtLS18LS0tfAp8IGBmZm1wZWdgIG5vdCBmb3VuZCBlcnJvciB8IEluc3RhbGwgRkZtcGVnIChTdGVwIDIpLCB0aGVuIHJlb3BlbiB0aGUgdGVybWluYWwgb3IgcmVib290ICh0byByZWZyZXNoIFBBVEgpIHwKfCBBUEkga2V5IGVycm9yIC8gNDAwIHwgUmVpc3N1ZSB0aGUga2V5IGluIEFJIFN0dWRpbyBhbmQgcmVwbGFjZSBpdCB1bmRlciAiTWFuYWdlIEFQSSBLZXlzIiB8CnwgRnJlZSBxdW90YSBleGNlZWRlZCAoNDI5KSB8IFJlZ2lzdGVyIGFkZGl0aW9uYWwgQVBJIGtleXMgb3Igd2FpdCBhbmQgcmV0cnk7IG11bHRpcGxlIGtleXMgcm90YXRlIGF1dG9tYXRpY2FsbHkgfAp8IEVtcHR5IG1vZGVsIGxpc3QgfCBDbGljayAiRmV0Y2ggTW9kZWxzIiBhbmQgdmVyaWZ5IHRoZSBBUEkga2V5IGlzIHJlZ2lzdGVyZWQgY29ycmVjdGx5IHwKfCBQeVF0NiBpbnN0YWxsIGZhaWx1cmUgfCBgcGlwIGluc3RhbGwgLS11cGdyYWRlIHBpcGAsIHRoZW4gcmV0cnkgfAoKIyMjIFByb2plY3QgU3RydWN0dXJlCgpgYGAKR2VtaW5pU1JUVHJhbnNsYXRvckdVSS8K4pSc4pSA4pSAIG1haW4ucHkgICAgICAgICAgICAgICAgICMgVGhpbiBlbnRyeSBwb2ludArilJzilIDilIAgcmVxdWlyZW1lbnRzLnR4dCAgICAgICAgIyBSdW50aW1lIGRlcGVuZGVuY2llcwrilJzilIDilIAgcmVxdWlyZW1lbnRzLWRldi50eHQgICAgIyBEZXYgZGVwZW5kZW5jaWVzCuKUnOKUgOKUgCBidWlsZF93aW4uYmF0IC8gLnBzMSAgICAjIFdpbmRvd3MgYnVpbGQgc2NyaXB0cwrilJzilIDilIAgR2VtaW5pU1JUVHJhbnNsYXRvci5zcGVjIyBQeUluc3RhbGxlciBidWlsZCBzcGVjCuKUnOKUgOKUgCBSRUFETUUubWQgICAgICAgICAgICAgICAjIFRoaXMgZG9jdW1lbnQK4pSc4pSA4pSAIGNvcmUvICAgICAgICAgICAgICAgICAgICMgUHVyZSBsb2dpYwrilIIgICDilJzilIDilIAgc2FmZXR5LnB5ICAgICAgICAgIyBQcm9jZXNzLXNhZmV0eSBwYXRjaGVzCuKUgiAgIOKUnOKUgOKUgCBjb25maWcucHkgICAgICAgICAjIEFwcCBjb25zdGFudHMK4pSCICAg4pSc4pSA4pSAIGxhbmd1YWdlcy5weSAgICAgICMgTGFuZ3VhZ2Ugbm9ybWFsaXphdGlvbgrilIIgICDilJzilIDilIAgbWVkaWEucHkgICAgICAgICAgIyBGRm1wZWcgbWVkaWEgaGVscGVycwrilIIgICDilJzilIDilIAgZ3N0X2NvbXBhdC5weSAgICAgIyBMaWJyYXJ5IGNvbXBhdCBsYXllcgrilIIgICDilJzilIDilIAgZXJyb3JzLnB5ICAgICAgICAgIyBXb3JrZXIgZXJyb3IgY2xhc3NpZmljYXRpb24K4pSCICAg4pSc4pSA4pSAIHN0eWxlX3ByZXNldHMucHkgICMgU3R5bGUgcHJlc2V0IGRlZmluaXRpb25zCuKUgiAgIOKUnOKUgOKUgCBzdWJ0aXRsZV9pby5weSAgICAjIFNSVCBJL08gYW5kIENQUyBjYWxjCuKUgiAgIOKUnOKUgOKUgCBwcmljaW5nLnB5ICAgICAgICAgICMgVG9rZW4gcHJpY2luZyBhbmQgY29zdCBlc3RpbWF0aW9uCuKUgiAgIOKUlOKUgOKUgCB1cGRhdGVfY2hlY2sucHkgICAgICMgTGlicmFyeSB1cGRhdGUgY2hlY2sK4pSc4pSA4pSAIGFwcC8gICAgICAgICAgICAgICAgICAgICMgUHlRdDYgR1VJCuKUgiAgIOKUnOKUgOKUgCBtYWluX3dpbmRvdy5weSAgICAjIE1haW4gd2luZG93CuKUgiAgIOKUnOKUgOKUgCBwcmV2aWV3X2VkaXRvci5weSAjIFJlc3VsdCBwcmV2aWV3L2VkaXQgZGlhbG9nCuKUgiAgIOKUnOKUgOKUgCB3aWRnZXRzLnB5ICAgICAgICAjIFNoYXJlZCB3aWRnZXRzCuKUgiAgIOKUnOKUgOKUgCB3b3JrZXJzLnB5ICAgICAgICAjIFRyYW5zbGF0aW9uIHdvcmtlciB0aHJlYWRzCuKUgiAgIOKUnOKUgOKUgCBpMThuLnB5ICAgICAgICAgICAjIEtPL0VOIFVJIHN0cmluZ3MK4pSCICAg4pSU4pSA4pSAIHNraWxsX2luc3RhbGxlci5weSAgIyBBSSBBZ2VudCBTa2lsbCBpbnN0YWxsIGRpYWxvZwrilJTilIDilIAgdGVzdHMvICAgICAgICAgICAgICAgICAgIyBweXRlc3QgdGVzdCBzdWl0ZQpgYGAKCiMjIyBRdWljayBVc2FnZSBHdWlkZQoKMS4gKipTZXQgQVBJIEtleXMqKjogQ2xpY2sgIk1hbmFnZSBBUEkgS2V5cy4uLiIgYW5kIGVudGVyIGF0IGxlYXN0IG9uZSBHZW1pbmkgQVBJIGtleS4KMi4gKipTZWxlY3QgVGFzayBNb2RlKio6IENob29zZSBiZXR3ZWVuIHN1YnRpdGxlIHRyYW5zbGF0aW9uIG9yIHZpZGVvL2F1ZGlvIHRyYW5zY3JpcHRpb24uCjMuICoqU2VsZWN0IElucHV0IEZpbGVzKio6CiAgIC0gVHJhbnNsYXRpb246IGNob29zZSBTUlQvQVNTIGZpbGVzCiAgIC0gVHJhbnNjcmlwdGlvbjogY2hvb3NlIGEgdmlkZW8gb3IgYXVkaW8gZmlsZQo0LiAqKlNlbGVjdCBPdXRwdXQgRm9sZGVyKioKNS4gKipDaG9vc2UgVGFyZ2V0IExhbmd1YWdlcyoqOiBDaGVjayB0aGUgZGVzaXJlZCBsYW5ndWFnZXMgaW4gdGhlIG11bHRpLXNlbGVjdCBjb21ibyBib3guCjYuICooT3B0aW9uYWwpKiBBZGp1c3QgbW9kZWwsIGJhdGNoIHNpemUsIHRlbXBlcmF0dXJlLCBjb250ZXh0IHNpemUsIGFuZCBhZGFwdGl2ZSByZWR1Y3Rpb24gc3RlcHMgdW5kZXIgKipCYXNpYyAvIEFkdmFuY2VkIFNldHRpbmdzKiouCjcuIENsaWNrICoq8J+agCBTdGFydCBUYXNrKiog4oCUIHdhdGNoIHJlYWwtdGltZSBwcm9ncmVzcyBpbiB0aGUgdGVybWluYWwgcGFuZWwgYmVsb3cuCjguIENsaWNrICoq8J+bkSBTdG9wIFRhc2sqKiB0byBzYWZlbHkgaW50ZXJydXB0ICh0aGUgY3VycmVudCBiYXRjaCBjb21wbGV0ZXMgYmVmb3JlIHN0b3BwaW5nKS4KCiMjIyBBZHZhbmNlZCBTZXR0aW5ncyAo4pqZIEFkdmFuY2VkIFNldHRpbmdzICYgVHVuaW5nKQoKfCBPcHRpb24gfCBEZXNjcmlwdGlvbiB8CnwtLS0tLS0tLXwtLS0tLS0tLS0tLS0tfAp8IFNlcnZpY2UgVGllciB8IFNlbGVjdCBEZWZhdWx0IC8gc3RhbmRhcmQgLyBmbGV4IC8gcHJpb3JpdHkgfAp8IFN0YXJ0IExpbmUgfCBTdWJ0aXRsZSBsaW5lIG51bWJlciB0byBiZWdpbiB0cmFuc2xhdGlvbiBmcm9tIHwKfCBUZW1wZXJhdHVyZSAvIFRvcC1QIC8gVG9wLUsgfCBHZW5lcmF0aW9uIHBhcmFtZXRlciB0dW5pbmcgfAp8IFRoaW5raW5nIEJ1ZGdldCAvIExldmVsIHwgQ29uZmlndXJlIHRoaW5raW5nIGZlYXR1cmUgYnVkZ2V0IGFuZCBsZXZlbCB8CnwgQXVkaW8gQ2h1bmsgfCBBdWRpbyBjb250ZXh0IHRyYW5zbGF0aW9uIGNodW5rIHNpemUgKHNlY29uZHMpIHwKfCBDb250ZXh0IFNpemUgfCBTbGlkaW5nIGNvbnRleHQgcmVmZXJlbmNlIGxpbmUgY291bnQgKDAgPSBkaXNhYmxlZCkgfAp8IFJlc3VtZSB8IEF1dG8tcmVzdW1lIGludGVycnVwdGVkIGpvYnMgZnJvbSBzYXZlZCBwcm9ncmVzcyAoZGVmYXVsdDogb24pIHwKfCBCYXRjaCBFcnJvciBTdGVwIHwgQXV0by1yZWR1Y3Rpb24gc3RlcCBmb3IgYmF0Y2ggc2l6ZSBvbiBlcnJvcnMgKGRlZmF1bHQ6IDEwMCkgfAp8IEF1ZGlvIEVycm9yIFN0ZXAgfCBBdXRvLXJlZHVjdGlvbiBzdGVwIGZvciBhdWRpbyBjaHVuayBvbiBlcnJvcnMgKGRlZmF1bHQ6IDYwKSB8CgojIyMgU2V0dGluZ3MgU3RvcmFnZSBMb2NhdGlvbgoKU2V0dGluZ3MgYXJlIHN0b3JlZCB2aWEgYFFTZXR0aW5ncyhTRVRUSU5HU19PUkc9IkdlbWluaVNydFRyYW5zbGF0b3JHVUkiLCBTRVRUSU5HU19BUFA9IkdlbWluaVNydFRyYW5zbGF0b3JHVUkiKWAgaW4gdGhlIE9TIHN0YW5kYXJkIGxvY2F0aW9uIChXaW5kb3dzIFJlZ2lzdHJ5IG9uIFdpbmRvd3MpLgoKIyMjIE5vdGVzCgotIEFQSSBrZXlzIGFyZSBtYXNrZWQgYnkgZGVmYXVsdC4gVXNlIHRoZSAiU2hvdyBBUEkga2V5cyIgY2hlY2tib3ggdG8gdG9nZ2xlIHZpc2liaWxpdHkuCi0gRW50ZXJwcmlzZSAoVmVydGV4IEFJKSBtb2RlIHJlcXVpcmVzIGEgc2VwYXJhdGUgR29vZ2xlIENsb3VkIFByb2plY3QgYW5kIGF1dGhlbnRpY2F0aW9uIGNyZWRlbnRpYWxzLgotIFRoaXMgR1VJIHRhcmdldHMgdGhlICoqdjMuOC4zKiogaW50ZXJmYWNlIG9mIHRoZSBbZ2VtaW5pLXNydC10cmFuc2xhdG9yXShodHRwczovL3B5cGkub3JnL3Byb2plY3QvZ2VtaW5pLXNydC10cmFuc2xhdG9yLykgbGlicmFyeS4gU29tZSBvcHRpb25zIG1heSBub3Qgd29yayB3aXRoIGRpZmZlcmVudCBsaWJyYXJ5IHZlcnNpb25zLgo=
+# Gemini SRT Translator GUI
+
+> 🇰🇷 한국어 / 🇺🇸 English — *scroll down for English*
+
+---
+
+## 🇰🇷 한국어
+
+PyQt6 기반 GUI 애플리케이션으로, [gemini-srt-translator](https://github.com/MaKTaiL/gemini-srt-translator) 라이브러리(v3.8.3)를 활용하여 자막(SRT/ASS) 번역과 비디오/오디오 전사(Transcribe)를 손쉽게 수행할 수 있습니다. Pyte 기반 VT100 터미널 에뮬레이터를 내장하여 콘솔 출력(색상, 진행률 등)을 GUI 안에서 그대로 확인할 수 있습니다.
+
+### 주요 기능
+
+- **자막 번역 (Translate)**: SRT/ASS 자막 파일을 원하는 언어로 번역
+- **비디오/오디오 전사 (Transcribe)**: 비디오·오디오 파일에서 자막을 새로 생성
+- **다중 언어 동시 처리**: 체크박스 콤보박스로 여러 대상 언어를 한 번에 선택해 일괄 작업
+- **다중 API 키 로테이션**: 최대 10개의 Gemini API 키를 등록해 무료 할당량을 순환 사용
+- **다중 파일 큐 처리**: 자막/비디오 파일을 여러 개 선택하면 순차적으로 처리
+- **실시간 VT100 터미널 뷰**: 라이브러리의 콘솔 출력(색상 포함)을 앱 내에서 실시간 렌더링
+- **세부 튜닝 옵션**: temperature, top_p, top_k, 사고(thinking) 예산/수준, 배치 크기, 서비스 티어 등
+- **문맥 연속성 관리 (context_size)**: 번역 중 이전 자막 라인을 참조하는 슬라이딩 컨텍스트 크기 설정
+- **중단된 작업 이어하기 (resume, v3.8.3)**: 이전에 중단된 번역/전사 작업을 저장된 진행 상태부터 자동으로 이어서 수행. 체크 해제 시 처음부터 새로 시작
+- **번역 스타일 프리셋**: 자연스러운 구어체, 드라마·영화 자막체, 다큐 내레이션체, 애니 더빙체, 어학용 직역, 예능·유튜브체, 어린이용 등 7종 프리셋. 선택한 스타일 지침이 번역 프롬프트에 자동 합성됨
+- **번역 결과 미리보기/편집**: 번역 완료 후 원문과 대조하며 번역문을 행 단위로 수정·저장. CPS(초당 글자수) 경고 표시, 검색, 저장 시 `.bak` 자동 백업. "추출된 원본 자막 유지" 체크 시 비디오에서 추출한 원본 자막을 남겨 대조 가능, 해제 시 추출 파일 삭제 후 번역문만 표시
+- **적응형 배치/오디오 자동 감축 (v3.8.3)**: API 오류(429/500/503) 또는 파싱 오류 발생 시 배치 크기(`batch_size_error_step`)와 오디오 청크(`audio_chunk_error_step`)를 자동으로 줄여 복구 후 원래 크기로 복원
+- **Google Cloud / Vertex AI(Enterprise) 연동**: Cloud Project, API Key, Region, Request Type 설정 지원
+- **자동 재시도/백오프**: 연속 실패 시 지수 백오프로 대기하고, 임계치 초과 시 안전하게 작업 중단
+- **원자적 파일 저장**: 자막 저장 시 임시 파일 기록 후 `os.replace()` 교체 방식으로 파일 손상 방지
+- **설정 자동 저장/복원**: `QSettings` 기반으로 API 키, 옵션, 파일 경로 등을 재실행 시 자동 로드
+- **UI 언어 전환**: 한국어 / English 실시간 전환 지원
+- **AI Agent Skill 설치**: 라이브러리의 SKILL.md를 Claude Code / Cursor·Codex·Cline / Antigravity에 원클릭 설치 (전역 또는 프로젝트 폴더)
+- **라이브러리 업데이트 확인**: PyPI에서 gemini-srt-translator 최신 버전을 백그라운드로 확인
+- **예상 비용 표시**: "비용 리포트 저장" 체크 시 작업별 토큰 리포트의 pricing.json 기반 예상 비용(USD)을 로그에 표시
+
+### 요구 사항
+
+- Windows 10 이상 (64-bit) 또는 Linux/macOS
+- Google 계정 (Gemini API 키 발급용, 무료)
+- Python 3.10 이상 (소스 코드 실행 시)
+- FFmpeg (비디오/오디오 전사·음성 추출 기능 사용 시 필수)
+
+### 🚀 설치 가이드
+
+#### 1단계: Google AI Studio 가입 및 API 키 발급 (필수)
+
+이 앱은 Google Gemini API로 번역/전사를 수행하므로 API 키가 반드시 필요합니다. 무료로 발급받을 수 있습니다.
+
+1. [Google AI Studio](https://aistudio.google.com)에 접속해 Google 계정으로 로그인합니다.
+2. **"Get API key"** (API 키 받기)를 클릭합니다.
+3. **"Create API key"** → 새 Google Cloud 프로젝트를 만들거나 기존 프로젝트를 선택합니다.
+4. 발급된 API 키를 복사합니다.
+5. 앱 실행 후 **"API 키 관리..."** 버튼을 눌러 복사한 키를 붙여넣고 저장합니다.
+
+> 💡 **무료 할당량 극대화 팁**: Gemini API는 무료 티어를 제공합니다. Google 계정당 여러 프로젝트에서 키를 발급받아 앱에 최대 10개까지 등록하면, 작업(job)마다 키를 자동으로 돌려가며 사용하므로 무료 한도를 최대한 활용할 수 있습니다.
+> ⚠️ **보안 주의**: API 키는 비밀번호처럼 다루세요. 다른 사람에게 공유하거나 공개 저장소에 올리지 마세요.
+
+#### 2단계: FFmpeg 설치 (비디오/오디오 기능 사용 시 필수)
+
+비디오 파일에서 자막을 추출하거나 오디오 전사를 하려면 FFmpeg가 필요합니다. 자막 파일(SRT/ASS) 번역만 한다면 생략해도 됩니다.
+
+- **Windows**: `winget install Gyan.FFmpeg` 또는 [gyan.dev](https://www.gyan.dev/ffmpeg/builds/)에서 빌드를 받아 PATH에 추가
+- **macOS**: `brew install ffmpeg`
+- **Linux**: `sudo apt install ffmpeg`
+
+설치 확인:
+```bash
+ffmpeg -version
+```
+
+#### 3단계: 앱 설치 — 원하는 방식 선택
+
+**A. 실행 파일 다운로드 (Windows, 가장 쉬움)**
+GitHub Release에서 `GeminiSRTTranslator-Windows.zip`을 받아 압축을 풀고 바로 실행합니다. Python 설치가 필요 없습니다.
+
+**B. 소스 코드 직접 실행**
+```bash
+# Python 3.10 이상 확인
+python --version
+
+# 가상환경 사용 권장
+python -m venv venv
+# Windows:
+venv\Scripts\activate
+# Linux/macOS:
+source venv/bin/activate
+
+pip install -r requirements.txt
+python main.py
+```
+
+**C. 실행 파일(.exe) 직접 빌드 (Windows)**
+1. 원클릭 자동 빌드 (추천): 프로젝트 폴더에서 `build_win.bat` (또는 `build_win.ps1`) 실행 — 패키지 설치부터 빌드까지 자동 진행
+2. 수동 빌드:
+```cmd
+pip install -r requirements.txt
+pyinstaller --clean --noconfirm GeminiSRTTranslator.spec
+```
+빌드 결과: `dist\GeminiSRTTranslator.exe`
+
+### 🔧 문제 해결
+
+| 증상 | 해결 방법 |
+|---|---|
+| `ffmpeg`을(를) 찾을 수 없다는 오류 | 2단계 FFmpeg 설치 후 터미널을 다시 열거나 PC 재부팅 (PATH 반영) |
+| API 키 오류 / 400 에러 | AI Studio에서 키를 재발급받아 "API 키 관리"에서 교체 |
+| 무료 할당량 초과 (429) | API 키를 추가로 등록하거나 잠시 후 재시도. 키가 여러 개면 자동 순환됨 |
+| 모델 목록이 비어 있음 | "모델 가져오기" 버튼 클릭, API 키가 올바르게 등록됐는지 확인 |
+| PyQt6 설치 실패 | `pip install --upgrade pip` 후 재시도 |
+
+### 프로젝트 구조
+
+```
+GeminiSRTTranslatorGUI/
+├── main.py                 # 얇은 진입점
+├── requirements.txt        # 실행용 의존성
+├── requirements-dev.txt    # 개발용 의존성
+├── build_win.bat / .ps1    # Windows 빌드 스크립트
+├── GeminiSRTTranslator.spec# PyInstaller 스펙
+├── README.md               # 이 문서
+├── core/                   # 순수 로직
+│   ├── safety.py         # 프로세스 안전 패치
+│   ├── config.py         # 앱 상수
+│   ├── languages.py      # 언어 정규화·ISO 코드
+│   ├── media.py          # FFmpeg 미디어 헬퍼
+│   ├── gst_compat.py     # 라이브러리 호환 레이어
+│   ├── errors.py         # 워커 오류 분류
+│   ├── style_presets.py  # 스타일 프리셋 정의
+│   ├── subtitle_io.py    # SRT 입출력·CPS 계산
+│   ├── pricing.py          # 토큰 단가·비용 추정
+│   └── update_check.py     # 라이브러리 업데이트 확인
+├── app/                    # PyQt6 GUI
+│   ├── main_window.py    # 메인 윈도우
+│   ├── preview_editor.py # 결과 미리보기/편집
+│   ├── widgets.py        # 공용 위젯
+│   ├── workers.py        # 번역 워커 스레드
+│   ├── i18n.py           # 한/영 UI 문자열
+│   └── skill_installer.py  # AI Agent Skill 설치 다이얼로그
+└── tests/                  # pytest 테스트 스위트
+```
+
+### 사용 방법 요약
+
+1. **API 키 설정**: "API 키 관리..." 버튼을 눌러 최소 1개 이상의 Gemini API 키를 입력하고 저장합니다.
+2. **작업 모드 선택**: 자막 번역 또는 비디오/오디오 전사 중 선택합니다.
+3. **입력 파일 지정**:
+   - 번역: SRT/ASS 파일 선택
+   - 전사: 비디오 또는 오디오 파일 선택
+4. **출력 폴더 지정**
+5. **대상 언어 선택**: 다중 선택 콤보박스에서 원하는 언어를 체크
+6. (선택) **기본 설정 / 고급 설정**에서 모델, 배치 크기, temperature, 문맥 크기, 적응형 감축 단위 등 세부 옵션 조정
+7. **🚀 작업 시작** 클릭 → 하단 터미널 창에서 실시간 진행 상황 확인
+8. 필요 시 **🛑 작업 중단**으로 안전하게 중지 가능 (진행 중인 배치 완료 후 종료)
+
+### 고급 설정 (⚙ 고급 설정 및 튜닝)
+
+| 옵션 | 설명 |
+|------|------|
+| 서비스 티어 | Default / standard / flex / priority 선택 |
+| 시작 라인 | 번역을 시작할 자막 라인 번호 |
+| Temperature / Top-P / Top-K | 생성 파라미터 조정 |
+| 사고 예산 / 수준 | Thinking 기능 예산 및 수준 설정 |
+| 오디오청크 | 오디오 컨텍스트 번역 청크 크기(초) |
+| Context Size | 슬라이딩 컨텍스트 참조 라인 수 (0 = 비활성) |
+| 작업 이어하기 | 중단된 작업의 저장된 진행 상태부터 자동 재개 (기본값: 켜짐) |
+| 배치 축소단위 | 오류 발생 시 배치 크기 자동 감축 단계 (기본: 100) |
+| 오디오 축소단위 | 오류 발생 시 오디오 청크 자동 감축 단계 (기본: 60) |
+
+### 폴더/설정 저장 위치
+
+설정은 `QSettings(SETTINGS_ORG="GeminiSrtTranslatorGUI", SETTINGS_APP="GeminiSrtTranslatorGUI")`를 통해 OS 표준 위치(Windows 레지스트리)에 저장됩니다.
+
+### 주의 사항
+
+- API 키는 기본적으로 가려서(마스크) 표시됩니다. "API 키 표시" 체크박스로 보였다/가렸다 전환할 수 있습니다.
+- Enterprise(Vertex AI) 모드 사용 시 별도의 Google Cloud Project / 인증 정보가 필요합니다.
+- 이 GUI는 [gemini-srt-translator](https://pypi.org/project/gemini-srt-translator/) 라이브러리 **v3.8.3** 인터페이스 기반으로 작성되었습니다.
+- 라이브러리 버전이 다르면 일부 옵션이 동작하지 않을 수 있습니다.
+
+---
+
+## 🇺🇸 English
+
+A PyQt6-based GUI application that leverages the [gemini-srt-translator](https://github.com/MaKTaiL/gemini-srt-translator) library (v3.8.3) to easily translate subtitles (SRT/ASS) and transcribe video/audio files. It includes a built-in Pyte VT100 terminal emulator so you can view real-time console output (including colors and progress bars) directly within the GUI.
+
+### Key Features
+
+- **Subtitle Translation**: Translate SRT/ASS subtitle files into any desired language
+- **Video/Audio Transcription**: Generate new subtitles directly from video or audio files
+- **Multi-language Batch Processing**: Select multiple target languages at once via a checkable combo box
+- **Multi API Key Rotation**: Register up to 10 Gemini API keys and rotate them to maximize free quota
+- **Multi-file Queue**: Select multiple subtitle/video files and process them sequentially
+- **Real-time VT100 Terminal**: Renders library console output (with ANSI colors) live inside the app
+- **Fine-tuning Options**: temperature, top_p, top_k, thinking budget/level, batch size, service tier, etc.
+- **Context Management (context_size)**: Configure sliding context window size for improved translation continuity
+- **Resume Interrupted Jobs (v3.8.3)**: Automatically continue translation/transcription from saved progress. Uncheck to start fresh from the beginning
+- **Translation Style Presets**: 7 presets — natural colloquial, drama & film subtitles, documentary narration, anime dubbing, literal (for language study), variety/YouTube style, and for kids. The selected style instruction is automatically merged into the translation prompt
+- **Result Preview & Editor**: After translation, review and edit translated lines side-by-side with the original. Includes CPS (chars/sec) warnings, search, and automatic `.bak` backup on save. "Keep extracted source subtitles" keeps video-extracted originals for comparison; when off, extracted files are removed and only the translation is shown
+- **Adaptive Batch & Audio Chunk Sizing (v3.8.3)**: Automatically reduces `batch_size` and `audio_chunk_size` on API errors (429/500/503) or parse failures, then restores original values on success
+- **Google Cloud / Vertex AI (Enterprise)**: Supports Cloud Project, API Key, Region, and Request Type configuration
+- **Auto Retry / Backoff**: Exponential backoff on consecutive failures; safely aborts when threshold is exceeded
+- **Atomic File Save**: Subtitles are written atomically via temp file + `os.replace()` to prevent corruption
+- **Auto Save / Restore Settings**: API keys, options, and file paths are persisted and restored via `QSettings`
+- **UI Language Toggle**: Switch between Korean (한국어) and English at runtime
+- **AI Agent Skill Installer**: One-click install of the library's SKILL.md for Claude Code / Cursor·Codex·Cline / Antigravity (global or project folder)
+- **Library Update Check**: Check PyPI for the latest gemini-srt-translator version in the background
+- **Estimated Cost Display**: When "save cost report" is checked, per-job estimated cost (USD, from pricing.json) is shown in the log
+
+### Requirements
+
+- Windows 10 or later (64-bit), or Linux/macOS
+- Google account (for a free Gemini API key)
+- Python 3.10 or later (for running from source)
+- FFmpeg (required for video/audio transcription and audio extraction)
+
+### 🚀 Installation Guide
+
+#### Step 1: Sign up for Google AI Studio and get an API key (required)
+
+This app performs translation/transcription via the Google Gemini API, so an API key is required. It's free.
+
+1. Go to [Google AI Studio](https://aistudio.google.com) and sign in with your Google account.
+2. Click **"Get API key"**.
+3. Click **"Create API key"** → create a new Google Cloud project or select an existing one.
+4. Copy the issued API key.
+5. In the app, click **"Manage API Keys..."**, paste the key, and save.
+
+> 💡 **Maximize the free quota**: The Gemini API offers a free tier. Issue keys from multiple projects under your Google account and register up to 10 in the app — keys are rotated automatically per job, maximizing your free usage.
+> ⚠️ **Security**: Treat your API key like a password. Never share it or commit it to a public repository.
+
+#### Step 2: Install FFmpeg (required for video/audio features)
+
+FFmpeg is required to extract subtitles from video files or transcribe audio. Skip this if you only translate subtitle files (SRT/ASS).
+
+- **Windows**: `winget install Gyan.FFmpeg`, or download a build from [gyan.dev](https://www.gyan.dev/ffmpeg/builds/) and add it to PATH
+- **macOS**: `brew install ffmpeg`
+- **Linux**: `sudo apt install ffmpeg`
+
+Verify:
+```bash
+ffmpeg -version
+```
+
+#### Step 3: Install the app — pick your method
+
+**A. Download the executable (Windows, easiest)**
+Download `GeminiSRTTranslator-Windows.zip` from the latest GitHub Release, extract, and run. No Python installation needed.
+
+**B. Run from source**
+```bash
+# Check Python 3.10+
+python --version
+
+# Virtual environment recommended
+python -m venv venv
+# Windows:
+venv\Scripts\activate
+# Linux/macOS:
+source venv/bin/activate
+
+pip install -r requirements.txt
+python main.py
+```
+
+**C. Build the executable (.exe) yourself (Windows)**
+1. One-click auto build (recommended): run `build_win.bat` (or `build_win.ps1`) in the project folder — installs packages and builds automatically
+2. Manual build:
+```cmd
+pip install -r requirements.txt
+pyinstaller --clean --noconfirm GeminiSRTTranslator.spec
+```
+Output: `dist\GeminiSRTTranslator.exe`
+
+### 🔧 Troubleshooting
+
+| Symptom | Fix |
+|---|---|
+| `ffmpeg` not found error | Install FFmpeg (Step 2), then reopen the terminal or reboot (to refresh PATH) |
+| API key error / 400 | Reissue the key in AI Studio and replace it under "Manage API Keys" |
+| Free quota exceeded (429) | Register additional API keys or wait and retry; multiple keys rotate automatically |
+| Empty model list | Click "Fetch Models" and verify the API key is registered correctly |
+| PyQt6 install failure | `pip install --upgrade pip`, then retry |
+
+### Project Structure
+
+```
+GeminiSRTTranslatorGUI/
+├── main.py                 # Thin entry point
+├── requirements.txt        # Runtime dependencies
+├── requirements-dev.txt    # Dev dependencies
+├── build_win.bat / .ps1    # Windows build scripts
+├── GeminiSRTTranslator.spec# PyInstaller build spec
+├── README.md               # This document
+├── core/                   # Pure logic
+│   ├── safety.py         # Process-safety patches
+│   ├── config.py         # App constants
+│   ├── languages.py      # Language normalization
+│   ├── media.py          # FFmpeg media helpers
+│   ├── gst_compat.py     # Library compat layer
+│   ├── errors.py         # Worker error classification
+│   ├── style_presets.py  # Style preset definitions
+│   ├── subtitle_io.py    # SRT I/O and CPS calc
+│   ├── pricing.py          # Token pricing and cost estimation
+│   └── update_check.py     # Library update check
+├── app/                    # PyQt6 GUI
+│   ├── main_window.py    # Main window
+│   ├── preview_editor.py # Result preview/edit dialog
+│   ├── widgets.py        # Shared widgets
+│   ├── workers.py        # Translation worker threads
+│   ├── i18n.py           # KO/EN UI strings
+│   └── skill_installer.py  # AI Agent Skill install dialog
+└── tests/                  # pytest test suite
+```
+
+### Quick Usage Guide
+
+1. **Set API Keys**: Click "Manage API Keys..." and enter at least one Gemini API key.
+2. **Select Task Mode**: Choose between subtitle translation or video/audio transcription.
+3. **Select Input Files**:
+   - Translation: choose SRT/ASS files
+   - Transcription: choose a video or audio file
+4. **Select Output Folder**
+5. **Choose Target Languages**: Check the desired languages in the multi-select combo box.
+6. *(Optional)* Adjust model, batch size, temperature, context size, and adaptive reduction steps under **Basic / Advanced Settings**.
+7. Click **🚀 Start Task** — watch real-time progress in the terminal panel below.
+8. Click **🛑 Stop Task** to safely interrupt (the current batch completes before stopping).
+
+### Advanced Settings (⚙ Advanced Settings & Tuning)
+
+| Option | Description |
+|--------|-------------|
+| Service Tier | Select Default / standard / flex / priority |
+| Start Line | Subtitle line number to begin translation from |
+| Temperature / Top-P / Top-K | Generation parameter tuning |
+| Thinking Budget / Level | Configure thinking feature budget and level |
+| Audio Chunk | Audio context translation chunk size (seconds) |
+| Context Size | Sliding context reference line count (0 = disabled) |
+| Resume | Auto-resume interrupted jobs from saved progress (default: on) |
+| Batch Error Step | Auto-reduction step for batch size on errors (default: 100) |
+| Audio Error Step | Auto-reduction step for audio chunk on errors (default: 60) |
+
+### Settings Storage Location
+
+Settings are stored via `QSettings(SETTINGS_ORG="GeminiSrtTranslatorGUI", SETTINGS_APP="GeminiSrtTranslatorGUI")` in the OS standard location (Windows Registry on Windows).
+
+### Notes
+
+- API keys are masked by default. Use the "Show API keys" checkbox to toggle visibility.
+- Enterprise (Vertex AI) mode requires a separate Google Cloud Project and authentication credentials.
+- This GUI targets the **v3.8.3** interface of the [gemini-srt-translator](https://pypi.org/project/gemini-srt-translator/) library. Some options may not work with different library versions.
