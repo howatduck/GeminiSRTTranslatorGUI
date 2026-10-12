@@ -121,6 +121,7 @@ I18N = {
         "chk_token_stats": "토큰 실시간 통계",
         "chk_token_report": "비용 리포트 저장 (.json)",
         "chk_thoughts_log": "사고 로그",
+        "chk_progress_log": "진행 로그",
 
         "action_log_group_title": "터미널 출력 (VT100 Engine)",
         "btn_start": "🚀 작업 시작",
@@ -283,6 +284,7 @@ I18N = {
         "chk_token_stats": "Real-time Token Stats",
         "chk_token_report": "Save Cost Report (.json)",
         "chk_thoughts_log": "Thinking Log",
+        "chk_progress_log": "Progress Log",
 
         "action_log_group_title": "Terminal Output (VT100 Engine)",
         "btn_start": "🚀 Start Task",

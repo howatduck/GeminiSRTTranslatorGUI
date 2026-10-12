@@ -264,6 +264,8 @@ class TranslatorApp(QWidget):
             self.chk_token_report.setText(self.tr_str("chk_token_report"))
         if hasattr(self, 'chk_thoughts_log'):
             self.chk_thoughts_log.setText(self.tr_str("chk_thoughts_log"))
+        if hasattr(self, 'chk_progress_log'):
+            self.chk_progress_log.setText(self.tr_str("chk_progress_log"))
         if hasattr(self, 'btn_adv_close'):
             self.btn_adv_close.setText(self.tr_str("btn_close"))
 
@@ -818,9 +820,12 @@ class TranslatorApp(QWidget):
         self.chk_token_report.setChecked(False)
         self.chk_thoughts_log = QCheckBox("사고 로그")
         self.chk_thoughts_log.setChecked(False)
+        self.chk_progress_log = QCheckBox("진행 로그")
+        self.chk_progress_log.setChecked(False)
         box3.addWidget(self.chk_token_stats)
         box3.addWidget(self.chk_token_report)
         box3.addWidget(self.chk_thoughts_log)
+        box3.addWidget(self.chk_progress_log)
         main_form_layout.addRow(box3)
 
         dialog_layout.addLayout(main_form_layout)
@@ -1051,6 +1056,9 @@ class TranslatorApp(QWidget):
             self.chk_thoughts_log.setChecked(
                 self.settings.value("thoughts_log", False, type=bool)
             )
+            self.chk_progress_log.setChecked(
+                self.settings.value("progress_log", False, type=bool)
+            )
             self.chk_free.setChecked(
                 self.settings.value("free_quota", True, type=bool)
             )
@@ -1133,6 +1141,7 @@ class TranslatorApp(QWidget):
             self.settings.setValue("thinking", self.chk_thinking.isChecked())
             self.settings.setValue("thinking_budget", self.spin_thinking_budget.value())
             self.settings.setValue("thoughts_log", self.chk_thoughts_log.isChecked())
+            self.settings.setValue("progress_log", self.chk_progress_log.isChecked())
             self.settings.setValue("free_quota", self.chk_free.isChecked())
 
             self.settings.setValue("resume_context_size", self.spin_resume_context.value())
@@ -1605,7 +1614,7 @@ class TranslatorApp(QWidget):
             'thinking_level': self.cmb_thinking_level.currentText(),
             'audio_chunk_size': self.spin_audio_chunk.value(),
             'isolate_voice': self.chk_isolate_voice.isChecked(),
-            'progress_log': False,
+            'progress_log': self.chk_progress_log.isChecked(),
             'video_file': (
                 self.video_file_paths[0]
                 if self.video_file_paths and os.path.exists(self.video_file_paths[0])
