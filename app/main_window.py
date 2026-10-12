@@ -278,6 +278,12 @@ class TranslatorApp(QWidget):
     def init_ui(self):
         self.setWindowTitle(APP_NAME)
         self.setGeometry(100, 100, 1000, 700)
+        # 앱 아이콘 (assets/app.ico, 없으면 무시)
+        _base = getattr(sys, "_MEIPASS", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        _icon_path = os.path.join(_base, "assets", "app.ico")
+        if os.path.exists(_icon_path):
+            from PyQt6.QtGui import QIcon
+            self.setWindowIcon(QIcon(_icon_path))
         main_layout = QVBoxLayout(self)
 
         top_layout = QHBoxLayout()

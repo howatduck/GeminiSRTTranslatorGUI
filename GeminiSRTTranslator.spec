@@ -8,6 +8,10 @@ block_cipher = None
 datas = []
 binaries = []
 
+# 앱 에셋 (아이콘 등) 번들 포함
+if os.path.isdir('assets'):
+    datas.append(('assets', 'assets'))
+
 # FFmpeg 바이너리 번들 포함 (ffmpeg.exe, ffprobe.exe)
 for f_exe in ['ffmpeg.exe', 'ffprobe.exe']:
     if os.path.exists(f_exe):
@@ -103,6 +107,6 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=None,
+    icon='assets/app.ico',
 )
 
