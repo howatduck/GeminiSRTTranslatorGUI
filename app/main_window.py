@@ -27,6 +27,7 @@ from app.workers import (
 )
 from app.preview_editor import SubtitlePreviewDialog
 from app.skill_installer import SkillInstallDialog
+from app.subtitle_tools_dialog import SubtitleToolsDialog
 from core.config import (
     API_KEY_SETTINGS, APP_NAME, DEFAULT_BATCH_SIZE, DEFAULT_MODEL,
     NUM_API_KEYS, SETTINGS_APP, SETTINGS_ORG,
@@ -173,6 +174,8 @@ class TranslatorApp(QWidget):
         if hasattr(self, 'btn_update_check'):
             if not (self.update_check_thread and self.update_check_thread.isRunning()):
                 self.btn_update_check.setText(self.tr_str("btn_update_check"))
+        if hasattr(self, 'btn_subtitle_tools'):
+            self.btn_subtitle_tools.setText(self.tr_str("btn_subtitle_tools"))
         if hasattr(self, 'btn_video_file'):
             self.btn_video_file.setText(self.tr_str("btn_video_file"))
         if hasattr(self, 'lst_video_files'):
@@ -658,14 +661,17 @@ class TranslatorApp(QWidget):
         form_layout.addRow(self.lbl_style, style_layout)
         self._refresh_style_combo()
 
-        # 도구 행: AI Agent Skill 설치 / 라이브러리 업데이트 확인
-        self.btn_skill_install = QPushButton("🤖 AI Agent Skill 설치...")
+        # 도구 행: AI Agent Skill 설치 / 라이브러리 업데이트 확인 / 자막 정리·싱크
+        self.btn_skill_install = QPushButton(self.tr_str("btn_skill_install"))
         self.btn_skill_install.clicked.connect(self.open_skill_installer)
-        self.btn_update_check = QPushButton("라이브러리 업데이트 확인")
+        self.btn_update_check = QPushButton(self.tr_str("btn_update_check"))
         self.btn_update_check.clicked.connect(self.check_library_update)
+        self.btn_subtitle_tools = QPushButton(self.tr_str("btn_subtitle_tools"))
+        self.btn_subtitle_tools.clicked.connect(self.open_subtitle_tools)
         tool_layout = QHBoxLayout()
         tool_layout.addWidget(self.btn_skill_install)
         tool_layout.addWidget(self.btn_update_check)
+        tool_layout.addWidget(self.btn_subtitle_tools)
         tool_layout.addStretch()
         form_layout.addRow(tool_layout)
 
@@ -1691,6 +1697,11 @@ class TranslatorApp(QWidget):
     def open_skill_installer(self):
         """AI Agent Skill 설치 다이얼로그 열기."""
         dlg = SkillInstallDialog(self)
+        dlg.exec()
+
+    def open_subtitle_tools(self):
+        """자막 정리 도구 (리네임 + ilass 싱크) 다이얼로그 열기."""
+        dlg = SubtitleToolsDialog(self)
         dlg.exec()
 
     def check_library_update(self):

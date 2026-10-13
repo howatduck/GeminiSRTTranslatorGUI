@@ -29,7 +29,13 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host "[경고] 버전 정보 생성 실패 — 버전 없이 빌드합니다." -ForegroundColor Yellow
 }
 
-Write-Host "[4/5] PyInstaller 실행파일 빌드 중..." -ForegroundColor Green
+Write-Host "[4/5] ilass 다운로드 확인 중..." -ForegroundColor Green
+python get_ilass.py
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "[경고] ilass 다운로드 실패 — 싱크 기능 없이 빌드됩니다." -ForegroundColor Yellow
+}
+
+Write-Host "[5/5] PyInstaller 실행파일 빌드 중..." -ForegroundColor Green
 pyinstaller --clean --noconfirm GeminiSRTTranslator.spec
 
 if (Test-Path "dist\GeminiSRTTranslator.exe") {

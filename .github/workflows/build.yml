@@ -92,6 +92,13 @@ jobs:
           print("Generating version_info.txt from ref: " + tag)
           subprocess.run(["python", "gen_version_info.py", tag], check=True)
 
+      - name: Download ilass
+        shell: python
+        run: |
+          import subprocess
+          print("Downloading ilass.exe for bundling")
+          subprocess.run(["python", "get_ilass.py"], check=True)
+
       - name: Build EXE with PyInstaller
         run: |
           pyinstaller --clean --noconfirm GeminiSRTTranslator.spec

@@ -33,7 +33,14 @@ if %errorlevel% neq 0 (
 )
 
 echo.
-echo [4/5] PyInstaller로 Windows 실행파일(.exe) 빌드 중...
+echo [4/5] ilass 다운로드 확인 중...
+python get_ilass.py
+if %errorlevel% neq 0 (
+    echo [경고] ilass 다운로드 실패 — 싱크 기능 없이 빌드됩니다.
+)
+
+echo.
+echo [5/5] PyInstaller로 Windows 실행파일(.exe) 빌드 중...
 pyinstaller --clean --noconfirm GeminiSRTTranslator.spec
 
 echo.

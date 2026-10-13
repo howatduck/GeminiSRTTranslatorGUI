@@ -16,6 +16,10 @@ if os.path.isdir('assets'):
 for f_exe in ['ffmpeg.exe', 'ffprobe.exe']:
     if os.path.exists(f_exe):
         binaries.append((f_exe, '.'))
+
+# ilass 바이너리 번들 포함 (자막 싱크용, get_ilass.py로 다운로드)
+if os.path.exists('ilass.exe'):
+    binaries.append(('ilass.exe', '.'))
 hiddenimports = [
     'google.genai',
     'google.genai.types',

@@ -8,10 +8,6 @@
 
 PyQt6 기반 GUI 애플리케이션으로, [gemini-srt-translator](https://github.com/MaKTaiL/gemini-srt-translator) 라이브러리(v3.8.3)를 활용하여 자막(SRT/ASS) 번역과 비디오/오디오 전사(Transcribe)를 손쉽게 수행할 수 있습니다. Pyte 기반 VT100 터미널 에뮬레이터를 내장하여 콘솔 출력(색상, 진행률 등)을 GUI 안에서 그대로 확인할 수 있습니다.
 
-### 실행 화면
-
-![실행 화면 (한국어)](assets/screenshot-ko.png)
-
 ### 주요 기능
 
 - **자막 번역 (Translate)**: SRT/ASS 자막 파일을 원하는 언어로 번역
@@ -35,6 +31,7 @@ PyQt6 기반 GUI 애플리케이션으로, [gemini-srt-translator](https://githu
 - **라이브러리 업데이트 확인**: PyPI에서 gemini-srt-translator 최신 버전을 백그라운드로 확인
 - **예상 비용 표시**: "비용 리포트 저장" 체크 시 작업별 토큰 리포트의 pricing.json 기반 예상 비용(USD)을 로그에 표시
 - **진행 로그**: 작업 진행 상황 로그 기록 옵션 ("사고 로그"와 함께 토글)
+- **자막 정리 도구 (리네임 + ilass 싱크)**: 폴더 내 자막 파일명을 영상 파일명에 맞춰 일괄 변경(미리보기 지원), ilass로 영상 기준 자막 타이밍 자동 보정. ilass.exe 내장
 
 ### 요구 사항
 
@@ -132,14 +129,16 @@ GeminiSRTTranslatorGUI/
 │   ├── style_presets.py  # 스타일 프리셋 정의
 │   ├── subtitle_io.py    # SRT 입출력·CPS 계산
 │   ├── pricing.py          # 토큰 단가·비용 추정
-│   └── update_check.py     # 라이브러리 업데이트 확인
+│   ├── update_check.py     # 라이브러리 업데이트 확인
+│   └── subtitle_tools.py   # 자막 정리 (리네임 + ilass 싱크)
 ├── app/                    # PyQt6 GUI
 │   ├── main_window.py    # 메인 윈도우
 │   ├── preview_editor.py # 결과 미리보기/편집
 │   ├── widgets.py        # 공용 위젯
 │   ├── workers.py        # 번역 워커 스레드
 │   ├── i18n.py           # 한/영 UI 문자열
-│   └── skill_installer.py  # AI Agent Skill 설치 다이얼로그
+│   ├── skill_installer.py  # AI Agent Skill 설치 다이얼로그
+│   └── subtitle_tools_dialog.py  # 자막 정리 도구 다이얼로그
 └── tests/                  # pytest 테스트 스위트
 ```
 
@@ -180,16 +179,13 @@ GeminiSRTTranslatorGUI/
 - Enterprise(Vertex AI) 모드 사용 시 별도의 Google Cloud Project / 인증 정보가 필요합니다.
 - 이 GUI는 [gemini-srt-translator](https://pypi.org/project/gemini-srt-translator/) 라이브러리 **v3.8.3** 인터페이스 기반으로 작성되었습니다.
 - 라이브러리 버전이 다르면 일부 옵션이 동작하지 않을 수 있습니다.
+- 자막 싱크 기능은 [ilass](https://github.com/SandroHc/ilass)(AGPL-3.0)를 별도 프로세스로 호출합니다. ilass 소스 코드는 위 링크에서 확인할 수 있습니다.
 
 ---
 
 ## 🇺🇸 English
 
 A PyQt6-based GUI application that leverages the [gemini-srt-translator](https://github.com/MaKTaiL/gemini-srt-translator) library (v3.8.3) to easily translate subtitles (SRT/ASS) and transcribe video/audio files. It includes a built-in Pyte VT100 terminal emulator so you can view real-time console output (including colors and progress bars) directly within the GUI.
-
-### Screenshot
-
-![Screenshot (English)](assets/screenshot-en.png)
 
 ### Key Features
 
@@ -214,6 +210,7 @@ A PyQt6-based GUI application that leverages the [gemini-srt-translator](https:/
 - **Library Update Check**: Check PyPI for the latest gemini-srt-translator version in the background
 - **Estimated Cost Display**: When "save cost report" is checked, per-job estimated cost (USD, from pricing.json) is shown in the log
 - **Progress Log**: Optional per-job progress logging (toggle alongside "Thinking Log")
+- **Subtitle Tools (Rename + ilass Sync)**: Batch-rename subtitle files to match video filenames (with preview), auto-align subtitle timing to video via ilass. ilass.exe bundled
 
 ### Requirements
 
@@ -311,14 +308,16 @@ GeminiSRTTranslatorGUI/
 │   ├── style_presets.py  # Style preset definitions
 │   ├── subtitle_io.py    # SRT I/O and CPS calc
 │   ├── pricing.py          # Token pricing and cost estimation
-│   └── update_check.py     # Library update check
+│   ├── update_check.py     # Library update check
+│   └── subtitle_tools.py   # Subtitle tools (rename + ilass sync)
 ├── app/                    # PyQt6 GUI
 │   ├── main_window.py    # Main window
 │   ├── preview_editor.py # Result preview/edit dialog
 │   ├── widgets.py        # Shared widgets
 │   ├── workers.py        # Translation worker threads
 │   ├── i18n.py           # KO/EN UI strings
-│   └── skill_installer.py  # AI Agent Skill install dialog
+│   ├── skill_installer.py  # AI Agent Skill install dialog
+│   └── subtitle_tools_dialog.py  # Subtitle tools dialog
 └── tests/                  # pytest test suite
 ```
 
@@ -358,3 +357,4 @@ Settings are stored via `QSettings(SETTINGS_ORG="GeminiSrtTranslatorGUI", SETTIN
 - API keys are masked by default. Use the "Show API keys" checkbox to toggle visibility.
 - Enterprise (Vertex AI) mode requires a separate Google Cloud Project and authentication credentials.
 - This GUI targets the **v3.8.3** interface of the [gemini-srt-translator](https://pypi.org/project/gemini-srt-translator/) library. Some options may not work with different library versions.
+- The subtitle sync feature invokes [ilass](https://github.com/SandroHc/ilass) (AGPL-3.0) as a separate process. The ilass source code is available at the link above.
