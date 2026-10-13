@@ -96,9 +96,10 @@ def find_ilass():
     if bdir:
         candidates.append(os.path.join(bdir, "ilass.exe"))
         candidates.append(os.path.join(bdir, "ilass"))
-    # 개발 환경: 프로젝트 루트
+    # 개발 환경: 프로젝트 루트 (get_ilass.py 다운로드 위치)
     here = os.path.dirname(os.path.abspath(__file__))
     candidates.append(os.path.join(os.path.dirname(here), "ilass.exe"))
+    candidates.append(os.path.join(os.path.dirname(here), "ilass"))
     for c in candidates:
         if c and os.path.isfile(c):
             return c

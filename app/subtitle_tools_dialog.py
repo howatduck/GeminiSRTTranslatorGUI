@@ -8,6 +8,7 @@ kracc 서버의 subs_toolkit.py 기능을 GUI로 제공한다:
 """
 
 import os
+import sys
 
 from PyQt6.QtCore import QThread, pyqtSignal
 from PyQt6.QtWidgets import (
@@ -22,6 +23,27 @@ from core import subtitle_tools as st
 STEP_RENAME = "rename"
 STEP_SYNC = "sync"
 STEP_BOTH = "both"
+
+
+class IlassDownloadWorker(QThread):
+    """ilass 원클릭 다운로드 워커."""
+
+    log_signal = pyqtSignal(str)
+    finished_signal = pyqtSignal(str)
+    error_signal = pyqtSignal(str)
+
+    def __init__(self, dest_dir):
+        super().__init__()
+        self.dest_dir = dest_dir
+
+    def run(self):
+        try:
+            from get_ilass import download_ilass
+            path = download_ilass(
+                self.dest_dir, log=self.log_signal.emit)
+            self.finished_signal.emit(path)
+        except Exception as e:  # noqa: BLE001
+            self.error_signal.emit(str(e))
 
 
 class SubtitleToolsWorker(QThread):
@@ -124,10 +146,15 @@ class SubtitleToolsDialog(QDialog):
         opt_row.addStretch()
         layout.addLayout(opt_row)
 
-        # --- ilass 상태 ---
+        # --- ilass 상태 + 다운로드 ---
+        ilass_row = QHBoxLayout()
         self.lbl_ilass = QLabel()
+        self.btn_ilass_dl = QPushButton(self._t("subtools_btn_ilass_dl"))
+        self.btn_ilass_dl.clicked.connect(self._download_ilass)
+        ilass_row.addWidget(self.lbl_ilass, 1)
+        ilass_row.addWidget(self.btn_ilass_dl)
+        layout.addLayout(ilass_row)
         self._refresh_ilass_status()
-        layout.addWidget(self.lbl_ilass)
 
         # --- 미리보기 ---
         prev_box = QGroupBox(self._t("subtools_grp_preview"))
@@ -220,9 +247,41 @@ class SubtitleToolsDialog(QDialog):
         path = st.find_ilass()
         if path:
             self.lbl_ilass.setText(self._t("subtools_ilass_found", path=path))
+            self.btn_ilass_dl.setVisible(False)
         else:
             self.lbl_ilass.setText(
                 self._t("subtools_ilass_missing", url=st.ILASS_HOMEPAGE))
+            # 이 플랫폼용 빌드가 있을 때만 다운로드 버튼 표시
+            from get_ilass import platform_asset
+            url, _fmt, _bin = platform_asset()
+            self.btn_ilass_dl.setVisible(url is not None)
+
+    def _ilass_dest_dir(self):
+        """ilass 다운로드 위치: 동결 시 exe 폴더, 아니면 프로젝트 루트."""
+        if getattr(sys, "frozen", False):
+            return os.path.dirname(sys.executable)
+        return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    def _download_ilass(self):
+        self.btn_ilass_dl.setEnabled(False)
+        self._log(self._t("subtools_ilass_dl_start"))
+        self._dl_worker = IlassDownloadWorker(self._ilass_dest_dir())
+        self._dl_worker.log_signal.connect(self._log)
+        self._dl_worker.finished_signal.connect(self._on_ilass_dl_done)
+        self._dl_worker.error_signal.connect(self._on_ilass_dl_error)
+        self._dl_worker.start()
+
+    def _on_ilass_dl_done(self, path):
+        self._log(self._t("subtools_ilass_dl_done", path=path))
+        self.btn_ilass_dl.setEnabled(True)
+        self._refresh_ilass_status()
+        self._dl_worker = None
+
+    def _on_ilass_dl_error(self, msg):
+        self._log(f"[오류] {msg}")
+        QMessageBox.warning(self, self._t("subtools_dialog_title"), msg)
+        self.btn_ilass_dl.setEnabled(True)
+        self._dl_worker = None
 
     def _browse_folder(self):
         d = QFileDialog.getExistingDirectory(self, self._t("subtools_lbl_folder"))
@@ -307,6 +366,7 @@ class SubtitleToolsDialog(QDialog):
 
     def _set_running(self, running):
         for w in (self.btn_run, self.btn_refresh, self.btn_browse,
+                  self.btn_ilass_dl,
                   self.edit_folder, self.cmb_mode, self.cmb_lang,
                   self.spin_split, self.radio_rename, self.radio_sync,
                   self.radio_both,
