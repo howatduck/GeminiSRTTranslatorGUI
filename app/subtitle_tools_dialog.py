@@ -21,6 +21,7 @@ from core import subtitle_tools as st
 
 STEP_RENAME = "rename"
 STEP_SYNC = "sync"
+STEP_BOTH = "both"
 
 
 class SubtitleToolsWorker(QThread):
@@ -44,7 +45,7 @@ class SubtitleToolsWorker(QThread):
     def run(self):
         try:
             summary = {}
-            if self.step == STEP_RENAME:
+            if self.step in (STEP_RENAME, STEP_BOTH):
                 self._log("=== 자막 리네임 시작 ===")
                 plan, unmatched = st.plan_rename(self.folder, self.mode)
                 if not plan:
@@ -52,13 +53,13 @@ class SubtitleToolsWorker(QThread):
                 applied, skipped = st.apply_rename(plan, log=self._log)
                 for u in unmatched:
                     self._log(f"[매칭 실패] {u} (수동 확인 필요)")
-                summary = {"applied": applied, "skipped": skipped,
-                           "unmatched": len(unmatched)}
+                summary["rename"] = {"applied": applied, "skipped": skipped,
+                                     "unmatched": len(unmatched)}
                 self._log(f"리네임 완료: 적용 {applied} / 건너뜀 {skipped} / "
                           f"매칭실패 {len(unmatched)}")
-            else:
+            if self.step in (STEP_SYNC, STEP_BOTH):
                 self._log("=== ilass 자막 싱크 시작 ===")
-                summary = st.run_sync(
+                summary["sync"] = st.run_sync(
                     self.folder,
                     log=self._log,
                     progress=lambda d, t: self.progress_signal.emit(d, t),
@@ -108,13 +109,18 @@ class SubtitleToolsDialog(QDialog):
         opt_row.addWidget(QLabel(self._t("subtools_lbl_step")))
         self.radio_rename = QRadioButton(self._t("subtools_radio_rename"))
         self.radio_sync = QRadioButton(self._t("subtools_radio_sync"))
+        self.radio_both = QRadioButton(self._t("subtools_radio_both"))
         self.radio_rename.setChecked(True)
         step_group = QButtonGroup(self)
         step_group.addButton(self.radio_rename)
         step_group.addButton(self.radio_sync)
+        step_group.addButton(self.radio_both)
         self.radio_rename.toggled.connect(self._on_step_changed)
+        self.radio_sync.toggled.connect(self._on_step_changed)
+        self.radio_both.toggled.connect(self._on_step_changed)
         opt_row.addWidget(self.radio_rename)
         opt_row.addWidget(self.radio_sync)
+        opt_row.addWidget(self.radio_both)
         opt_row.addStretch()
         layout.addLayout(opt_row)
 
@@ -201,7 +207,14 @@ class SubtitleToolsDialog(QDialog):
             return key
 
     def _step(self):
-        return STEP_SYNC if self.radio_sync.isChecked() else STEP_RENAME
+        if self.radio_sync.isChecked():
+            return STEP_SYNC
+        if self.radio_both.isChecked():
+            return STEP_BOTH
+        return STEP_RENAME
+
+    def _uses_sync(self):
+        return self._step() in (STEP_SYNC, STEP_BOTH)
 
     def _refresh_ilass_status(self):
         path = st.find_ilass()
@@ -218,8 +231,7 @@ class SubtitleToolsDialog(QDialog):
             self._refresh_preview()
 
     def _on_step_changed(self):
-        is_sync = self._step() == STEP_SYNC
-        self.sync_box.setEnabled(is_sync)
+        self.sync_box.setEnabled(self._uses_sync())
         self._refresh_ilass_status()
         self._refresh_preview()
 
@@ -234,7 +246,8 @@ class SubtitleToolsDialog(QDialog):
         mode = self.cmb_mode.currentData()
         self.tbl_preview.setRowCount(0)
 
-        if self._step() == STEP_RENAME:
+        # "둘다"는 리네임이 먼저 실행되므로 리네임 미리보리를 보여준다.
+        if self._step() in (STEP_RENAME, STEP_BOTH):
             self.tbl_preview.setColumnCount(2)
             self.tbl_preview.setHorizontalHeaderLabels(
                 [self._t("subtools_col_before"), self._t("subtools_col_after")])
@@ -296,9 +309,10 @@ class SubtitleToolsDialog(QDialog):
         for w in (self.btn_run, self.btn_refresh, self.btn_browse,
                   self.edit_folder, self.cmb_mode, self.cmb_lang,
                   self.spin_split, self.radio_rename, self.radio_sync,
+                  self.radio_both,
                   self.chk_no_split, self.chk_force, self.chk_backup):
             w.setEnabled(not running)
-        self.sync_box.setEnabled(not running and self._step() == STEP_SYNC)
+        self.sync_box.setEnabled(not running and self._uses_sync())
         self.progress.setVisible(running)
         if running:
             self.progress.setRange(0, 100)
@@ -311,7 +325,7 @@ class SubtitleToolsDialog(QDialog):
                                 self._t("subtools_invalid_folder"))
             return
         step = self._step()
-        if step == STEP_SYNC and not st.find_ilass():
+        if self._uses_sync() and not st.find_ilass():
             QMessageBox.warning(
                 self, self._t("subtools_dialog_title"),
                 self._t("subtools_ilass_missing", url=st.ILASS_HOMEPAGE))
