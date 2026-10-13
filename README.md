@@ -8,6 +8,10 @@
 
 PyQt6 기반 GUI 애플리케이션으로, [gemini-srt-translator](https://github.com/MaKTaiL/gemini-srt-translator) 라이브러리(v3.8.3)를 활용하여 자막(SRT/ASS) 번역과 비디오/오디오 전사(Transcribe)를 손쉽게 수행할 수 있습니다. Pyte 기반 VT100 터미널 에뮬레이터를 내장하여 콘솔 출력(색상, 진행률 등)을 GUI 안에서 그대로 확인할 수 있습니다.
 
+### 실행 화면
+
+![실행 화면 (한국어)](assets/screenshot-ko.png)
+
 ### 주요 기능
 
 - **자막 번역 (Translate)**: SRT/ASS 자막 파일을 원하는 언어로 번역
@@ -186,6 +190,10 @@ GeminiSRTTranslatorGUI/
 ## 🇺🇸 English
 
 A PyQt6-based GUI application that leverages the [gemini-srt-translator](https://github.com/MaKTaiL/gemini-srt-translator) library (v3.8.3) to easily translate subtitles (SRT/ASS) and transcribe video/audio files. It includes a built-in Pyte VT100 terminal emulator so you can view real-time console output (including colors and progress bars) directly within the GUI.
+
+### Screenshot
+
+![Screenshot (English)](assets/screenshot-en.png)
 
 ### Key Features
 
