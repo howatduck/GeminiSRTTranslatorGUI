@@ -1,4 +1,9 @@
-PyQt6>=6.6.0
+# PyQt6 구형 CPU 호환 핀 (서버: AMD Phenom II, SSE4.1 미지원)
+# - PyQt6-sip 13.13.0+는 x86-64-v2로 빌드되어 구형 CPU에서 SIGILL
+# - Qt 6.10+는 시작 시 SSE4.1을 요구해서 구형 CPU에서 실행 불가
+PyQt6==6.8.1
+PyQt6-Qt6==6.8.2
+PyQt6-sip==13.10.0
 pyte>=0.8.2
 google-genai>=2.18.0
 gemini-srt-translator>=3.8.3
