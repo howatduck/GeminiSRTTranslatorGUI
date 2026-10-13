@@ -14,19 +14,26 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
-echo [1/4] 가상환경(venv) 생성 및 활성화...
+echo [1/5] 가상환경(venv) 생성 및 활성화...
 if not exist "venv" (
     python -m venv venv
 )
 call venv\Scripts\activate.bat
 
 echo.
-echo [2/4] 필요 라이브러리 설치 중...
+echo [2/5] 필요 라이브러리 설치 중...
 python -m pip install --upgrade pip
 pip install -r requirements.txt
 
 echo.
-echo [3/4] PyInstaller로 Windows 실행파일(.exe) 빌드 중...
+echo [3/5] 버전 정보 생성 중...
+python gen_version_info.py
+if %errorlevel% neq 0 (
+    echo [경고] 버전 정보 생성 실패 — 버전 없이 빌드합니다.
+)
+
+echo.
+echo [4/5] PyInstaller로 Windows 실행파일(.exe) 빌드 중...
 pyinstaller --clean --noconfirm GeminiSRTTranslator.spec
 
 echo.

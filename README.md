@@ -70,7 +70,7 @@ ffmpeg -version
 #### 3단계: 앱 설치 — 원하는 방식 선택
 
 **A. 실행 파일 다운로드 (Windows, 가장 쉬움)**
-GitHub Release에서 `GeminiSRTTranslator-Windows.zip`을 받아 압축을 풀고 바로 실행합니다. Python 설치가 필요 없습니다.
+GitHub Release에서 `GeminiSRTTranslator-Windows-vX.Y.zip`(릴리즈 버전 포함)을 받아 압축을 풀고 바로 실행합니다. Python 설치가 필요 없습니다.
 
 **B. 소스 코드 직접 실행**
 ```bash
@@ -115,6 +115,7 @@ GeminiSRTTranslatorGUI/
 ├── requirements.txt        # 실행용 의존성
 ├── requirements-dev.txt    # 개발용 의존성
 ├── build_win.bat / .ps1    # Windows 빌드 스크립트
+├── gen_version_info.py     # 빌드용 버전 리소스 생성
 ├── GeminiSRTTranslator.spec# PyInstaller 스펙
 ├── README.md               # 이 문서
 ├── core/                   # 순수 로직
@@ -244,7 +245,7 @@ ffmpeg -version
 #### Step 3: Install the app — pick your method
 
 **A. Download the executable (Windows, easiest)**
-Download `GeminiSRTTranslator-Windows.zip` from the latest GitHub Release, extract, and run. No Python installation needed.
+Download `GeminiSRTTranslator-Windows-vX.Y.zip` (includes the release version) from the latest GitHub Release, extract, and run. No Python installation needed.
 
 **B. Run from source**
 ```bash
@@ -289,6 +290,7 @@ GeminiSRTTranslatorGUI/
 ├── requirements.txt        # Runtime dependencies
 ├── requirements-dev.txt    # Dev dependencies
 ├── build_win.bat / .ps1    # Windows build scripts
+├── gen_version_info.py     # Version resource generator for builds
 ├── GeminiSRTTranslator.spec# PyInstaller build spec
 ├── README.md               # This document
 ├── core/                   # Pure logic

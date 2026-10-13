@@ -12,18 +12,24 @@ if (-not (Get-Command python -ErrorAction SilentlyContinue)) {
     Exit 1
 }
 
-Write-Host "[1/4] 가상환경(venv) 생성 및 활성화..." -ForegroundColor Green
+Write-Host "[1/5] 가상환경(venv) 생성 및 활성화..." -ForegroundColor Green
 if (-not (Test-Path "venv")) {
     python -m venv venv
 }
 
 & "venv\Scripts\Activate.ps1"
 
-Write-Host "[2/4] 필요 패키지 설치 중..." -ForegroundColor Green
+Write-Host "[2/5] 필요 패키지 설치 중..." -ForegroundColor Green
 python -m pip install --upgrade pip
 pip install -r requirements.txt
 
-Write-Host "[3/4] PyInstaller 실행파일 빌드 중..." -ForegroundColor Green
+Write-Host "[3/5] 버전 정보 생성 중..." -ForegroundColor Green
+python gen_version_info.py
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "[경고] 버전 정보 생성 실패 — 버전 없이 빌드합니다." -ForegroundColor Yellow
+}
+
+Write-Host "[4/5] PyInstaller 실행파일 빌드 중..." -ForegroundColor Green
 pyinstaller --clean --noconfirm GeminiSRTTranslator.spec
 
 if (Test-Path "dist\GeminiSRTTranslator.exe") {

@@ -88,6 +88,10 @@ a = Analysis(
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
+# Windows 파일 버전 리소스: gen_version_info.py로 생성한 version_info.txt가
+# 있으면 exe에 버전 포함 (없으면 생략 → 로컬 빌드 호환)
+_version_file = 'version_info.txt' if os.path.exists('version_info.txt') else None
+
 exe = EXE(
     pyz,
     a.scripts,
@@ -108,5 +112,6 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
     icon='assets/app.ico',
+    version=_version_file,
 )
 
