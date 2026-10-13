@@ -84,6 +84,14 @@ jobs:
           Write-Host "FFmpeg binaries ready:"
           Get-Item ffmpeg.exe, ffprobe.exe
 
+      - name: Generate version info from tag
+        shell: python
+        run: |
+          import subprocess
+          tag = "${{ github.ref_name }}"
+          print("Generating version_info.txt from ref: " + tag)
+          subprocess.run(["python", "gen_version_info.py", tag], check=True)
+
       - name: Build EXE with PyInstaller
         run: |
           pyinstaller --clean --noconfirm GeminiSRTTranslator.spec
@@ -92,12 +100,15 @@ jobs:
       - name: Package into ZIP
         shell: pwsh
         run: |
-          Compress-Archive -Path "dist\GeminiSRTTranslator.exe" -DestinationPath "GeminiSRTTranslator-Windows.zip"
+          $zipName = "GeminiSRTTranslator-Windows-${{ github.ref_name }}.zip"
+          Compress-Archive -Path "dist\GeminiSRTTranslator.exe" -DestinationPath $zipName
+          "ZIP_NAME=$zipName" >> $env:GITHUB_ENV
+          Write-Host "Created $zipName"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
-          name: GeminiSRTTranslator-Windows
+          name: GeminiSRTTranslator-Windows-${{ github.ref_name }}
           path: dist/GeminiSRTTranslator.exe
           if-no-files-found: error
 
@@ -105,7 +116,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v3
         with:
-          files: GeminiSRTTranslator-Windows.zip
+          files: ${{ env.ZIP_NAME }}
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
