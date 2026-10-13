@@ -82,9 +82,12 @@ class SubtitleToolsDialog(QDialog):
         layout = QVBoxLayout()
 
         # --- 폴더 선택 + 새로고침 ---
+        # 기본값은 비워둔다: 다이얼로그가 열리자마자 홈 디렉토리를
+        # 재귀 스캔하면 대용량 미디어 폴더에서 멈춰버린다.
         folder_row = QHBoxLayout()
         folder_row.addWidget(QLabel(self._t("subtools_lbl_folder")))
-        self.edit_folder = QLineEdit(os.path.expanduser("~"))
+        self.edit_folder = QLineEdit("")
+        self.edit_folder.setPlaceholderText(self._t("subtools_folder_ph"))
         self.btn_browse = QPushButton(self._t("subtools_btn_browse"))
         self.btn_browse.clicked.connect(self._browse_folder)
         self.btn_refresh = QPushButton(self._t("subtools_btn_refresh"))
@@ -186,7 +189,9 @@ class SubtitleToolsDialog(QDialog):
         layout.addLayout(btn_row)
 
         self.setLayout(layout)
-        self._on_step_changed()
+        # 초기에는 미리보기를 자동 실행하지 않는다 (폴더 미선택 상태).
+        # 사용자가 폴더를 선택하거나 새로고침을 눌러야 스캔한다.
+        self.sync_box.setEnabled(True)
 
     # -- helpers -------------------------------------------------
     def _t(self, key, **kwargs):

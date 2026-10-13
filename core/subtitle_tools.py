@@ -161,18 +161,28 @@ def split_lang_suffix(sub_filename):
     return "", ext
 
 
-def scan_and_match(folder, mode="tv"):
+def scan_and_match(folder, mode="tv", max_files=50000):
     """폴더를 재귀 스캔하며 (영상, 자막) 매칭 목록 생성.
 
     반환: (plan, unmatched)
       plan: [(old_path, new_path), ...]  (절대 경로)
       unmatched: [sub_path, ...]  (매칭 실패)
+
+    max_files: 스캔 중 파일 수가 이를 넘으면 SubtitleToolsError 발생.
+      (홈 디렉토리 같은 대용량 트리를 실수로 스캔하는 것 방지)
     """
     folder = os.path.abspath(folder)
     plan = []
     unmatched = []
 
+    seen = 0
     for root, _dirs, files in os.walk(folder):
+        seen += len(files)
+        if seen > max_files:
+            raise SubtitleToolsError(
+                f"파일이 너무 많습니다 ({max_files}개 초과). "
+                f"시즌 폴더처럼 작은 단위의 폴더를 직접 선택하세요: {folder}"
+            )
         videos = [f for f in files if os.path.splitext(f)[1].lower() in VIDEO_EXTS]
         subs = [f for f in files if os.path.splitext(f)[1].lower() in SUB_EXTS]
 

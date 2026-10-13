@@ -142,3 +142,12 @@ def test_find_ilass_missing(monkeypatch):
 def test_plan_rename_invalid_folder():
     with pytest.raises(st.SubtitleToolsError):
         st.plan_rename("/nonexistent-folder-xyz")
+
+
+def test_scan_and_match_max_files(tmp_path):
+    d = tmp_path / "big"
+    d.mkdir()
+    for i in range(10):
+        _touch(d / f"file{i}.srt")
+    with pytest.raises(st.SubtitleToolsError):
+        st.scan_and_match(str(d), "tv", max_files=5)
