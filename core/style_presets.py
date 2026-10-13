@@ -113,12 +113,66 @@ def get_preset(preset_id):
     return STYLE_PRESETS[0]
 
 
-def preset_instruction(preset_id):
-    """프리셋의 프롬프트 지시문 반환 (default는 빈 문자열)."""
+# ============================================================
+# 사용자 커스텀 프리셋 (3개 슬롯)
+# ============================================================
+
+CUSTOM_PRESET_COUNT = 3
+CUSTOM_PRESET_IDS = [f"custom_{i + 1}" for i in range(CUSTOM_PRESET_COUNT)]
+
+
+def is_custom_preset(preset_id):
+    """커스텀 슬롯 id인지."""
+    return preset_id in CUSTOM_PRESET_IDS
+
+
+def custom_slot_index(preset_id):
+    """custom_1 -> 0. 커스텀 슬롯이 아니면 None."""
+    try:
+        return CUSTOM_PRESET_IDS.index(preset_id)
+    except ValueError:
+        return None
+
+
+def default_custom_name(index, lang="ko"):
+    """커스텀 슬롯 기본 이름."""
+    if lang == "ko":
+        return f"커스텀 {index + 1}"
+    return f"Custom {index + 1}"
+
+
+def resolve_custom_preset(preset_id, custom_data=None, lang="ko"):
+    """커스텀 슬롯의 이름/지시문을 해석해 dict로 반환.
+
+    custom_data: {preset_id: {"name": str, "instruction": str}}
+    이름이 비어 있으면 기본 이름(커스텀 N)을 사용한다.
+    """
+    idx = custom_slot_index(preset_id)
+    if idx is None:
+        return None
+    data = (custom_data or {}).get(preset_id, {})
+    name = (data.get("name") or "").strip() or default_custom_name(idx, lang)
+    instruction = (data.get("instruction") or "").strip()
+    return {"id": preset_id, "name": name, "instruction": instruction}
+
+
+def all_presets(custom_data=None, lang="ko"):
+    """내장 프리셋 + 커스텀 슬롯 목록. 콤보박스 채우기용."""
+    presets = list(STYLE_PRESETS)
+    for pid in CUSTOM_PRESET_IDS:
+        presets.append(resolve_custom_preset(pid, custom_data, lang))
+    return presets
+
+
+def preset_instruction(preset_id, custom_data=None):
+    """프리셋의 프롬프트 지시문 반환 (default/빈 커스텀은 빈 문자열)."""
+    if is_custom_preset(preset_id):
+        resolved = resolve_custom_preset(preset_id, custom_data)
+        return resolved["instruction"] if resolved else ""
     return get_preset(preset_id)["instruction"]
 
 
-def compose_description(user_description, preset_id):
+def compose_description(user_description, preset_id, custom_data=None):
     """사용자 입력 문맥 + 스타일 프리셋 지시문을 하나의 description으로 합성.
 
     라이브러리의 get_translate_instruction(description=...) 으로 전달된다.
@@ -127,7 +181,7 @@ def compose_description(user_description, preset_id):
     user_description = (user_description or "").strip()
     if user_description:
         parts.append(user_description)
-    instruction = preset_instruction(preset_id)
+    instruction = preset_instruction(preset_id, custom_data)
     if instruction:
         parts.append(instruction)
     return "\n\n---\n\n".join(parts) if parts else None

@@ -24,6 +24,7 @@ PyQt6 기반 GUI 애플리케이션으로, [gemini-srt-translator](https://githu
 - **문맥 연속성 관리 (context_size)**: 번역 중 이전 자막 라인을 참조하는 슬라이딩 컨텍스트 크기 설정
 - **중단된 작업 이어하기 (resume, v3.8.3)**: 이전에 중단된 번역/전사 작업을 저장된 진행 상태부터 자동으로 이어서 수행. 체크 해제 시 처음부터 새로 시작
 - **번역 스타일 프리셋**: 자연스러운 구어체, 드라마·영화 자막체, 다큐 내레이션체, 애니 더빙체, 어학용 직역, 예능·유튜브체, 어린이용 등 7종 프리셋. 선택한 스타일 지침이 번역 프롬프트에 자동 합성됨
+- **커스텀 스타일 프리셋 3개**: 이름과 지시문을 직접 작성하는 사용자 슬롯 3개. "편집..." 버튼으로 관리하며 설정에 자동 저장됨
 - **번역 결과 미리보기/편집**: 번역 완료 후 원문과 대조하며 번역문을 행 단위로 수정·저장. CPS(초당 글자수) 경고 표시, 검색, 저장 시 `.bak` 자동 백업. "추출된 원본 자막 유지" 체크 시 비디오에서 추출한 원본 자막을 남겨 대조 가능, 해제 시 추출 파일 삭제 후 번역문만 표시
 - **적응형 배치/오디오 자동 감축 (v3.8.3)**: API 오류(429/500/503) 또는 파싱 오류 발생 시 배치 크기(`batch_size_error_step`)와 오디오 청크(`audio_chunk_error_step`)를 자동으로 줄여 복구 후 원래 크기로 복원
 - **Google Cloud / Vertex AI(Enterprise) 연동**: Cloud Project, API Key, Region, Request Type 설정 지원
@@ -142,7 +143,8 @@ GeminiSRTTranslatorGUI/
 │   ├── workers.py        # 번역 워커 스레드
 │   ├── i18n.py           # 한/영 UI 문자열
 │   ├── skill_installer.py  # AI Agent Skill 설치 다이얼로그
-│   └── subtitle_tools_dialog.py  # 자막 정리 도구 다이얼로그
+│   ├── subtitle_tools_dialog.py  # 자막 정리 도구 다이얼로그
+│   └── custom_preset_dialog.py  # 커스텀 프리셋 편집 다이얼로그
 └── tests/                  # pytest 테스트 스위트
 ```
 
@@ -207,6 +209,7 @@ A PyQt6-based GUI application that leverages the [gemini-srt-translator](https:/
 - **Context Management (context_size)**: Configure sliding context window size for improved translation continuity
 - **Resume Interrupted Jobs (v3.8.3)**: Automatically continue translation/transcription from saved progress. Uncheck to start fresh from the beginning
 - **Translation Style Presets**: 7 presets — natural colloquial, drama & film subtitles, documentary narration, anime dubbing, literal (for language study), variety/YouTube style, and for kids. The selected style instruction is automatically merged into the translation prompt
+- **3 Custom Style Presets**: user-editable slots with custom name and instruction. Manage via the "Edit..." button; auto-saved to settings
 - **Result Preview & Editor**: After translation, review and edit translated lines side-by-side with the original. Includes CPS (chars/sec) warnings, search, and automatic `.bak` backup on save. "Keep extracted source subtitles" keeps video-extracted originals for comparison; when off, extracted files are removed and only the translation is shown
 - **Adaptive Batch & Audio Chunk Sizing (v3.8.3)**: Automatically reduces `batch_size` and `audio_chunk_size` on API errors (429/500/503) or parse failures, then restores original values on success
 - **Google Cloud / Vertex AI (Enterprise)**: Supports Cloud Project, API Key, Region, and Request Type configuration
@@ -325,7 +328,8 @@ GeminiSRTTranslatorGUI/
 │   ├── workers.py        # Translation worker threads
 │   ├── i18n.py           # KO/EN UI strings
 │   ├── skill_installer.py  # AI Agent Skill install dialog
-│   └── subtitle_tools_dialog.py  # Subtitle tools dialog
+│   ├── subtitle_tools_dialog.py  # Subtitle tools dialog
+│   └── custom_preset_dialog.py  # Custom preset edit dialog
 └── tests/                  # pytest test suite
 ```
 

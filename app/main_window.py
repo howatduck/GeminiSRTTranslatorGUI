@@ -28,6 +28,7 @@ from app.workers import (
 from app.preview_editor import SubtitlePreviewDialog
 from app.skill_installer import SkillInstallDialog
 from app.subtitle_tools_dialog import SubtitleToolsDialog
+from app.custom_preset_dialog import CustomPresetDialog
 from core.config import (
     API_KEY_SETTINGS, APP_NAME, DEFAULT_BATCH_SIZE, DEFAULT_MODEL,
     NUM_API_KEYS, SETTINGS_APP, SETTINGS_ORG,
@@ -43,7 +44,9 @@ from core.media import (
     _extract_subtitle_track, _get_media_duration, _get_video_subtitle_streams,
 )
 from core.safety import WorkerLibraryExit
-from core.style_presets import STYLE_PRESETS, compose_description
+from core.style_presets import (
+    compose_description, all_presets, CUSTOM_PRESET_IDS,
+)
 from core.pricing import read_report_cost, token_report_path_for
 
 
@@ -54,6 +57,7 @@ class TranslatorApp(QWidget):
     def __init__(self):
         super().__init__()
         self.settings = QSettings(SETTINGS_ORG, SETTINGS_APP)
+        self.custom_presets = self._load_custom_presets()
         self.input_files = []
         out_dir = self.settings.value("output_dir", os.path.expanduser("~"))
         self.output_dir = out_dir if os.path.isdir(out_dir) else os.path.expanduser("~")
@@ -171,6 +175,8 @@ class TranslatorApp(QWidget):
             self.btn_preview.setText(self.tr_str("btn_preview"))
         if hasattr(self, 'btn_skill_install'):
             self.btn_skill_install.setText(self.tr_str("btn_skill_install"))
+        if hasattr(self, 'btn_edit_custom'):
+            self.btn_edit_custom.setText(self.tr_str("btn_edit_custom_preset"))
         if hasattr(self, 'btn_update_check'):
             if not (self.update_check_thread and self.update_check_thread.isRunning()):
                 self.btn_update_check.setText(self.tr_str("btn_update_check"))
@@ -570,14 +576,21 @@ class TranslatorApp(QWidget):
         parent_layout.addWidget(self.file_lang_group)
 
     def _refresh_style_combo(self):
-        """스타일 프리셋 콤보박스를 현재 UI 언어로 다시 채운다 (선택 유지)."""
+        """스타일 프리셋 콤보박스를 현재 UI 언어로 다시 채운다 (선택 유지).
+
+        내장 프리셋 + 사용자 커스텀 슬롯 3개를 함께 표시한다.
+        """
         current_id = None
         if hasattr(self, 'cmb_style') and self.cmb_style.count() > 0:
             current_id = self.cmb_style.currentData()
         self.cmb_style.clear()
-        name_key = "name_ko" if getattr(self, 'app_lang', 'ko') == 'ko' else "name_en"
-        for p in STYLE_PRESETS:
-            self.cmb_style.addItem(p[name_key], p["id"])
+        lang = getattr(self, 'app_lang', 'ko')
+        custom_data = getattr(self, 'custom_presets', {})
+        for p in all_presets(custom_data, lang):
+            name_key = "name_ko" if lang == "ko" else "name_en"
+            # 내장 프리셋은 name_ko/name_en, 커스텀은 단일 name
+            label = p.get(name_key) or p.get("name")
+            self.cmb_style.addItem(label, p["id"])
         if current_id:
             idx = self.cmb_style.findData(current_id)
             if idx >= 0:
@@ -655,8 +668,11 @@ class TranslatorApp(QWidget):
         self.lbl_style = QLabel("번역 스타일 프리셋:")
         self.cmb_style = QComboBox()
         self.cmb_style.setMinimumWidth(260)
+        self.btn_edit_custom = QPushButton(self.tr_str("btn_edit_custom_preset"))
+        self.btn_edit_custom.clicked.connect(self.open_custom_preset_editor)
         style_layout = QHBoxLayout()
         style_layout.addWidget(self.cmb_style)
+        style_layout.addWidget(self.btn_edit_custom)
         style_layout.addStretch()
         form_layout.addRow(self.lbl_style, style_layout)
         self._refresh_style_combo()
@@ -1126,6 +1142,7 @@ class TranslatorApp(QWidget):
             self.settings.setValue("thinking_level", self.cmb_thinking_level.currentText())
             self.settings.setValue("prompt_desc", self.txt_desc.toPlainText())
             self.settings.setValue("style_preset", self.cmb_style.currentData())
+            self._save_custom_presets()
 
             valid_video_paths = [p for p in self.video_file_paths if p and os.path.exists(p)]
             self.settings.setValue("video_file_paths", '\n'.join(valid_video_paths))
@@ -1606,6 +1623,7 @@ class TranslatorApp(QWidget):
             'description': compose_description(
                 self.txt_desc.toPlainText(),
                 self.cmb_style.currentData() if hasattr(self, 'cmb_style') else "default",
+                getattr(self, 'custom_presets', None),
             ),
             'model_name': selected_model,
             'batch_size': self.spin_batch.value(),
@@ -1698,6 +1716,38 @@ class TranslatorApp(QWidget):
         """AI Agent Skill 설치 다이얼로그 열기."""
         dlg = SkillInstallDialog(self)
         dlg.exec()
+
+    def _load_custom_presets(self):
+        """QSettings에서 커스텀 프리셋 3개 로드."""
+        data = {}
+        for i, pid in enumerate(CUSTOM_PRESET_IDS, 1):
+            data[pid] = {
+                "name": str(self.settings.value(f"custom_preset_{i}_name", "") or ""),
+                "instruction": str(
+                    self.settings.value(f"custom_preset_{i}_instruction", "") or ""
+                ),
+            }
+        return data
+
+    def _save_custom_presets(self):
+        """커스텀 프리셋 3개를 QSettings에 저장."""
+        for i, pid in enumerate(CUSTOM_PRESET_IDS, 1):
+            d = (self.custom_presets or {}).get(pid, {})
+            self.settings.setValue(f"custom_preset_{i}_name", d.get("name", ""))
+            self.settings.setValue(
+                f"custom_preset_{i}_instruction", d.get("instruction", ""))
+
+    def open_custom_preset_editor(self):
+        """커스텀 스타일 프리셋 편집 다이얼로그 열기."""
+        dlg = CustomPresetDialog(
+            self, self.custom_presets, getattr(self, 'app_lang', 'ko'))
+        if dlg.exec():
+            data = dlg.get_data()
+            if data:
+                self.custom_presets = data
+                self._save_custom_presets()
+                # 선택 유지하며 콤보 갱신
+                self._refresh_style_combo()
 
     def open_subtitle_tools(self):
         """자막 정리 도구 (리네임 + ilass 싱크) 다이얼로그 열기."""
