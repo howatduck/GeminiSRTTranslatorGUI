@@ -85,19 +85,10 @@ jobs:
           Get-Item ffmpeg.exe, ffprobe.exe
 
       - name: Generate version info from tag
-        shell: python
-        run: |
-          import subprocess
-          tag = "${{ github.ref_name }}"
-          print("Generating version_info.txt from ref: " + tag)
-          subprocess.run(["python", "gen_version_info.py", tag], check=True)
+        run: python gen_version_info.py "${{ github.ref_name }}"
 
       - name: Download ilass
-        shell: python
-        run: |
-          import subprocess
-          print("Downloading ilass.exe for bundling")
-          subprocess.run(["python", "get_ilass.py"], check=True)
+        run: python get_ilass.py
 
       - name: Build EXE with PyInstaller
         run: |
