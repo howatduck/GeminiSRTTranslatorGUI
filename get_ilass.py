@@ -97,6 +97,14 @@ def download_ilass(dest_dir=None, version=ILASS_VERSION, log=None):
             os.remove(archive)
 
 
+def _safe_print(msg):
+    """Windows CI(cp1252 stdout)에서도 죽지 않는 출력."""
+    try:
+        print(msg)
+    except UnicodeEncodeError:
+        print(str(msg).encode("ascii", "replace").decode("ascii"))
+
+
 def main(argv):
     version = ILASS_VERSION
     dest_dir = None
@@ -105,10 +113,10 @@ def main(argv):
     if "--dest" in argv:
         dest_dir = argv[argv.index("--dest") + 1]
     try:
-        download_ilass(dest_dir, version, log=print)
+        download_ilass(dest_dir, version, log=_safe_print)
         return 0
     except Exception as e:
-        print(f"[ERROR] ilass download failed: {e}")
+        _safe_print(f"[ERROR] ilass download failed: {e}")
         return 1
 
 
