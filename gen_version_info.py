@@ -101,7 +101,7 @@ def main(argv):
 
     with open(out_path, "w", encoding="utf-8") as f:
         f.write(render(ver_tuple, display))
-    print(f"version_info.txt 생성: {display} -> "
+    print(f"version_info.txt generated: {display} -> "
           f"{'.'.join(map(str, ver_tuple))}")
 
 

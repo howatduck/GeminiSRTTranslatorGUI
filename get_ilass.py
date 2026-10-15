@@ -108,7 +108,7 @@ def main(argv):
         download_ilass(dest_dir, version, log=print)
         return 0
     except Exception as e:
-        print(f"[오류] ilass 다운로드 실패: {e}")
+        print(f"[ERROR] ilass download failed: {e}")
         return 1
 
 
