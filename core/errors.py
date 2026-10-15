@@ -4,12 +4,31 @@
 from core.safety import WorkerLibraryExit
 
 
+def _unwrap(exc: BaseException) -> BaseException:
+    """TranslationError로 감싸진 경우 원본 예외를 반환 (분류 정확도 보존).
+
+    core.backend.GstAdapter는 모든 백엔드 예외를 TranslationError로 정규화한다.
+    타입 기반 분류가 동작하도록 __cause__ 체인을 따라 원본을 찾는다.
+    순환 참조 방지를 위해 방문 집합을 사용한다.
+    """
+    seen = set()
+    cur = exc
+    while cur is not None and id(cur) not in seen:
+        seen.add(id(cur))
+        if type(cur).__name__ == "TranslationError" and cur.__cause__ is not None:
+            cur = cur.__cause__
+        else:
+            break
+    return cur
+
+
 def classify_worker_error(exc: BaseException, *, msg_key: str, base_name: str) -> str:
     """번역/전사 작업 중 발생한 예외를 사용자용 한국어 메시지로 분류한다.
 
     순수 함수이므로 I/O나 스레드 상태에 의존하지 않아 단위 테스트가 가능하다.
     분류 규칙은 기존 TranslationWorker의 인라인 체인과 동일하다.
     """
+    exc = _unwrap(exc)
     err_str = str(exc).lower()
     err_type = type(exc).__name__.lower()
     err_base = f"작업 실패 ({msg_key}): '{base_name}'"

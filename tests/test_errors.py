@@ -71,3 +71,25 @@ def test_fallback():
     msg = _msg(OSError("some weird os failure"))
     assert "라이브러리 예외" in msg
     assert "some weird os failure" in msg
+
+
+def test_translation_error_unwrapped():
+    """TranslationError로 감싸져도 원본 타입 기준으로 분류된다."""
+    import sys
+    sys.path.insert(0, '.')
+    from core.backend.base import TranslationError
+    orig = AttributeError("'NoneType' object has no attribute 'content'")
+    wrapped = TranslationError("번역 백엔드 실행 실패 (translate): ...")
+    wrapped.__cause__ = orig
+    msg = _msg(wrapped)
+    assert "스트림 응답 오류" in msg
+    assert "AttributeError" in msg
+
+
+def test_translation_error_without_cause():
+    """cause가 없으면 TranslationError 자체로 분류 (fallback)."""
+    import sys
+    sys.path.insert(0, '.')
+    from core.backend.base import TranslationError
+    msg = _msg(TranslationError("something failed"))
+    assert "라이브러리 예외" in msg
