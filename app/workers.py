@@ -24,9 +24,9 @@ from core.config import DEFAULT_BATCH_SIZE, DEFAULT_MODEL, NUM_API_KEYS
 from core.errors import classify_worker_error
 from core.pricing import token_report_path_for
 from core.gst_compat import (
-    GENAI_IMPORT_ERROR, GST_IMPORT_ERROR, GeminiSRTTranslator, Subtitle,
-    SubtitleSession, _get_gst_params, genai, gst, reset_library_logger,
+    GENAI_IMPORT_ERROR, GST_IMPORT_ERROR, genai,
 )
+from core.backend import GstAdapter
 from core.languages import TARGET_LANGUAGES, _get_iso_lang_code, _normalize_lang_name
 from core.media import (
     _extract_subtitle_track, _get_media_duration, _get_video_subtitle_streams,
@@ -149,6 +149,9 @@ class TranslationWorker(QThread):
         self._base_backoff_seconds = 3.0
         self._max_backoff_seconds = 60.0
 
+        # 번역 백엔드 어댑터 (라이브러리 직접 의존 제거, Phase c)
+        self._backend = GstAdapter()
+
     def run(self):
         task_mode = self.base_config.get('task_mode', 'translate')
         task_name = "전사(Transcribe)" if task_mode == 'transcribe' else "번역(Translate)"
@@ -236,7 +239,7 @@ class TranslationWorker(QThread):
                                 f"\x1b[33m\n[작업 시작 ({msg_key})] [{target_language}] {base_name}\x1b[0m\n"
                             )
 
-                        reset_library_logger()
+                        # 라이브러리 로거 초기화는 GstAdapter.run() 내부에서 수행
                         captured_stderr_io_for_lib = io.StringIO()
                         original_thread_stderr = sys.stderr
                         sys.stderr = captured_stderr_io_for_lib
@@ -292,23 +295,10 @@ class TranslationWorker(QThread):
                             if t_level != 'Default':
                                 translator_args['thinking_level'] = t_level.lower()
 
-                            filtered_params = {k: v for k, v in translator_args.items() if v is not None}
-                            if GeminiSRTTranslator is not None:
-                                # 라이브러리 버전 호환성: 실제 __init__ 파라미터만 전달 (캐시된 시그니처 활용)
-                                _gst_params = _get_gst_params()
-                                filtered_params = {k: v for k, v in filtered_params.items() if k in _gst_params}
-                                translator_instance = GeminiSRTTranslator(**filtered_params)
-                                if is_transcribe_mode:
-                                    translator_instance.transcribe()
-                                else:
-                                    translator_instance.translate()
-                            else:
-                                for key, value in filtered_params.items():
-                                    setattr(gst, key, value)
-                                if is_transcribe_mode:
-                                    gst.transcribe()
-                                else:
-                                    gst.translate()
+                            # Phase (c): 어댑터를 통한 백엔드 실행
+                            # (파라미터 필터링·구버전 fallback·로거 초기화는 어댑터 내부에서 처리)
+                            mode = "transcribe" if is_transcribe_mode else "translate"
+                            self._backend.run(translator_args, mode=mode)
 
                             job_successful = True
 
