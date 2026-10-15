@@ -96,3 +96,99 @@ def test_chunk_guard_reraises_unrelated():
 def test_get_library_version_returns_str_or_none():
     v = get_library_version()
     assert v is None or isinstance(v, str)
+
+
+def test_cancel_token_triggers_at_batch_boundary():
+    """cancel_token이 True면 _process_batch 진입 시 BackendCancelRequested."""
+    import sys
+    sys.path.insert(0, '.')
+    from core.gst_patches import (
+        _make_chunk_guard, set_active_cancel_token,
+    )
+    from core.backend.base import BackendCancelRequested
+
+    calls = []
+
+    def _orig(self):
+        calls.append(1)
+        return "done"
+
+    guarded = _make_chunk_guard(_orig)
+
+    class T:
+        pass
+    t = T()
+
+    # 토큰 없음 → 정상 실행
+    assert guarded(t) == "done"
+    assert calls == [1]
+
+    # 토큰이 True 반환 → 진입 전 취소
+    set_active_cancel_token(lambda: True)
+    try:
+        import pytest as _pt
+        with _pt.raises(BackendCancelRequested):
+            guarded(t)
+    finally:
+        set_active_cancel_token(None)
+    assert calls == [1]  # 원본 호출 안 됨
+
+    # 토큰이 False 반환 → 정상 실행
+    set_active_cancel_token(lambda: False)
+    try:
+        assert guarded(t) == "done"
+    finally:
+        set_active_cancel_token(None)
+    assert calls == [1, 1]
+
+
+def test_cancel_token_checked_after_batch():
+    """배치 완료 후에도 취소 확인 (다음 배치 시작 전 중단)."""
+    import sys
+    sys.path.insert(0, '.')
+    from core.gst_patches import (
+        _make_chunk_guard, set_active_cancel_token,
+    )
+    from core.backend.base import BackendCancelRequested
+
+    state = {"cancel": False}
+
+    def _orig(self):
+        return "done"
+
+    guarded = _make_chunk_guard(_orig)
+
+    class T:
+        pass
+    t = T()
+    set_active_cancel_token(lambda: state["cancel"])
+    try:
+        assert guarded(t) == "done"  # 아직 False
+        state["cancel"] = True
+        import pytest as _pt
+        with _pt.raises(BackendCancelRequested):
+            guarded(t)  # 진입 전 체크에서 걸림
+    finally:
+        set_active_cancel_token(None)
+
+
+def test_cancel_token_exception_in_token_ignored():
+    """토큰 자체가 예외를 던져도 무시하고 계속 진행."""
+    import sys
+    sys.path.insert(0, '.')
+    from core.gst_patches import (
+        _make_chunk_guard, set_active_cancel_token,
+    )
+
+    def _bad_token():
+        raise RuntimeError("token broken")
+
+    guarded = _make_chunk_guard(lambda self: "done")
+
+    class T:
+        pass
+    set_active_cancel_token(_bad_token)
+    try:
+        assert guarded(T()) == "done"
+    finally:
+        set_active_cancel_token(None)

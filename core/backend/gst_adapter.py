@@ -20,7 +20,7 @@ from core.gst_compat import (
     gst,
     reset_library_logger,
 )
-from core.gst_patches import get_library_version
+from core.gst_patches import get_library_version, set_active_cancel_token
 
 
 class GstAdapter(TranslationBackend):
@@ -57,13 +57,14 @@ class GstAdapter(TranslationBackend):
         if not self.available:
             raise TranslationError("gemini-srt-translator 라이브러리를 사용할 수 없습니다.")
 
-        # cancel_token은 Phase (d)에서 청크 루프에 주입 예정. 현재는 무시.
-        _ = cancel_token
-
         # 라이브러리 전역 진행 상태 초기화 (기존 workers.py에서 작업 직전 호출)
         reset_library_logger()
 
         filtered = self._filter_params(params)
+
+        # 취소 토큰을 현재 스레드에 등록 — _process_batch 청크 가드에서 확인됨.
+        # 반드시 해제해야 다음 작업에 잔류하지 않음.
+        set_active_cancel_token(cancel_token)
         try:
             if GeminiSRTTranslator is not None:
                 instance = GeminiSRTTranslator(**filtered)
@@ -83,4 +84,6 @@ class GstAdapter(TranslationBackend):
             raise
         except Exception as e:
             raise TranslationError(f"번역 백엔드 실행 실패 ({mode}): {e}") from e
+        finally:
+            set_active_cancel_token(None)
         return True

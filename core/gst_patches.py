@@ -12,9 +12,45 @@ Phase (a): core/gst_compat.py에 인라인으로 있던 몽키패치들을
 
 import inspect
 import os
+import threading
 
 # 이 패치셋이 검증된 라이브러리 버전들
 SUPPORTED_VERSIONS = ("3.8.0", "3.8.1", "3.8.2", "3.8.3")
+
+
+# =====================================================================
+# 취소 토큰 레지스트리 (Phase d)
+#
+# 몽키패치는 임포트 시점에 전역 적용되지만, 취소 토큰은 실행 시점·스레드별로
+# 다르다. thread-local에 현재 스레드의 토큰을 등록하고 청크 가드에서 확인한다.
+# =====================================================================
+_cancel_state = threading.local()
+
+
+def set_active_cancel_token(token):
+    """현재 스레드의 취소 토큰 등록 (None이면 해제)."""
+    _cancel_state.token = token
+
+
+def _get_active_cancel_token():
+    return getattr(_cancel_state, "token", None)
+
+
+def _check_cancelled():
+    """취소 요청 시 BackendCancelRequested 발생.
+
+    순환 임포트를 피하기 위해 예외 클래스는 lazy import한다.
+    (gst_patches는 core.backend.base보다 먼저 로드될 수 있음)
+    """
+    token = _get_active_cancel_token()
+    if token is not None:
+        try:
+            cancelled = token()
+        except Exception:
+            cancelled = False
+        if cancelled:
+            from core.backend.base import BackendCancelRequested
+            raise BackendCancelRequested()
 
 
 def get_library_version():
@@ -255,10 +291,16 @@ def _patched_parse_response(self, response_text: str, batch: list, Subtitle=None
 
 
 def _make_chunk_guard(original):
-    """_process_batch용 빈 청크 가드 래퍼 생성."""
+    """_process_batch용 빈 청크 가드 + 취소 체크 래퍼 생성.
+
+    각 배치의 네트워크 호출 전후에 취소 토큰을 확인한다. 기존에는
+    stdout write 시점에만 취소가 감지되어 네트워크 대기 중에는
+    먹통처럼 보였으나, 이제 배치 경계에서 즉시 중단된다.
+    """
     def _guarded(self, *args, **kwargs):
+        _check_cancelled()
         try:
-            return original(self, *args, **kwargs)
+            result = original(self, *args, **kwargs)
         except (AttributeError, IndexError, TypeError) as _chunk_err:
             _err_msg = str(_chunk_err)
             if 'content' in _err_msg or 'candidates' in _err_msg or 'parts' in _err_msg:
@@ -266,6 +308,8 @@ def _make_chunk_guard(original):
                     f"Gemini API 스트림 청크 오류 (빈 응답 청크): {_chunk_err}"
                 ) from _chunk_err
             raise
+        _check_cancelled()
+        return result
     return _guarded
 
 

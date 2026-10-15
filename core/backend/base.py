@@ -18,6 +18,15 @@ class TranslationError(Exception):
     """
 
 
+class BackendCancelRequested(BaseException):
+    """백엔드 작업 취소 요청 (청크 경계에서 발생).
+
+    Exception이 아닌 BaseException을 상속하므로 라이브러리 내부의
+    일반적인 except Exception 블록을 통과한다. workers.py에서
+    ForceAbortException과 함께 처리된다.
+    """
+
+
 # 취소 토큰: 호출 시 True를 반환하면 작업 중단 요청
 CancelToken = Callable[[], bool]
 
@@ -37,14 +46,15 @@ class TranslationBackend(ABC):
         Args:
             params: 번역기 생성 파라미터 dict (None 값 포함 가능).
             mode: "translate" 또는 "transcribe".
-            cancel_token: 호출 시 True면 중단 요청. (Phase d에서 청크 루프에 주입 예정.
-                Phase b에서는 인터페이스만 정의하고 아직 사용하지 않음.)
+            cancel_token: 호출 시 True면 중단 요청. 배치/청크 경계에서 확인되어
+                네트워크 대기 중에도 다음 경계에서 즉시 중단된다.
 
         Returns:
             True (성공 시).
 
         Raises:
             TranslationError: 백엔드 실행 실패 시.
+            BackendCancelRequested: cancel_token이 취소를 요청했을 때.
             ValueError: mode가 translate/transcribe가 아닐 때.
         """
         ...

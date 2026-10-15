@@ -4,14 +4,12 @@
 import io
 import os
 import queue
-import re
 import sys
 import threading
 import time
 import traceback
 
-from PyQt6.QtCore import Qt, QSettings, QThread, pyqtSignal, QObject, QTimer
-from PyQt6.QtGui import QFont, QTextCursor, QTextCharFormat, QColor, QStandardItemModel, QStandardItem
+from PyQt6.QtCore import QThread, pyqtSignal, QObject
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QPushButton, QFileDialog, QComboBox, QSpinBox, QCheckBox, QTextEdit,
@@ -20,14 +18,13 @@ from PyQt6.QtWidgets import (
     QToolButton, QScrollArea, QLayout, QDialog,
 )
 
-from core.config import DEFAULT_BATCH_SIZE, DEFAULT_MODEL, NUM_API_KEYS
+from core.config import DEFAULT_BATCH_SIZE, DEFAULT_MODEL
 from core.errors import classify_worker_error
 from core.pricing import token_report_path_for
 from core.gst_compat import (
     GENAI_IMPORT_ERROR, GST_IMPORT_ERROR, genai,
 )
-from core.backend import GstAdapter
-from core.languages import TARGET_LANGUAGES, _get_iso_lang_code, _normalize_lang_name
+from core.backend import BackendCancelRequested, GstAdapter
 from core.media import (
     _extract_subtitle_track, _get_media_duration, _get_video_subtitle_streams,
 )
@@ -295,14 +292,18 @@ class TranslationWorker(QThread):
                             if t_level != 'Default':
                                 translator_args['thinking_level'] = t_level.lower()
 
-                            # Phase (c): 어댑터를 통한 백엔드 실행
+                            # Phase (c+d): 어댑터를 통한 백엔드 실행
                             # (파라미터 필터링·구버전 fallback·로거 초기화는 어댑터 내부에서 처리)
+                            # cancel_token으로 청크 경계에서 즉시 중단 가능
                             mode = "transcribe" if is_transcribe_mode else "translate"
-                            self._backend.run(translator_args, mode=mode)
+                            self._backend.run(
+                                translator_args, mode=mode,
+                                cancel_token=self.isInterruptionRequested,
+                            )
 
                             job_successful = True
 
-                        except ForceAbortException:
+                        except (ForceAbortException, BackendCancelRequested):
                             break
 
                         except Exception as e:
