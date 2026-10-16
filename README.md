@@ -187,6 +187,25 @@ GeminiSRTTranslatorGUI/
 - 라이브러리 버전이 다르면 일부 옵션이 동작하지 않을 수 있습니다.
 - 자막 싱크 기능은 [ilass](https://github.com/SandroHc/ilass)(AGPL-3.0)를 별도 프로세스로 호출합니다. ilass 소스 코드는 위 링크에서 확인할 수 있습니다.
 
+### 라이선스
+
+이 프로젝트는 **MIT License**로 배포됩니다. 자세한 내용은 [LICENSE](LICENSE) 파일을 참조하세요.
+
+**서드파티 라이선스 고지:**
+
+| 구성 요소 | 라이선스 | 비고 |
+|-----------|----------|------|
+| 이 GUI의 소스 코드 | MIT | (c) 2026 howatduck |
+| [gemini-srt-translator](https://github.com/MaKTaiL/gemini-srt-translator) (MaKTaiL) | MIT | 번역/전사 엔진으로 사용 |
+| PyQt6 / Qt 6 (The Qt Company) | GPL-3.0 | Windows 배포판에 포함됨 |
+| [ilass](https://github.com/SandroHc/ilass) (SandroHc) | AGPL-3.0 | 별도 프로세스로 호출, 링크되지 않음 |
+| google-genai, pyte, pysubs2, json-repair | Apache-2.0 / MIT | 각 패키지 배포본의 라이선스 참조 |
+
+참고:
+- Windows 배포판(ZIP)은 GPL-3.0인 PyQt6/Qt를 포함하므로, 바이너리 재배포 시 GPL-3.0 조항이 Qt 부분에 적용됩니다. 이 GUI 자체의 소스 코드는 MIT입니다.
+- ilass는 GUI와 링크되지 않고 독립 프로세스로 실행되므로 AGPL의 네트워크 조항이 이 GUI에 전파되지 않습니다. ilass 소스는 위 링크에서 구할 수 있습니다.
+- Gemini API 사용에는 [Google의 생성형 AI 이용약관](https://ai.google.dev/gemini-api/terms)이 별도로 적용됩니다.
+
 ---
 
 ## 🇺🇸 English
@@ -370,3 +389,22 @@ Settings are stored via `QSettings(SETTINGS_ORG="GeminiSrtTranslatorGUI", SETTIN
 - Enterprise (Vertex AI) mode requires a separate Google Cloud Project and authentication credentials.
 - This GUI targets the **v3.8.3** interface of the [gemini-srt-translator](https://pypi.org/project/gemini-srt-translator/) library. Some options may not work with different library versions.
 - The subtitle sync feature invokes [ilass](https://github.com/SandroHc/ilass) (AGPL-3.0) as a separate process. The ilass source code is available at the link above.
+
+### License
+
+This project is distributed under the **MIT License**. See the [LICENSE](LICENSE) file for details.
+
+**Third-party license notices:**
+
+| Component | License | Notes |
+|-----------|---------|-------|
+| This GUI's source code | MIT | (c) 2026 howatduck |
+| [gemini-srt-translator](https://github.com/MaKTaiL/gemini-srt-translator) (MaKTaiL) | MIT | Translation/transcription engine |
+| PyQt6 / Qt 6 (The Qt Company) | GPL-3.0 | Bundled in the Windows distribution |
+| [ilass](https://github.com/SandroHc/ilass) (SandroHc) | AGPL-3.0 | Invoked as a separate process, not linked |
+| google-genai, pyte, pysubs2, json-repair | Apache-2.0 / MIT | See each package's distribution |
+
+Notes:
+- The Windows distribution (ZIP) bundles PyQt6/Qt under GPL-3.0, so GPL-3.0 terms apply to the Qt parts when redistributing the binary. This GUI's own source code is MIT.
+- ilass runs as an independent process (not linked), so the AGPL network clause does not propagate to this GUI. The ilass source is available at the link above.
+- Use of the Gemini API is additionally subject to [Google's Generative AI Terms](https://ai.google.dev/gemini-api/terms).
