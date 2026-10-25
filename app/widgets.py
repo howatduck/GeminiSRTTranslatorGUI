@@ -75,6 +75,13 @@ class CheckableComboBox(QComboBox):
             if self._model.item(i) and self._model.item(i).checkState() == Qt.CheckState.Checked
         ]
 
+    def all_items(self):
+        return [
+            self._model.item(i).text()
+            for i in range(self._model.rowCount())
+            if self._model.item(i)
+        ]
+
     def set_checked_items(self, items):
         self._model.blockSignals(True)
         for i in range(self._model.rowCount()):

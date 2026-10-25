@@ -136,6 +136,8 @@ I18N = {
         "btn_all_lang": "전체 선택",
         "btn_none_lang": "전체 해제",
         "cmb_langs_ph": "언어를 선택하세요...",
+        "custom_lang_ph": "직접 입력 (예: Vietnamese, Thai)",
+        "btn_add_lang": "추가",
 
         "main_options_group_title": "기본 설정",
         "btn_fetch": "모델 가져오기",
@@ -349,6 +351,8 @@ I18N = {
         "btn_all_lang": "Select All",
         "btn_none_lang": "Deselect All",
         "cmb_langs_ph": "Select languages...",
+        "custom_lang_ph": "Custom language (e.g. Vietnamese, Thai)",
+        "btn_add_lang": "Add",
 
         "main_options_group_title": "Basic Settings",
         "btn_fetch": "Fetch Models",

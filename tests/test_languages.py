@@ -89,3 +89,49 @@ def test_target_languages_normalize_roundtrip():
     for lang in TARGET_LANGUAGES:
         norm = _normalize_lang_name(lang)
         assert norm, f"정규화 실패: {lang}"
+
+
+def test_clean_custom_language_name():
+    from core.languages import clean_custom_language_name
+    assert clean_custom_language_name("  Vietnamese  ") == "Vietnamese"
+    assert clean_custom_language_name("Hong   Kong") == "Hong Kong"
+    assert clean_custom_language_name("") == ""
+    assert clean_custom_language_name("   ") == ""
+    assert clean_custom_language_name(None) == ""
+
+
+def test_clean_custom_language_name_comma_guard():
+    # 설정 저장 구분자(쉼표)와 충돌하지 않도록 공백으로 치환
+    from core.languages import clean_custom_language_name
+    assert "," not in clean_custom_language_name("Foo, Bar")
+    assert clean_custom_language_name("Foo,Bar") == "Foo Bar"
+
+
+def test_clean_custom_language_name_length_cap():
+    from core.languages import clean_custom_language_name
+    assert len(clean_custom_language_name("x" * 100)) <= 50
+
+
+def test_find_language_match():
+    from core.languages import find_language_match
+    items = ["Korean", "Vietnamese"]
+    assert find_language_match("vietnamese", items) == "Vietnamese"
+    assert find_language_match("KOREAN", items) == "Korean"
+    assert find_language_match("Thai", items) == ""
+    assert find_language_match("", items) == ""
+
+
+def test_custom_language_iso_fallback():
+    # 프리셋에 없는 언어도 파일명용 ISO 코드가 비지 않아야 한다
+    from core.languages import _get_iso_lang_code
+    assert _get_iso_lang_code("Vietnamese") == "vietnamese"
+
+
+def test_clean_custom_language_name_forbidden_chars():
+    # 파일명 금지 문자는 제거되어야 한다 (ISO 코드가 파일명으로 파생됨)
+    from core.languages import clean_custom_language_name
+    for bad in ['Foo/Bar', 'Foo\\Bar', 'Foo:Bar', 'Foo*Bar', 'Foo?Bar',
+                'Foo"Bar', 'Foo<Bar', 'Foo>Bar', 'Foo|Bar']:
+        cleaned = clean_custom_language_name(bad)
+        for ch in '<>:"/\\|?*':
+            assert ch not in cleaned, f"{bad!r} -> {cleaned!r}"

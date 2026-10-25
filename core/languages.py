@@ -69,3 +69,28 @@ def _normalize_lang_name(name: str) -> str:
             if k in n:
                 return _LANG_NORM_MAP[k]
     return n
+
+def clean_custom_language_name(raw: str) -> str:
+    """사용자가 직접 입력한 언어 이름을 정리한다.
+
+    - 앞뒤 공백 제거, 연속 공백 축소
+    - 쉼표는 설정 저장 구분자(selected_languages)와 충돌하므로 공백으로 치환
+    - 파일명 금지 문자(< > : " / \\ | ? *)와 제어 문자 제거
+      (언어 이름이 출력 파일명의 ISO 코드로 파생되기 때문)
+    - 최대 50자로 제한. 정리 후 빈 문자열이면 "" 반환 (무효 입력)
+    """
+    if not raw:
+        return ""
+    name = re.sub(r'[<>:"/\\|?*\x00-\x1f]', " ", raw.replace(",", " "))
+    name = re.sub(r"\s+", " ", name).strip()
+    return name[:50].strip()
+
+def find_language_match(name: str, items) -> str:
+    """items 중 name과 대소문자 무시하고 일치하는 항목 반환 (없으면 "")."""
+    if not name:
+        return ""
+    lowered = name.lower()
+    for item in items:
+        if item and item.lower() == lowered:
+            return item
+    return ""

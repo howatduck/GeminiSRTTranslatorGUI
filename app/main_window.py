@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """메인 윈도우: TranslatorApp."""
 
+import hashlib
 import logging
 import os
 import queue
@@ -39,6 +40,7 @@ from core.gst_compat import (
 )
 from core.languages import (
     TARGET_LANGUAGES, _get_iso_lang_code, _normalize_lang_name,
+    clean_custom_language_name, find_language_match,
 )
 from core.media import (
     _extract_subtitle_track, _get_media_duration, _get_video_subtitle_streams,
@@ -48,6 +50,19 @@ from core.style_presets import (
     compose_description, all_presets, CUSTOM_PRESET_IDS,
 )
 from core.pricing import read_report_cost, token_report_path_for
+
+
+def _unique_stem(src_path):
+    """소스 경로 기반 고유 파일명 stem.
+
+    서로 다른 폴더에 같은 이름의 파일(예: video.mp4)을 한 번에 처리할 때
+    추출/출력 파일이 서로 겹치는 것을 방지한다. 절대 경로의 SHA-1 앞 8자리를
+    파일명 뒤에 덧붙이며, 같은 경로에 대해서는 항상 같은 값을 돌려주어
+    '추출된 자막 재사용'이 세션을 넘나들며 계속 동작한다.
+    """
+    base = os.path.splitext(os.path.basename(src_path))[0]
+    digest = hashlib.sha1(os.path.abspath(src_path).encode("utf-8")).hexdigest()[:8]
+    return f"{base}_{digest}"
 
 
 # =====================================================================
@@ -198,6 +213,10 @@ class TranslatorApp(QWidget):
             self.btn_none_lang.setText(self.tr_str("btn_none_lang"))
         if hasattr(self, 'cmb_langs'):
             self.cmb_langs.set_placeholder_text(self.tr_str("cmb_langs_ph"))
+        if hasattr(self, 'txt_custom_lang'):
+            self.txt_custom_lang.setPlaceholderText(self.tr_str("custom_lang_ph"))
+        if hasattr(self, 'btn_add_lang'):
+            self.btn_add_lang.setText(self.tr_str("btn_add_lang"))
 
         # Main Options Group
         if hasattr(self, 'main_options_group'):
@@ -572,6 +591,17 @@ class TranslatorApp(QWidget):
         for lang in TARGET_LANGUAGES:
             self.cmb_langs.addItem(lang)
         layout.addWidget(self.cmb_langs)
+
+        # 프리셋에 없는 언어 직접 입력 (예: Vietnamese, Thai)
+        custom_lang_layout = QHBoxLayout()
+        self.txt_custom_lang = QLineEdit()
+        self.txt_custom_lang.setPlaceholderText("직접 입력 (예: Vietnamese, Thai)")
+        self.txt_custom_lang.returnPressed.connect(self.add_custom_language)
+        custom_lang_layout.addWidget(self.txt_custom_lang)
+        self.btn_add_lang = QPushButton("추가")
+        self.btn_add_lang.clicked.connect(self.add_custom_language)
+        custom_lang_layout.addWidget(self.btn_add_lang)
+        layout.addLayout(custom_lang_layout)
         self.file_lang_group.setLayout(layout)
         parent_layout.addWidget(self.file_lang_group)
 
@@ -963,8 +993,23 @@ class TranslatorApp(QWidget):
             self.lbl_out.setText(directory)
             self.save_settings()
 
+    def add_custom_language(self):
+        """직접 입력한 언어를 콤보에 추가하고 체크한다 (중복 시 기존 항목 체크)."""
+        name = clean_custom_language_name(self.txt_custom_lang.text())
+        if not name:
+            return
+        existing = find_language_match(name, self.cmb_langs.all_items())
+        if not existing:
+            self.cmb_langs.addItem(name)
+            existing = name
+        checked = self.cmb_langs.checked_items()
+        if existing not in checked:
+            self.cmb_langs.set_checked_items(checked + [existing])
+        self.txt_custom_lang.clear()
+        self.save_settings()
+
     def select_all_languages(self):
-        self.cmb_langs.set_checked_items(TARGET_LANGUAGES)
+        self.cmb_langs.set_checked_items(self.cmb_langs.all_items())
 
     def deselect_all_languages(self):
         self.cmb_langs.set_checked_items([])
@@ -1055,7 +1100,17 @@ class TranslatorApp(QWidget):
 
             saved_languages_str = str(self.settings.value("selected_languages", "") or "")
             saved_languages = saved_languages_str.split(',') if saved_languages_str else []
-            self.cmb_langs.set_checked_items([lang for lang in saved_languages if lang in TARGET_LANGUAGES])
+            # 직접 입력한 언어(프리셋 외)는 항목부터 복원해야 체크가 유지됨
+            existing_langs = set(self.cmb_langs.all_items())
+            saved_custom_str = str(self.settings.value("custom_languages", "") or "")
+            restore_candidates = (
+                saved_custom_str.split(',') if saved_custom_str else []
+            ) + saved_languages
+            for lang in restore_candidates:
+                if lang and lang not in existing_langs:
+                    self.cmb_langs.addItem(lang)
+                    existing_langs.add(lang)
+            self.cmb_langs.set_checked_items(saved_languages)
 
             self.spin_temp.setValue(
                 self.settings.value("temperature", 0.9, type=float)
@@ -1157,6 +1212,13 @@ class TranslatorApp(QWidget):
 
             selected_languages = self.cmb_langs.checked_items()
             self.settings.setValue("selected_languages", ','.join(selected_languages))
+            # 직접 입력한 언어는 체크 여부와 무관하게 목록 자체를 별도 저장
+            # (체크 해제한 커스텀 언어가 재시작 후 사라지지 않도록)
+            custom_languages = [
+                lang for lang in self.cmb_langs.all_items()
+                if lang not in TARGET_LANGUAGES
+            ]
+            self.settings.setValue("custom_languages", ','.join(custom_languages))
             self.settings.setValue("temperature", self.spin_temp.value())
             self.settings.setValue("top_p", self.spin_top_p.value())
             self.settings.setValue("top_k", self.spin_top_k.value())
@@ -1294,18 +1356,40 @@ class TranslatorApp(QWidget):
         append_lang = self.chk_append_lang.isChecked()
         valid_video_contexts = [v for v in (video_context_paths or []) if os.path.exists(v)]
 
+        # 동일 파일명 충돌 방지: 출력용 stem이 2개 이상 겹치면 경로 해시로 구분.
+        # (추출 temp 파일은 _unique_stem으로 이미 고유하므로 여기서 겹치지 않는다)
+        def _out_stem(p):
+            stem = os.path.splitext(os.path.basename(p))[0]
+            if stem.endswith("_extracted"):
+                stem = stem[:-10]
+            return stem.lower()
+        stem_counts = {}
+        for p in source_files_to_process:
+            stem_counts[_out_stem(p)] = stem_counts.get(_out_stem(p), 0) + 1
+
         for lang in target_languages:
             for idx, src_file_path in enumerate(source_files_to_process):
                 try:
                     base_name, ext = os.path.splitext(os.path.basename(src_file_path))
                     if base_name.endswith("_extracted"):
                         base_name = base_name[:-10]
+                    # 출력 파일명에만 해시 추가 (비디오 컨텍스트 매칭용 base_name은 유지)
+                    out_base = base_name
+                    if stem_counts.get(base_name.lower(), 0) > 1:
+                        out_base = (
+                            f"{base_name}_"
+                            f"{hashlib.sha1(os.path.abspath(src_file_path).encode('utf-8')).hexdigest()[:8]}"
+                        )
+                        self.append_log(
+                            f"\x1b[33m  ⚠ 동일 파일명 충돌: '{os.path.basename(src_file_path)}' → "
+                            f"출력 파일명을 '{out_base}'로 구분합니다\x1b[0m"
+                        )
                     tag = "_transcribed" if is_transcribe_mode else ""
                     if append_lang or len(target_languages) > 1:
                         iso_code = _get_iso_lang_code(lang)
-                        output_filename = f"{base_name}{tag}.{iso_code}.srt"
+                        output_filename = f"{out_base}{tag}.{iso_code}.srt"
                     else:
-                        output_filename = f"{base_name}{tag}.srt"
+                        output_filename = f"{out_base}{tag}.srt"
                     output_filepath = os.path.join(self.output_dir, output_filename)
 
                     job_video_file = None
@@ -1409,7 +1493,8 @@ class TranslatorApp(QWidget):
                 QApplication.processEvents()
 
                 for v_idx, vpath in enumerate(valid_video_paths):
-                    v_basename = os.path.splitext(os.path.basename(vpath))[0]
+                    # 동명 파일 충돌 방지: 경로 기반 고유 stem 사용 (버그 1 수정)
+                    v_basename = _unique_stem(vpath)
                     self.append_log(f"\x1b[34m[자막 트랙 검사 ({v_idx+1}/{total_vids})] '{os.path.basename(vpath)}' 분석 중...\x1b[0m")
                     QApplication.processEvents()
                     streams = _get_video_subtitle_streams(vpath)
@@ -1874,6 +1959,7 @@ class TranslatorApp(QWidget):
             self.cmb_thinking_level, self.spin_audio_chunk, self.chk_isolate_voice,
             self.chk_append_lang, self.chk_reuse_extracted,
             self.chk_keep_extracted,
+            self.chk_resume, self.chk_thoughts_log,
             self.chk_token_stats,
             self.chk_token_report, self.spin_resume_context,
             self.spin_batch_error_step, self.spin_audio_chunk_error_step,
