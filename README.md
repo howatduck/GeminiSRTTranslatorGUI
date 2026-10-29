@@ -8,6 +8,10 @@
 
 PyQt6 기반 GUI 애플리케이션으로, [gemini-srt-translator](https://github.com/MaKTaiL/gemini-srt-translator) 라이브러리(v3.8.3)를 활용하여 자막(SRT/ASS) 번역과 비디오/오디오 전사(Transcribe)를 손쉽게 수행할 수 있습니다. Pyte 기반 VT100 터미널 에뮬레이터를 내장하여 콘솔 출력(색상, 진행률 등)을 GUI 안에서 그대로 확인할 수 있습니다.
 
+> 🎬 **영상 파일 하나면 끝.** 영상에 내장된 자막이 있으면 별도의 자막 파일을 구할 필요가 없습니다. 내장 자막을 자동으로 추출해 번역까지 한 번에 처리합니다. 목표 언어 자막 트랙이 이미 들어 있으면 번역 없이 그대로 추출해 저장합니다.
+>
+> 📺 **한 시즌도 통째로.** 에피소드 여러 개를 한꺼번에 선택하면 작업 큐에 쌓여 순서대로 자동 처리됩니다. 하나씩 돌리고 기다릴 필요 없이, 걸어두면 시즌 전체가 완성됩니다.
+
 ### 실행 화면
 
 ![실행 화면 (한국어)](assets/screenshot-ko.png)
@@ -15,10 +19,11 @@ PyQt6 기반 GUI 애플리케이션으로, [gemini-srt-translator](https://githu
 ### 주요 기능
 
 - **자막 번역 (Translate)**: SRT/ASS 자막 파일을 원하는 언어로 번역
+- **내장 자막 원스톱 번역**: 영상 파일(MP4/MKV 등)을 넣으면 내장 자막 트랙을 자동 추출해 바로 번역. 목표 언어 트랙은 번역 없이 추출·저장하고, 자막 트랙이 없으면 전사(Transcribe)로 안내
 - **비디오/오디오 전사 (Transcribe)**: 비디오·오디오 파일에서 자막을 새로 생성
 - **다중 언어 동시 처리**: 체크박스 콤보박스로 여러 대상 언어를 한 번에 선택해 일괄 작업
 - **다중 API 키 로테이션**: 최대 10개의 Gemini API 키를 등록해 무료 할당량을 순환 사용
-- **다중 파일 큐 처리**: 자막/비디오 파일을 여러 개 선택하면 순차적으로 처리
+- **다중 파일 큐 처리**: 자막/비디오 파일을 여러 개 선택하면 순차적으로 처리. 한 시즌 분량의 에피소드도 한 번에 투입하면 끝까지 자동 진행
 - **실시간 VT100 터미널 뷰**: 라이브러리의 콘솔 출력(색상 포함)을 앱 내에서 실시간 렌더링
 - **세부 튜닝 옵션**: temperature, top_p, top_k, 사고(thinking) 예산/수준, 배치 크기, 서비스 티어 등
 - **문맥 연속성 관리 (context_size)**: 번역 중 이전 자막 라인을 참조하는 슬라이딩 컨텍스트 크기 설정
@@ -153,7 +158,7 @@ GeminiSRTTranslatorGUI/
 1. **API 키 설정**: "API 키 관리..." 버튼을 눌러 최소 1개 이상의 Gemini API 키를 입력하고 저장합니다.
 2. **작업 모드 선택**: 자막 번역 또는 비디오/오디오 전사 중 선택합니다.
 3. **입력 파일 지정**:
-   - 번역: SRT/ASS 파일 선택
+   - 번역: SRT/ASS 파일, 또는 내장 자막이 있는 비디오 파일 (자막 자동 추출 후 번역)
    - 전사: 비디오 또는 오디오 파일 선택
 4. **출력 폴더 지정**
 5. **대상 언어 선택**: 다중 선택 콤보박스에서 원하는 언어를 체크
@@ -212,6 +217,10 @@ GeminiSRTTranslatorGUI/
 
 A PyQt6-based GUI application that leverages the [gemini-srt-translator](https://github.com/MaKTaiL/gemini-srt-translator) library (v3.8.3) to easily translate subtitles (SRT/ASS) and transcribe video/audio files. It includes a built-in Pyte VT100 terminal emulator so you can view real-time console output (including colors and progress bars) directly within the GUI.
 
+> 🎬 **One video file is all you need.** If your video has embedded subtitles, there's no separate subtitle file to hunt down — the app extracts the embedded track and translates it in one go. If a track in your target language is already there, it's extracted and saved as-is, no translation needed.
+>
+> 📺 **Queue up a whole season.** Select every episode at once and they line up in the job queue, processed one after another automatically. No babysitting file after file — start it, and the whole season gets done.
+
 ### Screenshot
 
 ![Screenshot (English)](assets/screenshot-en.png)
@@ -219,10 +228,11 @@ A PyQt6-based GUI application that leverages the [gemini-srt-translator](https:/
 ### Key Features
 
 - **Subtitle Translation**: Translate SRT/ASS subtitle files into any desired language
+- **Embedded Subtitle One-stop Translation**: Drop in a video file (MP4/MKV, etc.) and its embedded subtitle track is extracted and translated automatically. A track already in the target language is extracted and saved without translation; if there's no subtitle track, you're offered transcription instead
 - **Video/Audio Transcription**: Generate new subtitles directly from video or audio files
 - **Multi-language Batch Processing**: Select multiple target languages at once via a checkable combo box
 - **Multi API Key Rotation**: Register up to 10 Gemini API keys and rotate them to maximize free quota
-- **Multi-file Queue**: Select multiple subtitle/video files and process them sequentially
+- **Multi-file Queue**: Select multiple subtitle/video files and process them sequentially — queue a full season of episodes in one go and let it run to completion
 - **Real-time VT100 Terminal**: Renders library console output (with ANSI colors) live inside the app
 - **Fine-tuning Options**: temperature, top_p, top_k, thinking budget/level, batch size, service tier, etc.
 - **Context Management (context_size)**: Configure sliding context window size for improved translation continuity
@@ -357,7 +367,7 @@ GeminiSRTTranslatorGUI/
 1. **Set API Keys**: Click "Manage API Keys..." and enter at least one Gemini API key.
 2. **Select Task Mode**: Choose between subtitle translation or video/audio transcription.
 3. **Select Input Files**:
-   - Translation: choose SRT/ASS files
+   - Translation: choose SRT/ASS files, or video files with embedded subtitles (extracted automatically, then translated)
    - Transcription: choose a video or audio file
 4. **Select Output Folder**
 5. **Choose Target Languages**: Check the desired languages in the multi-select combo box.
