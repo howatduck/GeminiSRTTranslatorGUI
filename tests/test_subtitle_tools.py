@@ -151,3 +151,71 @@ def test_scan_and_match_max_files(tmp_path):
         _touch(d / f"file{i}.srt")
     with pytest.raises(st.SubtitleToolsError):
         st.scan_and_match(str(d), "tv", max_files=5)
+
+
+def _make_smi(blocks):
+    """blocks: [(start_ms, text_or_None)] -> cp949 SAMI bytes."""
+    parts = ["<SAMI><BODY>"]
+    for start, text in blocks:
+        body = "&nbsp;" if text is None else text
+        parts.append(f'<SYNC Start={start}><P Class=KRCC>{body}')
+    parts.append("</BODY></SAMI>")
+    return "".join(parts).encode("cp949")
+
+
+def test_smi_bytes_to_srt_end_times():
+    # 빈 SYNC는 자막 지움 표시 -> 종료 시각은 다음 SYNC 시작이어야 한다
+    srt = st.smi_bytes_to_srt(_make_smi([(1000, "첫째"), (3000, None),
+                                         (5000, "둘째"), (6500, None)]))
+    assert "00:00:01,000 --> 00:00:03,000" in srt
+    assert "00:00:05,000 --> 00:00:06,500" in srt
+
+
+def test_smi_bytes_to_srt_no_empty_blocks():
+    srt = st.smi_bytes_to_srt(_make_smi([(1000, "첫째"), (5000, "둘째")]))
+    assert "00:00:01,000 --> 00:00:05,000" in srt
+    assert "00:00:05,000 --> 00:00:07,000" in srt
+
+
+def test_convert_to_srt_smi_parsed_without_ffmpeg(tmp_path, monkeypatch):
+    # cp949 smi는 ffmpeg 없이도 직접 파싱으로 변환돼야 한다
+    monkeypatch.setattr(st, "find_ffmpeg", lambda: None)
+    src = tmp_path / "m.smi"
+    src.write_bytes(_make_smi([(1000, "대사"), (3000, None)]))
+    out = tmp_path / "m.srt"
+    assert st.convert_to_srt(str(src), str(out)) is True
+    assert "00:00:01,000 --> 00:00:03,000" in out.read_text(encoding="utf-8")
+
+
+def test_subtitle_correlation(tmp_path):
+    body = "".join(
+        f"{i}\n00:00:{10 + i * 10:02d},000 --> 00:00:{12 + i * 10:02d},000\nx\n\n"
+        for i in range(1, 6))
+    a = tmp_path / "a.srt"
+    a.write_text(body, encoding="utf-8")
+    assert st.subtitle_correlation(str(a), str(a)) == 1.0
+    shifted = "".join(
+        f"{i}\n00:01:{10 + i * 10:02d},000 --> 00:01:{12 + i * 10:02d},000\nx\n\n"
+        for i in range(1, 6))
+    b = tmp_path / "b.srt"
+    b.write_text(shifted, encoding="utf-8")
+    assert st.subtitle_correlation(str(a), str(b)) == 0.0
+
+
+def test_sync_output_ok(tmp_path):
+    bad = tmp_path / "bad.srt"
+    bad.write_text("1\n00:00:00,000 --> 00:00:01,000\nx\n" * 100, encoding="utf-8")
+    assert st.sync_output_ok(str(bad)) is False
+    good = tmp_path / "good.srt"
+    good.write_text("".join(
+        f"{i}\n00:{i // 60:02d}:{i % 60:02d},000 --> 00:{i // 60:02d}:{i % 60:02d},500\nx\n\n"
+        for i in range(1, 120)), encoding="utf-8")
+    assert st.sync_output_ok(str(good)) is True
+
+
+def test_count_cues(tmp_path):
+    p = tmp_path / "c.srt"
+    p.write_text("1\n00:00:01,000 --> 00:00:02,000\nx\n\n"
+                 "2\n00:00:03,000 --> 00:00:04,000\ny\n", encoding="utf-8")
+    assert st.count_cues(str(p)) == 2
+    assert st.count_cues(str(tmp_path / "missing.srt")) == 0
