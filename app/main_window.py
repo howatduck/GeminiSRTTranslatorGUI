@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """메인 윈도우: TranslatorApp."""
 
+import hashlib
 import logging
 import os
 import queue
@@ -50,6 +51,19 @@ from core.style_presets import (
     compose_description, all_presets, CUSTOM_PRESET_IDS,
 )
 from core.pricing import read_report_cost, token_report_path_for
+
+
+def _unique_stem(src_path):
+    """소스 경로 기반 고유 파일명 stem.
+
+    서로 다른 폴더에 같은 이름의 파일(예: video.mp4)을 한 번에 처리할 때
+    추출/출력 파일이 서로 겹치는 것을 방지한다. 절대 경로의 SHA-1 앞 8자리를
+    파일명 뒤에 덧붙이며, 같은 경로에 대해서는 항상 같은 값을 돌려주어
+    '추출된 자막 재사용'이 세션을 넘나들며 계속 동작한다.
+    """
+    base = os.path.splitext(os.path.basename(src_path))[0]
+    digest = hashlib.sha1(os.path.abspath(src_path).encode("utf-8")).hexdigest()[:8]
+    return f"{base}_{digest}"
 
 
 # =====================================================================
@@ -1348,18 +1362,40 @@ class TranslatorApp(QWidget):
         append_lang = self.chk_append_lang.isChecked()
         valid_video_contexts = [v for v in (video_context_paths or []) if os.path.exists(v)]
 
+        # 동일 파일명 충돌 방지: 출력용 stem이 2개 이상 겹치면 경로 해시로 구분.
+        # (추출 temp 파일은 _unique_stem으로 이미 고유하므로 여기서 겹치지 않는다)
+        def _out_stem(p):
+            stem = os.path.splitext(os.path.basename(p))[0]
+            if stem.endswith("_extracted"):
+                stem = stem[:-10]
+            return stem.lower()
+        stem_counts = {}
+        for p in source_files_to_process:
+            stem_counts[_out_stem(p)] = stem_counts.get(_out_stem(p), 0) + 1
+
         for lang in target_languages:
             for idx, src_file_path in enumerate(source_files_to_process):
                 try:
                     base_name, ext = os.path.splitext(os.path.basename(src_file_path))
                     if base_name.endswith("_extracted"):
                         base_name = base_name[:-10]
+                    # 출력 파일명에만 해시 추가 (비디오 컨텍스트 매칭용 base_name은 유지)
+                    out_base = base_name
+                    if stem_counts.get(base_name.lower(), 0) > 1:
+                        out_base = (
+                            f"{base_name}_"
+                            f"{hashlib.sha1(os.path.abspath(src_file_path).encode('utf-8')).hexdigest()[:8]}"
+                        )
+                        self.append_log(
+                            f"\x1b[33m  ⚠ 동일 파일명 충돌: '{os.path.basename(src_file_path)}' → "
+                            f"출력 파일명을 '{out_base}'로 구분합니다\x1b[0m"
+                        )
                     tag = "_transcribed" if is_transcribe_mode else ""
                     if append_lang or len(target_languages) > 1:
                         iso_code = _get_iso_lang_code(lang)
-                        output_filename = f"{base_name}{tag}.{iso_code}.srt"
+                        output_filename = f"{out_base}{tag}.{iso_code}.srt"
                     else:
-                        output_filename = f"{base_name}{tag}.srt"
+                        output_filename = f"{out_base}{tag}.srt"
                     output_filepath = os.path.join(self.output_dir, output_filename)
 
                     job_video_file = None
@@ -1463,7 +1499,8 @@ class TranslatorApp(QWidget):
                 QApplication.processEvents()
 
                 for v_idx, vpath in enumerate(valid_video_paths):
-                    v_basename = os.path.splitext(os.path.basename(vpath))[0]
+                    # 동명 파일 충돌 방지: 경로 기반 고유 stem 사용 (버그 1 수정)
+                    v_basename = _unique_stem(vpath)
                     self.append_log(f"\x1b[34m[자막 트랙 검사 ({v_idx+1}/{total_vids})] '{os.path.basename(vpath)}' 분석 중...\x1b[0m")
                     QApplication.processEvents()
                     streams = _get_video_subtitle_streams(vpath)
@@ -1934,6 +1971,7 @@ class TranslatorApp(QWidget):
             self.cmb_thinking_level, self.spin_audio_chunk, self.chk_isolate_voice,
             self.chk_append_lang, self.chk_reuse_extracted,
             self.chk_keep_extracted,
+            self.chk_resume, self.chk_thoughts_log,
             self.chk_token_stats,
             self.chk_token_report, self.spin_resume_context,
             self.spin_batch_error_step, self.spin_audio_chunk_error_step,
