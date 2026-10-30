@@ -37,7 +37,7 @@ PyQt6 기반 GUI 애플리케이션으로, [gemini-srt-translator](https://githu
 - **원자적 파일 저장**: 자막 저장 시 임시 파일 기록 후 `os.replace()` 교체 방식으로 파일 손상 방지
 - **설정 자동 저장/복원**: `QSettings` 기반으로 API 키, 옵션, 파일 경로 등을 재실행 시 자동 로드
 - **UI 언어 전환**: 한국어 / English 실시간 전환 지원
-- **AI Agent Skill 설치**: 라이브러리의 SKILL.md를 Claude Code / Cursor·Codex·Cline / Antigravity에 원클릭 설치 (전역 또는 프로젝트 폴더)
+- **AI Agent Skill 설치**: 라이브러리의 SKILL.md를 Claude Code / Cursor·Codex·Cline / Antigravity / Gemini CLI / Muse / agy에 원클릭 설치 (전역 또는 프로젝트 폴더). 설치한 에이전트에서는 API 키 없이 에이전트 본인이 직접 번역하는 에이전트 모드 사용 가능
 - **라이브러리 업데이트 확인**: PyPI에서 gemini-srt-translator 최신 버전을 백그라운드로 확인
 - **예상 비용 표시**: "비용 리포트 저장" 체크 시 작업별 토큰 리포트의 pricing.json 기반 예상 비용(USD)을 로그에 표시
 - **진행 로그**: 작업 진행 상황 로그 기록 옵션 ("사고 로그"와 함께 토글)
@@ -166,6 +166,14 @@ GeminiSRTTranslatorGUI/
 7. **🚀 작업 시작** 클릭 → 하단 터미널 창에서 실시간 진행 상황 확인
 8. 필요 시 **🛑 작업 중단**으로 안전하게 중지 가능 (진행 중인 배치 완료 후 종료)
 
+### 🤖 에이전트 모드 (API 키 없이 에이전트가 직접 번역)
+
+GUI의 API 방식과 별개로, AI 코딩 에이전트에게 번역을 맡길 수도 있습니다.
+
+1. 메뉴의 **AI Agent Skill 설치**에서 사용하는 에이전트(Claude Code, Cursor, agy, Gemini CLI, Muse 등)를 골라 스킬을 설치합니다.
+2. 에이전트에게 자막 파일 번역을 요청하면, 에이전트가 라이브러리의 `gst agent` 프로토콜로 배치를 받아 **에이전트 본인의 모델로 직접 번역**하고 결과를 파일로 완성합니다.
+3. Gemini API 키가 필요 없고, 에이전트 구독만으로 동작합니다. 무인 대량 처리는 기존 GUI API 방식이, 문맥을 살린 고품질 번역은 에이전트 모드가 어울립니다.
+
 ### 고급 설정 (⚙ 고급 설정 및 튜닝)
 
 | 옵션 | 설명 |
@@ -246,7 +254,7 @@ A PyQt6-based GUI application that leverages the [gemini-srt-translator](https:/
 - **Atomic File Save**: Subtitles are written atomically via temp file + `os.replace()` to prevent corruption
 - **Auto Save / Restore Settings**: API keys, options, and file paths are persisted and restored via `QSettings`
 - **UI Language Toggle**: Switch between Korean (한국어) and English at runtime
-- **AI Agent Skill Installer**: One-click install of the library's SKILL.md for Claude Code / Cursor·Codex·Cline / Antigravity (global or project folder)
+- **AI Agent Skill Installer**: One-click install of the library's SKILL.md for Claude Code / Cursor·Codex·Cline / Antigravity / Gemini CLI / Muse / agy (global or project folder). With the skill installed, an agent can translate by itself in Agent Mode without a Gemini API key
 - **Library Update Check**: Check PyPI for the latest gemini-srt-translator version in the background
 - **Estimated Cost Display**: When "save cost report" is checked, per-job estimated cost (USD, from pricing.json) is shown in the log
 - **Progress Log**: Optional per-job progress logging (toggle alongside "Thinking Log")
@@ -374,6 +382,14 @@ GeminiSRTTranslatorGUI/
 6. *(Optional)* Adjust model, batch size, temperature, context size, and adaptive reduction steps under **Basic / Advanced Settings**.
 7. Click **🚀 Start Task** — watch real-time progress in the terminal panel below.
 8. Click **🛑 Stop Task** to safely interrupt (the current batch completes before stopping).
+
+### 🤖 Agent Mode (the agent translates by itself, no API key)
+
+Besides the GUI's API mode, you can let an AI coding agent do the translation.
+
+1. Open **AI Agent Skill Installer** in the menu and install the skill for your agent (Claude Code, Cursor, agy, Gemini CLI, Muse, and more).
+2. Ask the agent to translate a subtitle file. The agent receives batches through the library's `gst agent` protocol, **translates them with its own model**, and assembles the finished file.
+3. No Gemini API key is required — only your agent subscription. The GUI API mode still suits unattended bulk work, while Agent Mode suits context-rich, high-quality translation.
 
 ### Advanced Settings (⚙ Advanced Settings & Tuning)
 

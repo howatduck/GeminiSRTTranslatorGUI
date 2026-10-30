@@ -13,18 +13,73 @@ from PyQt6.QtWidgets import (
 )
 
 from core.gst_compat import install_skill
+from core.skill_install_extra import (
+    EXTRA_TARGET_IDS, install_extra_skill, load_skill_content,
+)
 
 # (target_id, 라벨_ko, 라벨_en)
+# gemini_cli/copilot/agy는 라이브러리 install_skill이 몰라서 GUI가 자체
+# 설치한다 (core/skill_install_extra.py).
 SKILL_TARGETS = [
     ("claude", "Claude Code", "Claude Code"),
     ("agents", "Cursor / Codex / Cline (범용)", "Cursor / Codex / Cline (generic)"),
     ("antigravity", "Antigravity / Gemini", "Antigravity / Gemini"),
+    ("gemini_cli", "Gemini CLI", "Gemini CLI"),
+    ("copilot", "Muse", "Muse"),
+    ("agy", "agy (Antigravity CLI)", "agy (Antigravity CLI)"),
     ("all", "전체", "All"),
 ]
 
 
 def target_ids():
     return [t[0] for t in SKILL_TARGETS]
+
+
+def _as_paths(result):
+    """install_skill 반환값을 경로 리스트로 정규화."""
+    if result is None:
+        return []
+    if isinstance(result, (str, os.PathLike)):
+        return [str(result)]
+    return [str(p) for p in result]
+
+
+def run_install(target, is_global, folder=None):
+    """설치 실행. 반환: (설치 경로 목록, 실패 사유 목록).
+
+    "all"은 대상별로 독립 실행해 일부가 실패해도 나머지를 설치하고,
+    성공 내역과 실패 사유를 함께 돌려준다. 단일 대상은 예외를 그대로
+    올린다 (호출자가 실패로 표시).
+    """
+    if target == "all":
+        paths, errors = [], []
+        if install_skill is not None:
+            try:
+                paths += _as_paths(install_skill(
+                    target="all", is_global=is_global, cwd=folder))
+            except Exception as e:
+                errors.append(f"library: {e}")
+        else:
+            errors.append("library: install_skill unavailable")
+        for extra in EXTRA_TARGET_IDS:
+            try:
+                paths += install_extra_skill(
+                    extra, is_global=is_global, cwd=folder)
+            except Exception as e:
+                errors.append(f"{extra}: {e}")
+        return paths, errors
+    if target in EXTRA_TARGET_IDS:
+        return install_extra_skill(target, is_global=is_global,
+                                   cwd=folder), []
+    if install_skill is None:
+        raise RuntimeError(
+            "라이브러리의 install_skill을 사용할 수 없습니다. "
+            "gemini-srt-translator를 최신 버전으로 업데이트하세요."
+        )
+    if is_global:
+        return _as_paths(install_skill(target=target, is_global=True)), []
+    return _as_paths(install_skill(target=target, is_global=False,
+                                   cwd=folder)), []
 
 
 class SkillInstallDialog(QDialog):
@@ -87,7 +142,9 @@ class SkillInstallDialog(QDialog):
 
         self.setLayout(layout)
 
-        if install_skill is None:
+        # 라이브러리 install_skill이 없어도 확장 대상은 SKILL.md 내용만으로
+        # 설치할 수 있으니, 둘 다 불가능할 때만 버튼을 막는다.
+        if install_skill is None and load_skill_content() is None:
             self.btn_install.setEnabled(False)
             self.result_view.setPlainText(self._t("skill_no_library"))
 
@@ -109,21 +166,24 @@ class SkillInstallDialog(QDialog):
 
     def _do_install(self):
         target = self.cmb_platform.currentData()
+        is_global = self.radio_global.isChecked()
+        folder = None
+        if not is_global:
+            folder = self.edit_folder.text().strip()
+            if not folder or not os.path.isdir(folder):
+                QMessageBox.warning(self, self._t("skill_dialog_title"),
+                                    self._t("skill_invalid_folder"))
+                return
         try:
-            if self.radio_global.isChecked():
-                paths = install_skill(target=target, is_global=True)
-            else:
-                folder = self.edit_folder.text().strip()
-                if not folder or not os.path.isdir(folder):
-                    QMessageBox.warning(self, self._t("skill_dialog_title"),
-                                        self._t("skill_invalid_folder"))
-                    return
-                paths = install_skill(target=target, is_global=False, cwd=folder)
+            paths, errors = run_install(target, is_global, folder)
         except Exception as e:
             self.result_view.setPlainText(self._t("skill_install_failed", err=str(e)))
             return
+        lines = []
         if paths:
-            self.result_view.setPlainText(
-                self._t("skill_installed", paths="\n".join(paths)))
-        else:
-            self.result_view.setPlainText(self._t("skill_install_empty"))
+            lines.append(self._t("skill_installed", paths="\n".join(paths)))
+        elif not errors:
+            lines.append(self._t("skill_install_empty"))
+        for err in errors:
+            lines.append(self._t("skill_install_failed", err=err))
+        self.result_view.setPlainText("\n\n".join(lines))
