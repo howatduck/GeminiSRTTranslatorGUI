@@ -5,6 +5,7 @@ import os
 import shutil
 
 from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QBrush
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QLineEdit,
     QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox, QFileDialog,
@@ -147,12 +148,9 @@ class SubtitlePreviewDialog(QDialog):
             start.setFlags(start.flags() & ~Qt.ItemFlag.ItemIsEditable)
             end = QTableWidgetItem(e["end"])
             end.setFlags(end.flags() & ~Qt.ItemFlag.ItemIsEditable)
-            cps = entry_cps(e)
-            cps_item = QTableWidgetItem(f"{cps:.1f}" if cps is not None else "—")
+            cps_item = QTableWidgetItem()
             cps_item.setFlags(cps_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
-            if cps is not None and cps > CPS_WARN_THRESHOLD:
-                cps_item.setBackground(Qt.GlobalColor.red)
-                cps_item.setForeground(Qt.GlobalColor.white)
+            self._set_cps_item(cps_item, e)
             trans = QTableWidgetItem(e["text"])
             trans.setFlags(trans.flags() & ~Qt.ItemFlag.ItemIsEditable)
             trans.setToolTip(self._t("preview_dblclick_edit"))
@@ -164,6 +162,21 @@ class SubtitlePreviewDialog(QDialog):
             for c, item in enumerate([num, start, end, cps_item, trans, orig]):
                 t.setItem(r, c, item)
         self._update_row_label()
+
+    def _set_cps_item(self, cps_item, entry):
+        """CPS 셀의 숫자와 경고 배경을 함께 갱신한다.
+
+        행을 편집해도 빨간 경고 배경이 그대로 남거나 새로 붙지 않던
+        버그 수정: 배경/전경도 함께 리셋·적용한다.
+        """
+        cps = entry_cps(entry)
+        cps_item.setText(f"{cps:.1f}" if cps is not None else "—")
+        if cps is not None and cps > CPS_WARN_THRESHOLD:
+            cps_item.setBackground(Qt.GlobalColor.red)
+            cps_item.setForeground(Qt.GlobalColor.white)
+        else:
+            cps_item.setBackground(QBrush())
+            cps_item.setForeground(QBrush())
 
     def _update_row_label(self):
         visible = sum(1 for r in range(self.table.rowCount())
@@ -208,9 +221,7 @@ class SubtitlePreviewDialog(QDialog):
             if new_text != item.text():
                 item.setText(new_text)
                 self.trans_entries[row]["text"] = new_text
-                cps = entry_cps(self.trans_entries[row])
-                cps_item = self.table.item(row, COL_CPS)
-                cps_item.setText(f"{cps:.1f}" if cps is not None else "—")
+                self._set_cps_item(self.table.item(row, COL_CPS), self.trans_entries[row])
                 self._dirty = True
                 self.btn_save.setEnabled(True)
 
