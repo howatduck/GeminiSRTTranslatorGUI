@@ -1963,6 +1963,7 @@ class TranslatorApp(QWidget):
             self.btn_video_file, self.lst_video_files, self.btn_clear_video_file,
             self.btn_audio_file, self.lbl_audio_file, self.btn_clear_audio_file,
             self.cmb_langs, self.btn_all_lang, self.btn_none_lang,
+            self.txt_custom_lang, self.btn_add_lang,
             self.cmb_model, self.spin_start, self.spin_batch, self.txt_desc,
             self.lbl_style, self.cmb_style,
             self.chk_extract_audio, self.chk_free,
