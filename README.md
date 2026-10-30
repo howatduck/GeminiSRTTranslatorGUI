@@ -38,6 +38,7 @@ PyQt6 기반 GUI 애플리케이션으로, [gemini-srt-translator](https://githu
 - **설정 자동 저장/복원**: `QSettings` 기반으로 API 키, 옵션, 파일 경로 등을 재실행 시 자동 로드
 - **UI 언어 전환**: 한국어 / English 실시간 전환 지원
 - **AI Agent Skill 설치**: 라이브러리의 SKILL.md를 Claude Code / Cursor·Codex·Cline / Antigravity / Gemini CLI / Muse / agy에 원클릭 설치 (전역 또는 프로젝트 폴더). 설치한 에이전트에서는 API 키 없이 에이전트 본인이 직접 번역하는 에이전트 모드 사용 가능
+- **에이전트 파일 교환**: 자막 배치를 JSON 파일로 내보내 ChatGPT 웹 등 어떤 AI로도 번역하고, 번역 파일을 가져와 검증·조립해 완성. 스킬 설치가 필요 없음
 - **라이브러리 업데이트 확인**: PyPI에서 gemini-srt-translator 최신 버전을 백그라운드로 확인
 - **예상 비용 표시**: "비용 리포트 저장" 체크 시 작업별 토큰 리포트의 pricing.json 기반 예상 비용(USD)을 로그에 표시
 - **진행 로그**: 작업 진행 상황 로그 기록 옵션 ("사고 로그"와 함께 토글)
@@ -135,6 +136,8 @@ GeminiSRTTranslatorGUI/
 │   ├── languages.py      # 언어 정규화·ISO 코드
 │   ├── media.py          # FFmpeg 미디어 헬퍼
 │   ├── gst_compat.py     # 라이브러리 호환 레이어
+│   ├── skill_install_extra.py  # 확장 스킬 설치 (Gemini CLI·Copilot·agy)
+│   ├── agent_bridge.py   # 에이전트 파일 교환 (SubtitleSession 연동)
 │   ├── errors.py         # 워커 오류 분류
 │   ├── style_presets.py  # 스타일 프리셋 정의
 │   ├── subtitle_io.py    # SRT 입출력·CPS 계산
@@ -148,6 +151,7 @@ GeminiSRTTranslatorGUI/
 │   ├── workers.py        # 번역 워커 스레드
 │   ├── i18n.py           # 한/영 UI 문자열
 │   ├── skill_installer.py  # AI Agent Skill 설치 다이얼로그
+│   ├── agent_exchange_dialog.py  # 에이전트 파일 교환 다이얼로그
 │   ├── subtitle_tools_dialog.py  # 자막 정리 도구 다이얼로그
 │   └── custom_preset_dialog.py  # 커스텀 프리셋 편집 다이얼로그
 └── tests/                  # pytest 테스트 스위트
@@ -173,6 +177,7 @@ GUI의 API 방식과 별개로, AI 코딩 에이전트에게 번역을 맡길 �
 1. 메뉴의 **AI Agent Skill 설치**에서 사용하는 에이전트(Claude Code, Cursor, agy, Gemini CLI, Muse 등)를 골라 스킬을 설치합니다.
 2. 에이전트에게 자막 파일 번역을 요청하면, 에이전트가 라이브러리의 `gst agent` 프로토콜로 배치를 받아 **에이전트 본인의 모델로 직접 번역**하고 결과를 파일로 완성합니다.
 3. Gemini API 키가 필요 없고, 에이전트 구독만으로 동작합니다. 무인 대량 처리는 기존 GUI API 방식이, 문맥을 살린 고품질 번역은 에이전트 모드가 어울립니다.
+4. 스킬 설치가 안 되는 환경(예: ChatGPT 웹)이라면 GUI의 **에이전트 파일 교환**을 쓰세요. 배치 JSON 파일을 내보내 어떤 AI에 번역시키고, 번역된 파일을 가져오면 프로그램이 검증·조립해 완성합니다.
 
 ### 고급 설정 (⚙ 고급 설정 및 튜닝)
 
@@ -255,6 +260,7 @@ A PyQt6-based GUI application that leverages the [gemini-srt-translator](https:/
 - **Auto Save / Restore Settings**: API keys, options, and file paths are persisted and restored via `QSettings`
 - **UI Language Toggle**: Switch between Korean (한국어) and English at runtime
 - **AI Agent Skill Installer**: One-click install of the library's SKILL.md for Claude Code / Cursor·Codex·Cline / Antigravity / Gemini CLI / Muse / agy (global or project folder). With the skill installed, an agent can translate by itself in Agent Mode without a Gemini API key
+- **Agent File Exchange**: Export subtitle batches as JSON files so any AI, including ChatGPT on the web, can translate them; import the result for validation and assembly. No skill installation needed
 - **Library Update Check**: Check PyPI for the latest gemini-srt-translator version in the background
 - **Estimated Cost Display**: When "save cost report" is checked, per-job estimated cost (USD, from pricing.json) is shown in the log
 - **Progress Log**: Optional per-job progress logging (toggle alongside "Thinking Log")
@@ -352,6 +358,8 @@ GeminiSRTTranslatorGUI/
 │   ├── languages.py      # Language normalization
 │   ├── media.py          # FFmpeg media helpers
 │   ├── gst_compat.py     # Library compat layer
+│   ├── skill_install_extra.py  # Extra skill installs (Gemini CLI·Copilot·agy)
+│   ├── agent_bridge.py   # Agent file exchange (SubtitleSession)
 │   ├── errors.py         # Worker error classification
 │   ├── style_presets.py  # Style preset definitions
 │   ├── subtitle_io.py    # SRT I/O and CPS calc
@@ -365,6 +373,7 @@ GeminiSRTTranslatorGUI/
 │   ├── workers.py        # Translation worker threads
 │   ├── i18n.py           # KO/EN UI strings
 │   ├── skill_installer.py  # AI Agent Skill install dialog
+│   ├── agent_exchange_dialog.py  # Agent file exchange dialog
 │   ├── subtitle_tools_dialog.py  # Subtitle tools dialog
 │   └── custom_preset_dialog.py  # Custom preset edit dialog
 └── tests/                  # pytest test suite
@@ -390,6 +399,7 @@ Besides the GUI's API mode, you can let an AI coding agent do the translation.
 1. Open **AI Agent Skill Installer** in the menu and install the skill for your agent (Claude Code, Cursor, agy, Gemini CLI, Muse, and more).
 2. Ask the agent to translate a subtitle file. The agent receives batches through the library's `gst agent` protocol, **translates them with its own model**, and assembles the finished file.
 3. No Gemini API key is required — only your agent subscription. The GUI API mode still suits unattended bulk work, while Agent Mode suits context-rich, high-quality translation.
+4. If skills are not an option (e.g. ChatGPT on the web), use the GUI's **Agent File Exchange**: export a batch JSON file, have any AI translate it, and import the result — the program validates and assembles the final subtitle.
 
 ### Advanced Settings (⚙ Advanced Settings & Tuning)
 

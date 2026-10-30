@@ -27,6 +27,7 @@ from app.workers import (
 )
 from app.preview_editor import SubtitlePreviewDialog
 from app.skill_installer import SkillInstallDialog
+from app.agent_exchange_dialog import AgentExchangeDialog
 from app.subtitle_tools_dialog import SubtitleToolsDialog
 from app.custom_preset_dialog import CustomPresetDialog
 from core.config import (
@@ -176,6 +177,8 @@ class TranslatorApp(QWidget):
             self.btn_preview.setText(self.tr_str("btn_preview"))
         if hasattr(self, 'btn_skill_install'):
             self.btn_skill_install.setText(self.tr_str("btn_skill_install"))
+        if hasattr(self, 'btn_agent_exchange'):
+            self.btn_agent_exchange.setText(self.tr_str("btn_agent_exchange"))
         if hasattr(self, 'btn_edit_custom'):
             self.btn_edit_custom.setText(self.tr_str("btn_edit_custom_preset"))
         if hasattr(self, 'btn_update_check'):
@@ -693,17 +696,20 @@ class TranslatorApp(QWidget):
         form_layout.addRow(self.lbl_style, style_layout)
         self._refresh_style_combo()
 
-        # 도구 행: AI Agent Skill 설치 / 라이브러리 업데이트 확인 / 자막 정리·싱크
+        # 도구 행: AI Agent Skill 설치 / 라이브러리 업데이트 확인 / 자막 정리·싱크 / 에이전트 파일 교환
         self.btn_skill_install = QPushButton(self.tr_str("btn_skill_install"))
         self.btn_skill_install.clicked.connect(self.open_skill_installer)
         self.btn_update_check = QPushButton(self.tr_str("btn_update_check"))
         self.btn_update_check.clicked.connect(self.check_library_update)
         self.btn_subtitle_tools = QPushButton(self.tr_str("btn_subtitle_tools"))
         self.btn_subtitle_tools.clicked.connect(self.open_subtitle_tools)
+        self.btn_agent_exchange = QPushButton(self.tr_str("btn_agent_exchange"))
+        self.btn_agent_exchange.clicked.connect(self.open_agent_exchange)
         tool_layout = QHBoxLayout()
         tool_layout.addWidget(self.btn_skill_install)
         tool_layout.addWidget(self.btn_update_check)
         tool_layout.addWidget(self.btn_subtitle_tools)
+        tool_layout.addWidget(self.btn_agent_exchange)
         tool_layout.addStretch()
         form_layout.addRow(tool_layout)
 
@@ -1765,6 +1771,11 @@ class TranslatorApp(QWidget):
         dlg = SkillInstallDialog(self)
         dlg.exec()
 
+    def open_agent_exchange(self):
+        """에이전트 파일 교환 다이얼로그 열기."""
+        dlg = AgentExchangeDialog(self)
+        dlg.exec()
+
     def _load_custom_presets(self):
         """QSettings에서 커스텀 프리셋 3개 로드."""
         data = {}
@@ -1910,6 +1921,7 @@ class TranslatorApp(QWidget):
             self.btn_manage_api_keys, self.btn_advanced,
             self.cmb_task_mode, self.btn_out, self.lbl_out, self.btn_preview,
             self.btn_skill_install, self.btn_update_check,
+            self.btn_agent_exchange,
             self.btn_clear_files,
             self.btn_video_file, self.lst_video_files, self.btn_clear_video_file,
             self.btn_audio_file, self.lbl_audio_file, self.btn_clear_audio_file,
