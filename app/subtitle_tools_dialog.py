@@ -364,9 +364,32 @@ class SubtitleToolsDialog(QDialog):
     def _log(self, msg):
         self.log_view.append(msg)
 
+    def _worker_running(self):
+        """리네임/싱크 워커나 ilass 다운로드 워커가 동작 중인지."""
+        if self._worker is not None and self._worker.isRunning():
+            return True
+        dl = getattr(self, "_dl_worker", None)
+        return dl is not None and dl.isRunning()
+
+    def reject(self):
+        if self._worker_running():
+            QMessageBox.warning(self, self._t("subtools_dialog_title"),
+                                self._t("subtools_running_close"))
+            return
+        super().reject()
+
+    def closeEvent(self, event):
+        if self._worker_running():
+            QMessageBox.warning(self, self._t("subtools_dialog_title"),
+                                self._t("subtools_running_close"))
+            event.ignore()
+            return
+        event.accept()
+        super().closeEvent(event)
+
     def _set_running(self, running):
         for w in (self.btn_run, self.btn_refresh, self.btn_browse,
-                  self.btn_ilass_dl,
+                  self.btn_ilass_dl, self.btn_close,
                   self.edit_folder, self.cmb_mode, self.cmb_lang,
                   self.spin_split, self.radio_rename, self.radio_sync,
                   self.radio_both,

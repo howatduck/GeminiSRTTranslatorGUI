@@ -30,6 +30,7 @@ class SubtitlePreviewDialog(QDialog):
         self.trans_entries = []
         self.orig_entries = []
         self._dirty = False
+        self._discard_confirmed = False
 
         self.setWindowTitle(self._t("preview_title"))
         self.resize(1100, 700)
@@ -197,6 +198,36 @@ class SubtitlePreviewDialog(QDialog):
             self.table.setRowHidden(r, q not in hay.lower())
         self._update_row_label()
 
+    # -- closing with unsaved changes ------------------------------------
+    def _confirm_discard(self):
+        """미저장 변경이 있으면 닫기 전 확인을 받는다. 닫아도 되면 True."""
+        if not self._dirty:
+            return True
+        ans = QMessageBox.question(
+            self, self._t("preview_title"),
+            self._t("preview_unsaved_close"),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No)
+        return ans == QMessageBox.StandardButton.Yes
+
+    def reject(self):
+        if self._dirty and not self._discard_confirmed:
+            if not self._confirm_discard():
+                return
+            self._discard_confirmed = True
+        super().reject()
+
+    def closeEvent(self, event):
+        if self._dirty and not self._discard_confirmed:
+            if not self._confirm_discard():
+                event.ignore()
+                return
+            # X 닫기는 QDialog::closeEvent가 reject()를 다시 부르므로
+            # 플래그로 이중 확인을 막는다.
+            self._discard_confirmed = True
+        event.accept()
+        super().closeEvent(event)
+
     # -- editing ---------------------------------------------------------
     def _edit_cell(self, row, col):
         if col != COL_TRANS:
@@ -245,12 +276,22 @@ class SubtitlePreviewDialog(QDialog):
         if not self._dirty or not self.translated_path:
             return
         bak = self.translated_path + ".bak"
+        tmp = self.translated_path + ".tmp"
         try:
+            # 포맷부터 확정한다: 기존처럼 원본을 연 뒤 포맷이 실패하면
+            # 파일이 0바이트로 잘린다. 임시 파일 + os.replace로 원자 교체.
+            text = format_srt(self.trans_entries)
             if os.path.isfile(self.translated_path):
                 shutil.copy2(self.translated_path, bak)
-            with open(self.translated_path, "w", encoding="utf-8") as f:
-                f.write(format_srt(self.trans_entries))
+            with open(tmp, "w", encoding="utf-8") as f:
+                f.write(text)
+            os.replace(tmp, self.translated_path)
         except Exception as e:
+            try:
+                if os.path.isfile(tmp):
+                    os.remove(tmp)
+            except OSError:
+                pass
             QMessageBox.critical(self, self._t("preview_title"), str(e))
             return
         self._dirty = False

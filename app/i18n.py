@@ -129,6 +129,7 @@ I18N = {
         "subtools_invalid_folder": "유효한 폴더를 선택하세요.",
         "subtools_pick_step": "리네임 또는 싱크 중 하나는 선택하세요.",
         "subtools_done": "=== 모든 작업이 끝났습니다. ===",
+        "subtools_running_close": "작업이 실행 중입니다. 작업이 끝난 뒤에 닫아주세요.",
 
         "btn_edit_custom_preset": "편집...",
         "custom_preset_dialog_title": "커스텀 프리셋 편집",
@@ -153,6 +154,7 @@ I18N = {
         "preview_edit_title": "#{num}행 편집",
         "preview_ass_unsupported": "ASS 파일은 미리보기에서 아직 지원하지 않습니다: {file}",
         "preview_saved": "저장되었습니다. 백업: {bak}",
+        "preview_unsaved_close": "저장하지 않은 변경 사항이 있습니다. 닫으시겠습니까?",
         "preview_choose_file": "미리볼 파일을 선택하세요:",
         "btn_video_file": "비디오 파일 선택 (다중 가능)",
         "lst_video_files_tt": "전사 타겟(순차 처리) 또는 번역 컨텍스트로 사용될 비디오 파일 목록",
@@ -370,6 +372,7 @@ I18N = {
         "subtools_invalid_folder": "Please select a valid folder.",
         "subtools_pick_step": "Select rename and/or sync.",
         "subtools_done": "=== All tasks finished. ===",
+        "subtools_running_close": "A task is running. Please close after it finishes.",
 
         "btn_edit_custom_preset": "Edit...",
         "custom_preset_dialog_title": "Edit Custom Presets",
@@ -394,6 +397,7 @@ I18N = {
         "preview_edit_title": "Edit row #{num}",
         "preview_ass_unsupported": "ASS files are not yet supported in preview: {file}",
         "preview_saved": "Saved. Backup: {bak}",
+        "preview_unsaved_close": "There are unsaved changes. Close without saving?",
         "preview_choose_file": "Choose a file to preview:",
         "btn_video_file": "Select Video Files (Multiple allowed)",
         "lst_video_files_tt": "List of video files used as transcription targets or translation contexts",
