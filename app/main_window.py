@@ -1958,7 +1958,7 @@ class TranslatorApp(QWidget):
             self.btn_manage_api_keys, self.btn_advanced,
             self.cmb_task_mode, self.btn_out, self.lbl_out, self.btn_preview,
             self.btn_skill_install, self.btn_update_check,
-            self.btn_agent_exchange,
+            self.btn_subtitle_tools, self.btn_agent_exchange,
             self.btn_clear_files,
             self.btn_video_file, self.lst_video_files, self.btn_clear_video_file,
             self.btn_audio_file, self.lbl_audio_file, self.btn_clear_audio_file,

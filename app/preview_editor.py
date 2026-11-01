@@ -257,6 +257,10 @@ class SubtitlePreviewDialog(QDialog):
                 self.btn_save.setEnabled(True)
 
     def _pick_translated(self):
+        # 미저장 편집이 있으면 파일 교체 전에 확인한다: _reload()가
+        # _dirty를 False로 지우므로, 확인 없이 열면 편집 내용이 유실된다.
+        if not self._confirm_discard():
+            return
         path, _ = QFileDialog.getOpenFileName(
             self, self._t("preview_open_translated"), "",
             "Subtitles (*.srt)")
@@ -265,6 +269,8 @@ class SubtitlePreviewDialog(QDialog):
             self._reload()
 
     def _pick_original(self):
+        if not self._confirm_discard():
+            return
         path, _ = QFileDialog.getOpenFileName(
             self, self._t("preview_open_original"), "",
             "Subtitles (*.srt)")

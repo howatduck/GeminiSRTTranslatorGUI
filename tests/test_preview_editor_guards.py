@@ -90,6 +90,42 @@ def test_close_event_asks_only_once_when_user_says_yes(
     assert len(calls) == 1
 
 
+def test_pick_translated_blocked_when_dirty_and_user_says_no(
+        qapp, tmp_path, monkeypatch):
+    from PyQt6.QtWidgets import QFileDialog
+    dlg, path = _dialog(tmp_path)
+    dlg._dirty = True
+    _patch_question(monkeypatch, QMessageBox.StandardButton.No)
+    calls = []
+    monkeypatch.setattr(
+        QFileDialog, "getOpenFileName",
+        lambda *a, **k: calls.append(1) or ("", ""))
+    dlg._pick_translated()
+    assert calls == []
+    assert dlg.translated_path == str(path)
+    assert dlg._dirty
+    _close_dialog(monkeypatch, dlg)
+
+
+def test_pick_translated_proceeds_when_dirty_and_user_says_yes(
+        qapp, tmp_path, monkeypatch):
+    from PyQt6.QtWidgets import QFileDialog
+    dlg, path = _dialog(tmp_path)
+    other = tmp_path / "other.srt"
+    other.write_text(
+        "1\n00:00:09,000 --> 00:00:10,000\nNew file\n", encoding="utf-8")
+    dlg._dirty = True
+    _patch_question(monkeypatch, QMessageBox.StandardButton.Yes)
+    monkeypatch.setattr(
+        QFileDialog, "getOpenFileName",
+        lambda *a, **k: (str(other), ""))
+    dlg._pick_translated()
+    assert dlg.translated_path == str(other)
+    assert not dlg._dirty
+    assert dlg.trans_entries[0]["text"] == "New file"
+    _close_dialog(monkeypatch, dlg)
+
+
 def test_save_is_atomic_and_keeps_backup(qapp, tmp_path, monkeypatch):
     from app.preview_editor import format_srt
     monkeypatch.setattr(QMessageBox, "information", lambda *a, **k: None)

@@ -50,6 +50,18 @@ def test_roundtrip():
     assert parse_srt(format_srt(entries)) == entries
 
 
+def test_timestamp_hour_variable_width():
+    # 1자리 시와 100시간 이상 시를 파싱한다 (기존 \d{2}만 받으면 블록 유실).
+    assert timestamp_to_ms("0:01:23,456") == 83456
+    assert timestamp_to_ms("100:00:00,000") == 360000000
+    entries = parse_srt(
+        "1\n0:00:01,000 --> 100:00:02,500\nLong\n")
+    assert len(entries) == 1
+    assert entries[0]["start_ms"] == 1000
+    assert entries[0]["end_ms"] == 360002500
+    assert ms_to_timestamp(360002500) == "100:00:02,500"
+
+
 def test_timestamp_to_ms_invalid():
     assert timestamp_to_ms("not a time") is None
     assert timestamp_to_ms("") is None

@@ -26,7 +26,7 @@ _WIDGET_ATTRS = [
     "btn_save_api", "btn_manage_api_keys", "btn_advanced",
     "cmb_task_mode", "btn_out", "lbl_out", "btn_preview",
     "btn_skill_install", "btn_update_check",
-    "btn_agent_exchange",
+    "btn_subtitle_tools", "btn_agent_exchange",
     "btn_clear_files",
     "btn_video_file", "lst_video_files", "btn_clear_video_file",
     "btn_audio_file", "lbl_audio_file", "btn_clear_audio_file",
@@ -82,3 +82,15 @@ def test_custom_lang_widgets_toggle_with_ui(qapp, monkeypatch):
     assert win.txt_custom_lang.isEnabled()
     assert win.btn_add_lang.isEnabled()
     assert win.cmb_langs.isEnabled()
+
+
+def test_subtitle_tools_widget_toggles_with_ui(qapp, monkeypatch):
+    import app.main_window as mw
+
+    monkeypatch.setattr(mw, "genai", object())
+    monkeypatch.setattr(mw, "gst", object())
+    win = _window(qapp)
+    win.set_ui_enabled(False)
+    assert not win.btn_subtitle_tools.isEnabled()
+    win.set_ui_enabled(True)
+    assert win.btn_subtitle_tools.isEnabled()
