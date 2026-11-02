@@ -320,14 +320,20 @@ def _ms_to_tc(ms):
 
 
 def smi_bytes_to_srt(data):
-    """cp949 SAMI를 SRT 텍스트로 변환한다.
+    """SAMI를 SRT 텍스트로 변환한다.
 
+    인코딩은 UTF-8(BOM 포함)을 먼저 엄격히 시도하고, 실패 시에만
+    cp949로 폴백한다. cp949 고정 디코딩은 UTF-8 SAMI의 한글을 깨뜨려
+    sanitize 단계에서 탈락시키므로, 순서가 중요하다.
     ffmpeg의 SAMI 디코더는 cp949에서 실패하거나 -sub_charenc가 필요해
     직접 파싱한다. 종료 시각은 다음 SYNC(빈 큐 포함) 시작 — SAMI에서
     빈 큐(&nbsp;)는 "자막을 지우는 시각" 표시라서다. 빈 큐를 버리고
     다음 대사 시작을 종료로 잡으면 자막이 사라지지 않고 남는다.
     """
-    text = data.decode("cp949", errors="replace")
+    try:
+        text = data.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        text = data.decode("cp949", errors="replace")
     parts = re.split(r"<SYNC\s+Start=(\d+)[^>]*>", text, flags=re.I)
     blocks = []
     for i in range(1, len(parts) - 1, 2):
@@ -655,9 +661,16 @@ def run_ilass(ref_path, sub_path, out_path, ilass=None,
     elif split_penalty is not None:
         cmd += ["--split-penalty", str(split_penalty)]
 
+    # Windows 콘솔 팝업 억제(media.py와 동일 패턴) + stdin 대기로 인한
+    # 행(hang) 방지: ilass는 파일 인자만 쓰므로 stdin은 DEVNULL이 안전하다.
+    startupinfo = None
+    if sys.platform == "win32":
+        startupinfo = subprocess.STARTUPINFO()
+        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
     proc = subprocess.Popen(
         cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-        text=True, bufsize=1,
+        stdin=subprocess.DEVNULL, text=True, bufsize=1,
+        startupinfo=startupinfo,
     )
     chunks = []
     for line in proc.stdout:

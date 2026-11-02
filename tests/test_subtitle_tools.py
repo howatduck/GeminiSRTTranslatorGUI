@@ -177,6 +177,96 @@ def test_smi_bytes_to_srt_no_empty_blocks():
     assert "00:00:05,000 --> 00:00:07,000" in srt
 
 
+def _make_smi_utf8(blocks, bom=False):
+    """blocks를 UTF-8 SAMI bytes로. cp949 고정 디코딩이면 한글이 깨진다."""
+    parts = ["<SAMI><BODY>"]
+    for start, text in blocks:
+        body = "&nbsp;" if text is None else text
+        parts.append(f'<SYNC Start={start}><P Class=KRCC>{body}')
+    parts.append("</BODY></SAMI>")
+    data = "".join(parts).encode("utf-8")
+    return (b"\xef\xbb\xbf" + data) if bom else data
+
+
+def test_smi_bytes_to_srt_utf8():
+    srt = st.smi_bytes_to_srt(_make_smi_utf8([(1000, "첫째"), (5000, "둘째")]))
+    assert "첫째" in srt and "둘째" in srt
+    assert "?" not in srt.split("\n")[2]
+
+
+def test_smi_bytes_to_srt_utf8_bom():
+    srt = st.smi_bytes_to_srt(
+        _make_smi_utf8([(1000, "첫째"), (5000, "둘째")], bom=True))
+    assert "첫째" in srt and "둘째" in srt
+
+
+def test_run_ilass_popen_kwargs(monkeypatch):
+    """run_ilass가 stdin DEVNULL + PIPE/stdout 병합으로 Popen을 호출한다."""
+    import io
+    import subprocess
+
+    seen = {}
+
+    class FakePopen:
+        def __init__(self, cmd, **kwargs):
+            seen["cmd"] = cmd
+            seen["kwargs"] = kwargs
+            self.stdout = io.StringIO("ilass line\n")
+            self.returncode = 0
+
+        def wait(self):
+            return 0
+
+    monkeypatch.setattr(st, "find_ilass", lambda: "/fake/ilass")
+    monkeypatch.setattr(subprocess, "Popen", FakePopen)
+    logged = []
+    out, code = st.run_ilass("ref.srt", "sub.srt", "out.srt",
+                             log=logged.append)
+    assert seen["cmd"][:1] == ["/fake/ilass"]
+    assert seen["kwargs"]["stdin"] is subprocess.DEVNULL
+    assert seen["kwargs"]["stdout"] is subprocess.PIPE
+    assert seen["kwargs"]["stderr"] is subprocess.STDOUT
+    assert out == "ilass line\n" and code == 0
+    assert logged == ["ilass line"]
+
+
+def test_run_ilass_win32_startupinfo(monkeypatch):
+    """win32 분기: STARTUPINFO + STARTF_USESHOWWINDOW가 Popen에 전달된다.
+
+    Linux에서는 실제 STARTUPINFO가 없어 가짜로 대체해 플래그 설정 로직만
+    검증한다 (플랫폼 게이트 자체는 sys.platform 분기가 담당).
+    """
+    import io
+    import subprocess
+
+    seen = {}
+
+    class FakeStartupInfo:
+        def __init__(self):
+            self.dwFlags = 0
+
+    class FakePopen:
+        def __init__(self, cmd, **kwargs):
+            seen["kwargs"] = kwargs
+            self.stdout = io.StringIO("")
+            self.returncode = 0
+
+        def wait(self):
+            return 0
+
+    monkeypatch.setattr(sys, "platform", "win32")
+    monkeypatch.setattr(subprocess, "STARTUPINFO", FakeStartupInfo,
+                        raising=False)
+    monkeypatch.setattr(subprocess, "STARTF_USESHOWWINDOW", 0x08000000,
+                        raising=False)
+    monkeypatch.setattr(st, "find_ilass", lambda: "/fake/ilass")
+    monkeypatch.setattr(subprocess, "Popen", FakePopen)
+    st.run_ilass("ref.srt", "sub.srt", "out.srt")
+    info = seen["kwargs"]["startupinfo"]
+    assert isinstance(info, FakeStartupInfo)
+    assert info.dwFlags & 0x08000000
+
+
 def test_convert_to_srt_smi_parsed_without_ffmpeg(tmp_path, monkeypatch):
     # cp949 smi는 ffmpeg 없이도 직접 파싱으로 변환돼야 한다
     monkeypatch.setattr(st, "find_ffmpeg", lambda: None)

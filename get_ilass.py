@@ -80,9 +80,16 @@ def download_ilass(dest_dir=None, version=ILASS_VERSION, log=None):
                      if os.path.basename(m.name).lower() == bin_name.lower()),
                     None,
                 )
-                if member is None:
-                    raise RuntimeError("tar.gz 안에 ilass 바이너리가 없습니다.")
-                with tf.extractfile(member) as src, open(dest, "wb") as out:
+                # 심볼릭/하드 링크 멤버는 일반 파일이 아니다: extractfile이
+                # None을 반환해 AttributeError로 터지므로 먼저 걸러낸다.
+                if member is None or not member.isreg():
+                    raise RuntimeError(
+                        "tar.gz 안에 유효한 ilass 바이너리가 없습니다.")
+                src = tf.extractfile(member)
+                if src is None:
+                    raise RuntimeError(
+                        "tar.gz 안에 유효한 ilass 바이너리가 없습니다.")
+                with src, open(dest, "wb") as out:
                     out.write(src.read())
 
         if bin_name == "ilass":  # Linux: 실행 권한
