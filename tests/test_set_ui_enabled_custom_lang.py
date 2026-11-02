@@ -40,7 +40,7 @@ _WIDGET_ATTRS = [
     "cmb_thinking_level", "spin_audio_chunk", "chk_isolate_voice",
     "chk_append_lang", "chk_reuse_extracted",
     "chk_keep_extracted",
-    "chk_resume", "chk_thoughts_log",
+    "chk_resume", "chk_thoughts_log", "chk_prefer_sdh",
     "chk_token_stats",
     "chk_token_report", "spin_resume_context",
     "spin_batch_error_step", "spin_audio_chunk_error_step",

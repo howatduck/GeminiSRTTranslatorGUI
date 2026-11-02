@@ -45,6 +45,7 @@ from core.languages import (
 )
 from core.media import (
     _extract_subtitle_track, _get_media_duration, _get_video_subtitle_streams,
+    _is_sdh_stream, _pick_same_language_stream, _pick_translation_stream,
 )
 from core.safety import WorkerLibraryExit
 from core.style_presets import (
@@ -283,6 +284,9 @@ class TranslatorApp(QWidget):
             self.chk_thinking.setText(self.tr_str("chk_thinking"))
         if hasattr(self, 'chk_resume'):
             self.chk_resume.setText(self.tr_str("chk_resume"))
+        if hasattr(self, 'chk_prefer_sdh'):
+            self.chk_prefer_sdh.setText(self.tr_str("chk_prefer_sdh"))
+            self.chk_prefer_sdh.setToolTip(self.tr_str("chk_prefer_sdh_tt"))
         if hasattr(self, 'chk_isolate_voice'):
             self.chk_isolate_voice.setText(self.tr_str("chk_isolate_voice"))
         if hasattr(self, 'chk_extract_audio'):
@@ -886,6 +890,17 @@ class TranslatorApp(QWidget):
         box3.addWidget(self.chk_progress_log)
         main_form_layout.addRow(box3)
 
+        box4 = QHBoxLayout()
+        self.chk_prefer_sdh = QCheckBox("SDH 자막 우선 추출")
+        self.chk_prefer_sdh.setChecked(False)
+        self.chk_prefer_sdh.setToolTip(
+            "체크하면 영상에 SDH(청각장애인용) 자막이 있을 때 일반 자막보다 "
+            "우선 추출합니다. 체크 해제 시 일반 자막을 우선합니다."
+        )
+        box4.addWidget(self.chk_prefer_sdh)
+        box4.addStretch()
+        main_form_layout.addRow(box4)
+
         dialog_layout.addLayout(main_form_layout)
 
         dialog_btn_layout = QHBoxLayout()
@@ -1097,6 +1112,9 @@ class TranslatorApp(QWidget):
             self.chk_resume.setChecked(
                 self.settings.value("resume", True, type=bool)
             )
+            self.chk_prefer_sdh.setChecked(
+                self.settings.value("prefer_sdh", False, type=bool)
+            )
             self.chk_token_stats.setChecked(
                 self.settings.value("token_stats", True, type=bool)
             )
@@ -1213,6 +1231,7 @@ class TranslatorApp(QWidget):
             )
             self.settings.setValue("extract_audio", self.chk_extract_audio.isChecked())
             self.settings.setValue("resume", self.chk_resume.isChecked())
+            self.settings.setValue("prefer_sdh", self.chk_prefer_sdh.isChecked())
             self.settings.setValue("token_stats", self.chk_token_stats.isChecked())
             self.settings.setValue("token_report", self.chk_token_report.isChecked())
 
@@ -1491,6 +1510,7 @@ class TranslatorApp(QWidget):
                 saved_direct_count = 0
 
                 norm_target_langs = {l: _normalize_lang_name(l) for l in selected_languages}
+                prefer_sdh = self.chk_prefer_sdh.isChecked()
                 total_vids = len(valid_video_paths)
 
                 self.progress_bar.setRange(0, 100)
@@ -1528,18 +1548,10 @@ class TranslatorApp(QWidget):
                         return _cb
 
                     # 1) 목표 언어와 동일한 자막 트랙이 있는지 확인 -> 있으면 번역 없이 바로 추출/저장
-                    same_lang_stream = None
-                    target_matched_lang = None
-                    for s in streams:
-                        s_tags = s.get("tags", {})
-                        s_lang = _normalize_lang_name(s_tags.get("language", "") or s_tags.get("title", ""))
-                        for orig_l, norm_l in norm_target_langs.items():
-                            if s_lang and norm_l and s_lang == norm_l:
-                                same_lang_stream = s
-                                target_matched_lang = orig_l
-                                break
-                        if same_lang_stream:
-                            break
+                    #    동일 언어 트랙이 여럿이면 SDH 정책(기본: 일반 우선)으로 선택
+                    same_lang_stream, target_matched_lang = \
+                        _pick_same_language_stream(streams, norm_target_langs,
+                                                   prefer_sdh)
 
                     if same_lang_stream:
                         stream_idx = same_lang_stream.get("index", 0)
@@ -1552,7 +1564,7 @@ class TranslatorApp(QWidget):
                                 f"\x1b[32m  ✔ [재사용] 목표 언어({target_matched_lang}) 자막 '{os.path.basename(out_direct)}' 이미 존재 → 추출 생략\x1b[0m"
                             )
                         else:
-                            self.append_log(f"\x1b[36m  → 목표 언어({target_matched_lang}) 트랙 #{stream_idx} 발견! 추출 중...\x1b[0m")
+                            self.append_log(f"\x1b[36m  → 목표 언어({target_matched_lang}) 트랙 #{stream_idx} 발견!{' [SDH]' if _is_sdh_stream(same_lang_stream) else ''} 추출 중...\x1b[0m")
                             QApplication.processEvents()
                             cb = make_progress_cb(v_idx, os.path.basename(vpath))
                             if _extract_subtitle_track(vpath, stream_idx, out_direct, progress_callback=cb):
@@ -1566,37 +1578,9 @@ class TranslatorApp(QWidget):
                         QApplication.processEvents()
                         continue
 
-                    # 2) 번역용 자막 트랙 선택: 영어 트랙 우선 검색 (강제/forced 자막 제외 우선), 없으면 일반 첫 번째 트랙
-                    best_stream = None
-                    # 1순위: 'forced'가 아닌 영어 트랙
-                    for s in streams:
-                        s_tags = s.get("tags", {})
-                        disp = s.get("disposition", {})
-                        is_forced = disp.get("forced", 0) == 1 or "forced" in (s_tags.get("title", "") or "").lower()
-                        s_lang = _normalize_lang_name(s_tags.get("language", "") or s_tags.get("title", ""))
-                        if s_lang == "english" and not is_forced:
-                            best_stream = s
-                            break
-                    # 2순위: 임의의 영어 트랙
-                    if not best_stream:
-                        for s in streams:
-                            s_tags = s.get("tags", {})
-                            s_lang = _normalize_lang_name(s_tags.get("language", "") or s_tags.get("title", ""))
-                            if s_lang == "english":
-                                best_stream = s
-                                break
-                    # 3순위: forced가 아닌 첫 번째 자막 트랙
-                    if not best_stream:
-                        for s in streams:
-                            s_tags = s.get("tags", {})
-                            disp = s.get("disposition", {})
-                            is_forced = disp.get("forced", 0) == 1 or "forced" in (s_tags.get("title", "") or "").lower()
-                            if not is_forced:
-                                best_stream = s
-                                break
-                    # 4순위: 첫 번째 트랙
-                    if not best_stream:
-                        best_stream = streams[0]
+                    # 2) 번역용 자막 트랙 선택: 영어 우선, forced 후순위,
+                    #    SDH는 기본으로 일반 자막보다 후순위 (고급 설정에서 우선으로 변경 가능)
+                    best_stream = _pick_translation_stream(streams, prefer_sdh)
 
                     stream_idx = best_stream.get("index", 0)
                     temp_srt_path = os.path.join(self.output_dir, f"{v_basename}_extracted.srt")
@@ -1605,7 +1589,7 @@ class TranslatorApp(QWidget):
                         self.append_log(f"\x1b[32m  ✔ [재사용] '{os.path.basename(temp_srt_path)}' 이미 존재 → 재추출 생략\x1b[0m")
                         extracted_sub_files.append((temp_srt_path, vpath))
                     else:
-                        self.append_log(f"\x1b[36m  → 자막 트랙 #{stream_idx} 추출 중: '{os.path.basename(temp_srt_path)}'...\x1b[0m")
+                        self.append_log(f"\x1b[36m  → 자막 트랙 #{stream_idx} 추출 중: '{os.path.basename(temp_srt_path)}'{' [SDH]' if _is_sdh_stream(best_stream) else ''}...\x1b[0m")
                         QApplication.processEvents()
                         cb = make_progress_cb(v_idx, os.path.basename(vpath))
                         if _extract_subtitle_track(vpath, stream_idx, temp_srt_path, progress_callback=cb):
@@ -1972,7 +1956,7 @@ class TranslatorApp(QWidget):
             self.cmb_thinking_level, self.spin_audio_chunk, self.chk_isolate_voice,
             self.chk_append_lang, self.chk_reuse_extracted,
             self.chk_keep_extracted,
-            self.chk_resume, self.chk_thoughts_log,
+            self.chk_resume, self.chk_thoughts_log, self.chk_prefer_sdh,
             self.chk_token_stats,
             self.chk_token_report, self.spin_resume_context,
             self.spin_batch_error_step, self.spin_audio_chunk_error_step,

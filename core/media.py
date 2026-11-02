@@ -2,7 +2,18 @@
 """ffprobe/ffmpeg 기반 미디어·자막 헬퍼."""
 
 import os
+import re
 import sys
+
+from core.languages import _normalize_lang_name
+
+_SDH_TITLE_RE = re.compile(
+    r"(?<![a-z0-9])sdh(?![a-z0-9])"
+    r"|hearing[ -]impaired"
+    r"|closed captions?"
+    r"|(?<![a-z0-9])cc(?![a-z0-9])",
+    re.IGNORECASE,
+)
 
 
 # =====================================================================
@@ -31,6 +42,86 @@ def _get_video_subtitle_streams(video_path: str) -> list:
         return data.get("streams", [])
     except Exception:
         return []
+
+def _stream_language(stream) -> str:
+    """스트림의 정규화된 언어명 (language 태그, 없으면 title로 판별)."""
+    tags = stream.get("tags", {}) or {}
+    return _normalize_lang_name(tags.get("language", "") or tags.get("title", ""))
+
+
+def _is_forced_stream(stream) -> bool:
+    """forced(강제) 자막 여부: disposition 플래그 또는 title 표기."""
+    disp = stream.get("disposition", {}) or {}
+    if disp.get("forced", 0) == 1:
+        return True
+    title = (stream.get("tags", {}) or {}).get("title", "") or ""
+    return "forced" in title.lower()
+
+
+def _is_sdh_stream(stream) -> bool:
+    """SDH(청각장애인용) 자막 여부: disposition hearing_impaired 플래그
+    또는 title의 SDH/CC/hearing impaired 표기 (단어 경계 기준)."""
+    disp = stream.get("disposition", {}) or {}
+    if disp.get("hearing_impaired", 0) == 1:
+        return True
+    title = (stream.get("tags", {}) or {}).get("title", "") or ""
+    return bool(_SDH_TITLE_RE.search(title))
+
+
+def _pick_translation_stream(streams, prefer_sdh=False):
+    """번역용 자막 트랙 선택.
+
+    우선순위는 (영어 우선 → forced 후순위 → SDH 정책) 사전식 순서이며,
+    동급이면 원래 스트림 순서를 유지한다. SDH 트랙이 없으면 기존 동작과
+    동일하다. prefer_sdh=True면 같은 등급에서 SDH를 일반 자막보다 먼저
+    고른다. streams가 비어 있으면 None.
+    """
+    if not streams:
+        return None
+
+    def key(s):
+        sdh_rank = 0 if (_is_sdh_stream(s) == prefer_sdh) else 1
+        return (
+            0 if _stream_language(s) == "english" else 1,
+            1 if _is_forced_stream(s) else 0,
+            sdh_rank,
+        )
+
+    return min(streams, key=key)
+
+
+def _pick_same_language_stream(streams, norm_target_langs, prefer_sdh=False):
+    """목표 언어와 일치하는 트랙 중 하나를 선택.
+
+    우선순위: 목표 언어 목록의 순서 → forced 후순위 → SDH 정책.
+    forced는 일부 대사만 담긴 부분 자막이라 SDH보다도 뒤로 민다.
+    norm_target_langs: {원본 언어명: 정규화된 이름} (순서 유지).
+    반환: (stream, 매칭된 원본 언어명) 또는 (None, None).
+    """
+    lang_rank = {orig: i for i, orig in enumerate(norm_target_langs)}
+    matches = []
+    for s in streams:
+        s_lang = _stream_language(s)
+        if not s_lang:
+            continue
+        for orig_l, norm_l in norm_target_langs.items():
+            if norm_l and s_lang == norm_l:
+                matches.append((s, orig_l))
+                break
+    if not matches:
+        return None, None
+
+    def key(match):
+        s, orig_l = match
+        sdh_rank = 0 if (_is_sdh_stream(s) == prefer_sdh) else 1
+        return (
+            lang_rank[orig_l],
+            1 if _is_forced_stream(s) else 0,
+            sdh_rank,
+        )
+
+    return min(matches, key=key)
+
 
 def _get_media_duration(file_path: str) -> float:
     """ffprobe를 통해 미디어 파일의 총 재생 시간(초) 반환"""
