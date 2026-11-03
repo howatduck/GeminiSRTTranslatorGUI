@@ -44,9 +44,12 @@ def _get_video_subtitle_streams(video_path: str) -> list:
         return []
 
 def _stream_language(stream) -> str:
-    """스트림의 정규화된 언어명 (language 태그, 없으면 title로 판별)."""
+    """스트림의 정규화된 언어명 (language 태그, 없거나 und면 title로 판별)."""
     tags = stream.get("tags", {}) or {}
-    return _normalize_lang_name(tags.get("language", "") or tags.get("title", ""))
+    lang = (tags.get("language", "") or "").strip()
+    if not lang or lang.lower() == "und":
+        return _normalize_lang_name(tags.get("title", "") or "")
+    return _normalize_lang_name(lang)
 
 
 def _is_forced_stream(stream) -> bool:
@@ -172,7 +175,7 @@ def _extract_subtitle_track(video_path: str, stream_index: int, output_srt_path:
 
         if progress_callback:
             process = subprocess.Popen(
-                cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
                 text=True, encoding="utf-8", errors="replace", startupinfo=startupinfo
             )
             for line in process.stdout:

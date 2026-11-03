@@ -1,9 +1,13 @@
 # -*- coding: utf-8 -*-
 """core.media 자막 트랙 선택 테스트 (SDH 우선 옵션)."""
 
+import subprocess
+from unittest import mock
+
 from core.media import (
-    _is_forced_stream, _is_sdh_stream, _pick_same_language_stream,
-    _pick_translation_stream,
+    _extract_subtitle_track, _is_forced_stream, _is_sdh_stream,
+    _pick_same_language_stream, _pick_translation_stream,
+    _stream_language,
 )
 
 
@@ -164,3 +168,48 @@ def test_pick_same_language_multi_target_order_preserved():
     targets = {"English": "english", "Korean": "korean"}
     s, lang = _pick_same_language_stream([kor_sdh, eng_plain], targets)
     assert s is eng_plain and lang == "English"
+
+
+# ---------- und 언어 태그 title fallback ----------
+
+def test_stream_language_und_falls_back_to_title():
+    assert _stream_language(_stream(1, lang="und", title="Korean")) == "korean"
+    assert _stream_language(_stream(1, lang="UND", title="English")) == "english"
+    # title도 없으면 빈 문자열 (기존 und 동작과 동일하게 매칭에서 제외)
+    assert _stream_language(_stream(1, lang="und")) == ""
+    # 정상 언어 태그는 title보다 우선한다
+    assert _stream_language(_stream(1, lang="kor", title="English")) == "korean"
+
+
+def test_pick_same_language_und_title_matches():
+    und_kor = _stream(1, lang="und", title="Korean")
+    s, lang = _pick_same_language_stream([und_kor], {"Korean": "korean"})
+    assert s is und_kor and lang == "Korean"
+
+
+def test_pick_translation_und_english_title_wins():
+    und_eng = _stream(1, lang="und", title="English")
+    kor_plain = _stream(2, lang="kor")
+    assert _pick_translation_stream([kor_plain, und_eng]) is und_eng
+
+
+# ---------- 진행률 추출 Popen stderr ----------
+
+def test_extract_progress_popen_discards_stderr(tmp_path):
+    out_path = tmp_path / "out.srt"
+    out_path.write_text("dummy", encoding="utf-8")
+    mock_process = mock.Mock()
+    mock_process.stdout = ["out_time_us=5000000\n", "progress=end\n"]
+    mock_process.returncode = 0
+    mock_process.wait.return_value = None
+    seen = []
+    with mock.patch("core.media._get_media_duration", return_value=10.0), \
+            mock.patch("subprocess.Popen", return_value=mock_process) as mock_popen:
+        result = _extract_subtitle_track(
+            "dummy.mp4", 0, str(out_path),
+            progress_callback=lambda *a: seen.append(a))
+    assert result is True
+    _, kwargs = mock_popen.call_args
+    assert kwargs["stderr"] is subprocess.DEVNULL
+    assert kwargs["stdout"] is subprocess.PIPE
+    assert seen
