@@ -178,22 +178,32 @@ def _extract_subtitle_track(video_path: str, stream_index: int, output_srt_path:
                 cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
                 text=True, encoding="utf-8", errors="replace", startupinfo=startupinfo
             )
-            for line in process.stdout:
-                line = line.strip()
-                if line.startswith("out_time_us="):
+            try:
+                for line in process.stdout:
+                    line = line.strip()
+                    if line.startswith("out_time_us="):
+                        try:
+                            us = int(line.split("=", 1)[1])
+                            curr_sec = us / 1_000_000.0
+                            if total_duration > 0:
+                                pct = min(100.0, max(0.0, (curr_sec / total_duration) * 100.0))
+                                progress_callback(pct, curr_sec, total_duration)
+                        except (ValueError, TypeError):
+                            pass
+                    elif line.startswith("progress="):
+                        val = line.split("=", 1)[1]
+                        if val == "end":
+                            progress_callback(100.0, total_duration, total_duration)
+            finally:
+                # 콜백 예외 등으로 루프가 중단돼도 ffmpeg이 좀비로 남지 않게
+                # 정리한다. 아직 실행 중이면 종료 후 대기한다 (대기만 하면
+                # 파이프가 찬 ffmpeg에 데드락할 수 있어 kill이 먼저다).
+                if process.poll() is None:
                     try:
-                        us = int(line.split("=", 1)[1])
-                        curr_sec = us / 1_000_000.0
-                        if total_duration > 0:
-                            pct = min(100.0, max(0.0, (curr_sec / total_duration) * 100.0))
-                            progress_callback(pct, curr_sec, total_duration)
-                    except (ValueError, TypeError):
+                        process.kill()
+                    except Exception:
                         pass
-                elif line.startswith("progress="):
-                    val = line.split("=", 1)[1]
-                    if val == "end" and total_duration > 0:
-                        progress_callback(100.0, total_duration, total_duration)
-            process.wait()
+                process.wait()
             return process.returncode == 0 and os.path.exists(output_srt_path) and os.path.getsize(output_srt_path) > 0
         else:
             subprocess.run(

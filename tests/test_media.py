@@ -213,3 +213,41 @@ def test_extract_progress_popen_discards_stderr(tmp_path):
     assert kwargs["stderr"] is subprocess.DEVNULL
     assert kwargs["stdout"] is subprocess.PIPE
     assert seen
+
+
+def test_extract_progress_callback_raises_still_waits_and_kills(tmp_path):
+    """콜백 예외 시에도 ffmpeg을 정리한다 (좀비 방지)."""
+    out_path = tmp_path / "out.srt"
+    out_path.write_text("dummy", encoding="utf-8")
+    mock_process = mock.Mock()
+    mock_process.stdout = ["progress=end\n"]
+    mock_process.returncode = 0
+    mock_process.poll.return_value = None  # 아직 실행 중
+
+    def _raising(*a):
+        raise RuntimeError("widget gone")
+
+    with mock.patch("core.media._get_media_duration", return_value=10.0), \
+            mock.patch("subprocess.Popen", return_value=mock_process):
+        result = _extract_subtitle_track(
+            "dummy.mp4", 0, str(out_path), progress_callback=_raising)
+    assert result is False
+    mock_process.kill.assert_called_once()
+    mock_process.wait.assert_called_once()
+
+
+def test_extract_progress_end_callback_without_duration(tmp_path):
+    """총 재생 시간을 못 구해도 완료 콜백은 한 번 호출된다."""
+    out_path = tmp_path / "out.srt"
+    out_path.write_text("dummy", encoding="utf-8")
+    mock_process = mock.Mock()
+    mock_process.stdout = ["progress=end\n"]
+    mock_process.returncode = 0
+    seen = []
+    with mock.patch("core.media._get_media_duration", return_value=0.0), \
+            mock.patch("subprocess.Popen", return_value=mock_process):
+        result = _extract_subtitle_track(
+            "dummy.mp4", 0, str(out_path),
+            progress_callback=lambda *a: seen.append(a))
+    assert result is True
+    assert seen == [(100.0, 0.0, 0.0)]
