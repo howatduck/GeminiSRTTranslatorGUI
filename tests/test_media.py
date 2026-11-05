@@ -251,3 +251,49 @@ def test_extract_progress_end_callback_without_duration(tmp_path):
             progress_callback=lambda *a: seen.append(a))
     assert result is True
     assert seen == [(100.0, 0.0, 0.0)]
+
+
+# ---------- 진행률 추출 Popen stdin · 실패 시 부분 파일 정리 ----------
+
+def test_extract_progress_popen_ignores_stdin(tmp_path):
+    """ffmpeg이 호출자의 stdin을 읽지 않게 DEVNULL을 연결한다."""
+    out_path = tmp_path / "out.srt"
+    out_path.write_text("dummy", encoding="utf-8")
+    mock_process = mock.Mock()
+    mock_process.stdout = ["progress=end\n"]
+    mock_process.returncode = 0
+    with mock.patch("core.media._get_media_duration", return_value=10.0), \
+            mock.patch("subprocess.Popen", return_value=mock_process) as mock_popen:
+        result = _extract_subtitle_track(
+            "dummy.mp4", 0, str(out_path),
+            progress_callback=lambda *a: None)
+    assert result is True
+    _, kwargs = mock_popen.call_args
+    assert kwargs["stdin"] is subprocess.DEVNULL
+
+
+def test_extract_progress_failure_removes_partial_output(tmp_path):
+    """진행률 추출 실패 시 부분 파일이 남지 않는다 (재사용 오인 방지)."""
+    out_path = tmp_path / "out.srt"
+    out_path.write_text("partial", encoding="utf-8")
+    mock_process = mock.Mock()
+    mock_process.stdout = ["progress=end\n"]
+    mock_process.returncode = 1
+    with mock.patch("core.media._get_media_duration", return_value=10.0), \
+            mock.patch("subprocess.Popen", return_value=mock_process):
+        result = _extract_subtitle_track(
+            "dummy.mp4", 0, str(out_path),
+            progress_callback=lambda *a: None)
+    assert result is False
+    assert not out_path.exists()
+
+
+def test_extract_plain_failure_removes_partial_output(tmp_path):
+    """일반 추출 실패(예외) 시에도 부분 파일이 남지 않는다."""
+    out_path = tmp_path / "out.srt"
+    out_path.write_text("partial", encoding="utf-8")
+    with mock.patch("subprocess.run",
+                    side_effect=subprocess.CalledProcessError(1, "ffmpeg")):
+        result = _extract_subtitle_track("dummy.mp4", 0, str(out_path))
+    assert result is False
+    assert not out_path.exists()

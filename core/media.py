@@ -176,6 +176,7 @@ def _extract_subtitle_track(video_path: str, stream_index: int, output_srt_path:
         if progress_callback:
             process = subprocess.Popen(
                 cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                stdin=subprocess.DEVNULL,
                 text=True, encoding="utf-8", errors="replace", startupinfo=startupinfo
             )
             try:
@@ -204,12 +205,33 @@ def _extract_subtitle_track(video_path: str, stream_index: int, output_srt_path:
                     except Exception:
                         pass
                 process.wait()
-            return process.returncode == 0 and os.path.exists(output_srt_path) and os.path.getsize(output_srt_path) > 0
+            ok = (process.returncode == 0 and os.path.exists(output_srt_path)
+                  and os.path.getsize(output_srt_path) > 0)
+            if not ok:
+                _remove_partial_output(output_srt_path)
+            return ok
         else:
             subprocess.run(
                 cmd, capture_output=True, text=True, check=True,
                 encoding="utf-8", errors="replace", startupinfo=startupinfo
             )
-            return os.path.exists(output_srt_path) and os.path.getsize(output_srt_path) > 0
+            ok = (os.path.exists(output_srt_path)
+                  and os.path.getsize(output_srt_path) > 0)
+            if not ok:
+                _remove_partial_output(output_srt_path)
+            return ok
     except Exception:
+        _remove_partial_output(output_srt_path)
         return False
+
+
+def _remove_partial_output(output_srt_path: str) -> None:
+    """실패한 추출의 부분 파일을 남기지 않는다.
+
+    부분 파일이 남으면 다음 실행의 '재사용' 판정(존재 + 크기 > 0)이
+    손상된 파일을 유효한 자막으로 오인한다.
+    """
+    try:
+        os.remove(output_srt_path)
+    except OSError:
+        pass

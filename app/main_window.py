@@ -1572,6 +1572,13 @@ class TranslatorApp(QWidget):
                                 self.append_log(
                                     f"\x1b[32m  ✔ [추출 완료] 번역 불필요: '{os.path.basename(out_direct)}' 저장됨\x1b[0m"
                                 )
+                            else:
+                                # 번역용 분기(2번)와 달리 실패 시 아무 처리도 없어
+                                # 영상이 조용히 누락됐었다. 전사 질의 대상으로 넘긴다.
+                                self.append_log(
+                                    f"\x1b[31m  ✘ [추출 실패] 목표 언어({target_matched_lang}) 자막 추출 실패 → 전사 질의 대상으로 이동\x1b[0m"
+                                )
+                                videos_without_subs.append(vpath)
                         overall_pct = int(((v_idx + 1) / total_vids) * 100)
                         self.progress_bar.setValue(overall_pct)
                         self.progress_bar.setFormat(f"자막 트랙 검사/추출 완료 ({v_idx+1}/{total_vids}) ({overall_pct}%)")
