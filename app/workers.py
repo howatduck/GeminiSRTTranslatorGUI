@@ -245,7 +245,9 @@ class TranslationWorker(QThread):
                                 'target_language': target_language,
                                 'input_file': actual_input_file_for_lib,
                                 'output_file': output_file_path,
-                                'start_line': self.base_config.get('start_line', 1),
+                                # start_line이 None이면 어댑터가 걸러내 라이브러리
+                                # 기본값(저장된 .progress 위치)이 적용된다.
+                                'start_line': self.base_config.get('start_line'),
                                 'description': self.base_config.get('description', '') or None,
                                 'model_name': self.base_config.get('model_name', DEFAULT_MODEL),
                                 'batch_size': self.base_config.get('batch_size', DEFAULT_BATCH_SIZE),

@@ -117,3 +117,37 @@ def test_existing_output_survives_backend_failure(qapp, tmp_path):
     assert errors, "백엔드 실패가 job_error로 보고되어야 한다"
     with open(out, encoding="utf-8") as f:
         assert f.read() == "PREVIOUS COMPLETE RESULT"
+
+
+def _run_one_job_capturing_params(qapp, tmp_path, base_config):
+    from app.workers import TranslationWorker
+
+    src = _write(tmp_path / "in.srt", "1\n00:00:01,000 --> 00:00:02,000\nhello\n")
+    out = str(tmp_path / "in.ko.srt")
+    job_queue = queue.Queue()
+    job_queue.put((src, "Korean", out, False, None, None))
+    config = {"task_mode": "translate"}
+    config.update(base_config)
+    worker = TranslationWorker(["dummy-key"], job_queue, config)
+
+    captured = {}
+
+    class _OkBackend:
+        def run(self, params, mode=None, cancel_token=None):
+            captured.update(params)
+
+    worker._backend = _OkBackend()
+    worker.run()
+    return captured
+
+
+def test_start_line_omitted_by_default(qapp, tmp_path):
+    """시작 줄 기본값이면 start_line을 넘기지 않아 .progress 이어하기가 살아야 한다."""
+    captured = _run_one_job_capturing_params(qapp, tmp_path, {})
+    assert captured.get("start_line") is None
+
+
+def test_start_line_passed_when_explicit(qapp, tmp_path):
+    """사용자가 시작 줄을 지정하면 그 값이 그대로 전달되어야 한다."""
+    captured = _run_one_job_capturing_params(qapp, tmp_path, {"start_line": 42})
+    assert captured.get("start_line") == 42

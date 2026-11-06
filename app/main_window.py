@@ -1744,7 +1744,12 @@ class TranslatorApp(QWidget):
                 self.api_key_inputs[1].text().strip()
                 if len(self.api_key_inputs) > 1 else None
             ),
-            'start_line': self.spin_start.value(),
+            # 시작 줄: 기본값(1)일 때는 None으로 넘겨 라이브러리가 저장된
+            # .progress 위치를 쓰게 한다. 명시 int가 우선하는 라이브러리
+            # 규칙 때문에 기본값을 그대로 넘기면 이어하기가 동작하지 않는다.
+            'start_line': (
+                self.spin_start.value() if self.spin_start.value() > 1 else None
+            ),
             'description': compose_description(
                 self.txt_desc.toPlainText(),
                 self.cmb_style.currentData() if hasattr(self, 'cmb_style') else "default",
