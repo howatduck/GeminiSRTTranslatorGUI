@@ -4,6 +4,7 @@
 SRT 파싱/생성을 담당한다. GUI 의존성 없음.
 """
 
+import os
 import re
 
 # 시 단위는 1자리(0:01:23,456)나 100시간 이상(100:00:00,000) 변종도
@@ -88,3 +89,46 @@ def entry_cps(entry):
         return None
     chars = len(re.sub(r"\s", "", entry.get("text", "")))
     return chars / ((e - s) / 1000.0)
+
+
+def progress_file_for(input_file, video_file=None):
+    """라이브러리(gemini-srt-translator)가 쓰는 .progress 파일 경로.
+
+    라이브러리와 동일 규칙으로 도출한다: 기준 파일은 video_file 우선
+    (없으면 input_file), stem 끝의 '_extracted'는 제거하고, 위치는
+    기준 파일이 있는 폴더. 기준 파일이 없으면 None.
+    """
+    base_file = video_file or input_file
+    if not base_file:
+        return None
+    base_name = os.path.splitext(os.path.basename(base_file))[0]
+    if base_name.endswith("_extracted"):
+        base_name = base_name[:-len("_extracted")]
+    dir_path = os.path.dirname(base_file)
+    if dir_path:
+        return os.path.join(dir_path, f"{base_name}.progress")
+    return f"{base_name}.progress"
+
+
+def is_translation_complete(input_file, output_file, video_file=None):
+    """번역 완료 판정: 출력 파일이 있고 비어 있지 않으며 .progress가 없을 때만 True.
+
+    주의: 라이브러리는 배치마다 최종 출력 경로에 부분 결과를 원자적으로
+    쓰므로(미번역 줄은 원문으로 채워짐) 출력 파일의 존재만으로는 완료를
+    판정할 수 없다. 중단된 작업은 입력 쪽 .progress 파일이 남아 있는
+    것으로 구분한다. 입력과 출력이 같은 파일(제자리 번역)이면 완료로
+    보지 않는다.
+    """
+    if not input_file or not output_file:
+        return False
+    if os.path.abspath(input_file) == os.path.abspath(output_file):
+        return False
+    try:
+        if not os.path.isfile(output_file) or os.path.getsize(output_file) <= 0:
+            return False
+    except OSError:
+        return False
+    progress = progress_file_for(input_file, video_file)
+    if progress is None:
+        return False
+    return not os.path.exists(progress)

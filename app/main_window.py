@@ -52,6 +52,7 @@ from core.style_presets import (
     compose_description, all_presets, CUSTOM_PRESET_IDS,
 )
 from core.pricing import read_report_cost, token_report_path_for
+from core.subtitle_io import is_translation_complete
 
 
 def _unique_stem(src_path):
@@ -1375,6 +1376,12 @@ class TranslatorApp(QWidget):
                                   is_media_source_only, is_transcribe_mode, media_type=None,
                                   video_context_paths=None):
         jobs = []
+        # '이어하기'가 켜져 있으면 이미 완료된 작업은 생성 단계에서 제외한다.
+        # 제외 수는 start_translation이 진행률(완료로 간주)에 반영한다.
+        resume_enabled = (
+            hasattr(self, 'chk_resume') and self.chk_resume.isChecked()
+        )
+        self.skipped_completed_jobs = 0
         if not primary_input_source or not target_languages or not self.output_dir:
             return jobs
 
@@ -1444,6 +1451,16 @@ class TranslatorApp(QWidget):
                             job_video_file = valid_video_contexts[idx]
                         else:
                             job_video_file = valid_video_contexts[0]
+
+                    if resume_enabled and is_translation_complete(
+                        src_file_path, output_filepath, video_file=job_video_file
+                    ):
+                        self.skipped_completed_jobs += 1
+                        self.append_log(
+                            f"\x1b[32m  ✔ [스킵] '{os.path.basename(output_filepath)}' "
+                            f"이미 번역 완료 → 생략\x1b[0m"
+                        )
+                        continue
 
                     jobs.append((src_file_path, lang, output_filepath, is_media_source_only, media_type, job_video_file))
                 except Exception:
@@ -1685,21 +1702,29 @@ class TranslatorApp(QWidget):
             source_is_media_only_for_jobs, is_transcribe_mode, media_type_for_jobs,
             video_context_paths=valid_video_paths
         )
+        skipped_count = getattr(self, 'skipped_completed_jobs', 0)
         if not jobs:
-            QMessageBox.warning(self, "작업 생성 실패", "생성된 작업이 없습니다.")
+            if skipped_count:
+                QMessageBox.information(
+                    self, "완료",
+                    f"선택한 작업 {skipped_count}개가 모두 이미 번역 완료 상태입니다.\n"
+                    "새로 실행할 작업이 없습니다."
+                )
+            else:
+                QMessageBox.warning(self, "작업 생성 실패", "생성된 작업이 없습니다.")
             return
 
         self.job_queue = queue.Queue()
         self.jobs = list(jobs)
-        self.total_jobs = len(jobs)
-        self.completed_jobs = 0
+        self.total_jobs = len(jobs) + skipped_count
+        self.completed_jobs = skipped_count
         self.recent_outputs = []
         for job in jobs:
             self.job_queue.put(job)
 
         self.progress_bar.setRange(0, self.total_jobs)
-        self.progress_bar.setValue(0)
-        self.progress_bar.setFormat(self.tr_str("progress_format", current=0, total=self.total_jobs))
+        self.progress_bar.setValue(skipped_count)
+        self.progress_bar.setFormat(self.tr_str("progress_format", current=skipped_count, total=self.total_jobs))
 
         service_tier = self.cmb_service_tier.currentText()
         if service_tier == "Default":

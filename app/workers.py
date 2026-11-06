@@ -204,14 +204,11 @@ class TranslationWorker(QThread):
                         video_file_for_job = job_video_file or self.base_config.get('video_file', None)
                         audio_file_for_job = self.base_config.get('audio_file', None)
 
-                    if os.path.exists(output_file_path):
-                        if actual_input_file_for_lib and os.path.abspath(output_file_path) == os.path.abspath(actual_input_file_for_lib):
-                            pass
-                        else:
-                            try:
-                                os.remove(output_file_path)
-                            except OSError:
-                                pass
+                    # 출력 파일을 미리 지우지 않는다: 완료된 출력은 작업 생성
+                    # 단계에서 이미 제외되고, 라이브러리는 배치 결과를 최종
+                    # 경로에 원자적으로 쓰므로 사전 삭제가 오히려 완료본을
+                    # 날린다. 입력==출력(제자리)인 경우도 라이브러리가 입력을
+                    # 전부 읽은 뒤 쓰므로 안전하다.
 
                     max_key_attempts = max(1, len(self.api_keys))
                     job_successful = False
