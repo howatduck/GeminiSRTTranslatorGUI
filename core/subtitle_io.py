@@ -111,7 +111,8 @@ def progress_file_for(input_file, video_file=None):
 
 
 def is_translation_complete(input_file, output_file, video_file=None):
-    """번역 완료 판정: 출력 파일이 있고 비어 있지 않으며 .progress가 없을 때만 True.
+    """번역 완료 판정: 출력 파일이 있고 비어 있지 않으며 .progress가 없고,
+    출력이 SRT로 파싱되어 큐가 1개 이상일 때만 True.
 
     주의: 라이브러리는 배치마다 최종 출력 경로에 부분 결과를 원자적으로
     쓰므로(미번역 줄은 원문으로 채워짐) 출력 파일의 존재만으로는 완료를
@@ -131,4 +132,13 @@ def is_translation_complete(input_file, output_file, video_file=None):
     progress = progress_file_for(input_file, video_file)
     if progress is None:
         return False
-    return not os.path.exists(progress)
+    if os.path.exists(progress):
+        return False
+    # 패치 이전에 만들어진 출력(에러 페이지 저장 등)까지 걸러내기 위해
+    # 출력이 실제로 SRT로 파싱되어 큐가 1개 이상인지 확인한다.
+    try:
+        with open(output_file, "rb") as f:
+            text = f.read().decode("utf-8-sig", errors="replace")
+    except OSError:
+        return False
+    return len(parse_srt(text)) > 0

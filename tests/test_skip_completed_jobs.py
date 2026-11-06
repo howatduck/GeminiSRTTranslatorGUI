@@ -2,8 +2,9 @@
 """완료된 번역 작업 스킵 판정 테스트 (이슈 #1).
 
 완료 판정 규칙: 출력 파일이 있고 비어 있지 않으며, 입력 쪽 .progress
-파일이 없을 때만 완료로 본다. 라이브러리는 부분 결과를 최종 출력
-경로에 원자적으로 쓰므로 출력 존재만으로는 완료를 판정할 수 없다.
+파일이 없고, 출력이 SRT로 파싱되어 큐가 1개 이상일 때만 완료로 본다.
+라이브러리는 부분 결과를 최종 출력 경로에 원자적으로 쓰므로 출력
+존재만으로는 완료를 판정할 수 없다.
 """
 
 import os
@@ -16,6 +17,9 @@ import pytest
 pytest.importorskip("PyQt6")
 
 from core.subtitle_io import is_translation_complete, progress_file_for
+
+
+VALID_SRT = "1\n00:00:01,000 --> 00:00:02,000\n번역 완료된 자막\n"
 
 
 def _write(path, text="x"):
@@ -39,8 +43,21 @@ def test_output_with_progress_is_partial(tmp_path):
 
 def test_output_without_progress_is_complete(tmp_path):
     src = _write(tmp_path / "in.srt")
-    out = _write(tmp_path / "in.ko.srt", "complete result")
+    out = _write(tmp_path / "in.ko.srt", VALID_SRT)
     assert is_translation_complete(src, out) is True
+
+
+def test_unparseable_output_is_not_complete(tmp_path):
+    # 패치 이전 산출물처럼 SRT로 파싱되지 않는 출력은 완료로 보지 않는다.
+    src = _write(tmp_path / "in.srt")
+    out = _write(tmp_path / "in.ko.srt", "이것은 자막 파일이 아니다")
+    assert is_translation_complete(src, out) is False
+
+
+def test_html_error_page_output_is_not_complete(tmp_path):
+    src = _write(tmp_path / "in.srt")
+    out = _write(tmp_path / "in.ko.srt", "<html><body>404 Not Found</body></html>")
+    assert is_translation_complete(src, out) is False
 
 
 def test_empty_output_is_not_complete(tmp_path):
@@ -51,7 +68,7 @@ def test_empty_output_is_not_complete(tmp_path):
 
 def test_progress_follows_input_folder_not_output(tmp_path):
     src = _write(tmp_path / "inputs" / "in.srt")
-    out = _write(tmp_path / "outputs" / "in.ko.srt", "complete result")
+    out = _write(tmp_path / "outputs" / "in.ko.srt", VALID_SRT)
     _write(tmp_path / "inputs" / "in.progress", '{"line": 3}')
     assert is_translation_complete(src, out) is False
 
@@ -77,7 +94,7 @@ def test_progress_file_for_prefers_video_file(tmp_path):
 def test_video_context_completion_uses_video_progress(tmp_path):
     src = _write(tmp_path / "out" / "movie_extracted.srt")
     video = _write(tmp_path / "videos" / "movie.mp4")
-    out = _write(tmp_path / "out" / "movie.ko.srt", "complete result")
+    out = _write(tmp_path / "out" / "movie.ko.srt", VALID_SRT)
     assert is_translation_complete(src, out, video_file=video) is True
     _write(tmp_path / "videos" / "movie.progress", '{"line": 7}')
     assert is_translation_complete(src, out, video_file=video) is False

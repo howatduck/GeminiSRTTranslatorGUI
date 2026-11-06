@@ -300,6 +300,8 @@ class TranslatorApp(QWidget):
             self.chk_thinking.setText(self.tr_str("chk_thinking"))
         if hasattr(self, 'chk_resume'):
             self.chk_resume.setText(self.tr_str("chk_resume"))
+        if hasattr(self, 'chk_force_retranslate'):
+            self.chk_force_retranslate.setText(self.tr_str("chk_force_retranslate"))
         if hasattr(self, 'chk_prefer_sdh'):
             self.chk_prefer_sdh.setText(self.tr_str("chk_prefer_sdh"))
             self.chk_prefer_sdh.setToolTip(self.tr_str("chk_prefer_sdh_tt"))
@@ -874,9 +876,12 @@ class TranslatorApp(QWidget):
         self.chk_thinking.setChecked(True)
         self.chk_resume = QCheckBox("중단된 작업 이어하기")
         self.chk_resume.setChecked(True)
+        self.chk_force_retranslate = QCheckBox("기존 번역 파일 덮어쓰기 (강제 재번역)")
+        self.chk_force_retranslate.setChecked(False)
         box1.addWidget(self.chk_streaming)
         box1.addWidget(self.chk_thinking)
         box1.addWidget(self.chk_resume)
+        box1.addWidget(self.chk_force_retranslate)
         main_form_layout.addRow(box1)
 
         box2 = QHBoxLayout()
@@ -1128,6 +1133,9 @@ class TranslatorApp(QWidget):
             self.chk_resume.setChecked(
                 self.settings.value("resume", True, type=bool)
             )
+            self.chk_force_retranslate.setChecked(
+                self.settings.value("force_retranslate", False, type=bool)
+            )
             self.chk_prefer_sdh.setChecked(
                 self.settings.value("prefer_sdh", False, type=bool)
             )
@@ -1247,6 +1255,7 @@ class TranslatorApp(QWidget):
             )
             self.settings.setValue("extract_audio", self.chk_extract_audio.isChecked())
             self.settings.setValue("resume", self.chk_resume.isChecked())
+            self.settings.setValue("force_retranslate", self.chk_force_retranslate.isChecked())
             self.settings.setValue("prefer_sdh", self.chk_prefer_sdh.isChecked())
             self.settings.setValue("token_stats", self.chk_token_stats.isChecked())
             self.settings.setValue("token_report", self.chk_token_report.isChecked())
@@ -1376,10 +1385,10 @@ class TranslatorApp(QWidget):
                                   is_media_source_only, is_transcribe_mode, media_type=None,
                                   video_context_paths=None):
         jobs = []
-        # '이어하기'가 켜져 있으면 이미 완료된 작업은 생성 단계에서 제외한다.
+        # '강제 재번역'이 꺼져 있으면 이미 완료된 작업은 생성 단계에서 제외한다.
         # 제외 수는 start_translation이 진행률(완료로 간주)에 반영한다.
-        resume_enabled = (
-            hasattr(self, 'chk_resume') and self.chk_resume.isChecked()
+        force_retranslate = (
+            hasattr(self, 'chk_force_retranslate') and self.chk_force_retranslate.isChecked()
         )
         self.skipped_completed_jobs = 0
         if not primary_input_source or not target_languages or not self.output_dir:
@@ -1452,7 +1461,7 @@ class TranslatorApp(QWidget):
                         else:
                             job_video_file = valid_video_contexts[0]
 
-                    if resume_enabled and is_translation_complete(
+                    if not force_retranslate and is_translation_complete(
                         src_file_path, output_filepath, video_file=job_video_file
                     ):
                         self.skipped_completed_jobs += 1
@@ -2011,7 +2020,7 @@ class TranslatorApp(QWidget):
             self.cmb_thinking_level, self.spin_audio_chunk, self.chk_isolate_voice,
             self.chk_append_lang, self.chk_reuse_extracted,
             self.chk_keep_extracted,
-            self.chk_resume, self.chk_thoughts_log, self.chk_prefer_sdh,
+            self.chk_resume, self.chk_force_retranslate, self.chk_thoughts_log, self.chk_prefer_sdh,
             self.chk_token_stats,
             self.chk_token_report, self.spin_resume_context,
             self.spin_batch_error_step, self.spin_audio_chunk_error_step,
@@ -2048,6 +2057,10 @@ class TranslatorApp(QWidget):
             )
         else:
             self.append_log(f"\x1b[32m{self.tr_str('log_all_done')}\x1b[0m")
+
+        skipped_count = getattr(self, 'skipped_completed_jobs', 0)
+        translated_count = max(0, self.completed_jobs - skipped_count)
+        self.append_log(f"  요약: 번역 {translated_count}개 · 스킵 {skipped_count}개")
 
         self.progress_bar.setValue(self.completed_jobs)
         if self.completed_jobs >= self.total_jobs:
