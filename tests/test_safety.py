@@ -75,3 +75,40 @@ def test_worker_library_exit_message():
     e = WorkerLibraryExit(130)
     assert e.code == 130
     assert "130" in str(e)
+
+
+def test_raise_signal_raises_in_worker_thread():
+    # 워커 스레드에서 raise_signal 호출 시 프로세스 종료 대신 예외 발생
+    codes = []
+
+    def target():
+        try:
+            signal.raise_signal(signal.SIGINT)
+        except WorkerLibraryExit as e:
+            codes.append(e.code)
+
+    t = threading.Thread(target=target)
+    t.start()
+    t.join(timeout=5)
+    assert codes == [130]
+
+
+def test_raise_signal_raises_on_main_thread():
+    # 메인 스레드에서도 동일하게 예외를 던진다 (시그널 미전달·핸들러 변경 없음)
+    with pytest.raises(WorkerLibraryExit) as excinfo:
+        signal.raise_signal(signal.SIGINT)
+    assert excinfo.value.code == 130
+
+
+def test_raise_signal_does_not_clobber_handler():
+    # raise_signal 호출이 설치된 핸들러를 바꾸지 않는다
+    sentinel = lambda *a: None
+    previous = signal.getsignal(signal.SIGINT)
+    try:
+        signal.signal(signal.SIGINT, sentinel)
+        assert signal.getsignal(signal.SIGINT) is sentinel
+        with pytest.raises(WorkerLibraryExit):
+            signal.raise_signal(signal.SIGINT)
+        assert signal.getsignal(signal.SIGINT) is sentinel
+    finally:
+        signal.signal(signal.SIGINT, previous)

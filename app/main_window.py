@@ -67,6 +67,21 @@ def _unique_stem(src_path):
     return f"{base}_{digest}"
 
 
+def _skipped_videos_notice(videos_without_subs):
+    """자막이 없어 건너뛴 영상을 알리는 로그 문구. 없으면 None.
+
+    추출된 자막이 있어 번역으로 진행하는 분기에서는 자막 없는 영상이
+    전사 질의 없이 조용히 제외되므로, 최소한 로그로 제외 사실을 남긴다.
+    """
+    if not videos_without_subs:
+        return None
+    names = ", ".join(os.path.basename(v) for v in videos_without_subs)
+    return (
+        f"  → 내장 자막이 없어 건너뛴 영상 {len(videos_without_subs)}개: {names} "
+        f"(전사 모드로 따로 실행하세요)"
+    )
+
+
 # =====================================================================
 # [메인 GUI 애플리케이션]
 # =====================================================================
@@ -1616,6 +1631,9 @@ class TranslatorApp(QWidget):
                     primary_input_source_for_jobs = [item[0] for item in extracted_sub_files]
                     valid_video_paths = [item[1] for item in extracted_sub_files]
                     self.extracted_temp_files = [item[0] for item in extracted_sub_files]
+                    notice = _skipped_videos_notice(videos_without_subs)
+                    if notice:
+                        self.append_log(f"\x1b[33m{notice}\x1b[0m")
                 elif saved_direct_count > 0 and not videos_without_subs:
                     QMessageBox.information(
                         self, "완료",

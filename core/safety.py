@@ -13,8 +13,7 @@ import os
 import signal
 import sys
 import threading
-import sys
-import builtins
+
 # [패치] PyInstaller windowed 모드에서 exit()가 없는 문제 방지
 try:
     exit
@@ -100,11 +99,11 @@ signal.signal = _safe_signal
 if hasattr(signal, 'raise_signal'):
     def _safe_raise_signal(signum):
         # 라이브러리가 모델 오버로드 3회, 연속 오류 초과 등으로 SIGINT를 발생시킬 때
-        # GUI 프로세스 전체를 종료하지 않고 WorkerLibraryExit를 던져 안전하게 처리
-        if threading.current_thread() is not threading.main_thread():
-            raise WorkerLibraryExit(130)
-        try:
-            return _original_signal(signum, signal.SIG_DFL)
-        except (ValueError, OSError, RuntimeError):
-            pass
+        # GUI 프로세스 전체를 종료하지 않고 WorkerLibraryExit를 던져 안전하게 처리한다.
+        # 스레드와 무관하게 동일하게 던진다: 기존 메인 스레드 분기는
+        # signal.signal(signum, SIG_DFL) (핸들러 등록)을 호출해 시그널을
+        # 전달하지도 못하고 설치된 핸들러만 기본값으로 바꿔버렸다.
+        # signal.raise_signal은 코드가 명시적으로 호출할 때만 타므로,
+        # 실제 Ctrl+C(OS 시그널) 처리는 이 패치와 무관하다.
+        raise WorkerLibraryExit(130)
     signal.raise_signal = _safe_raise_signal
