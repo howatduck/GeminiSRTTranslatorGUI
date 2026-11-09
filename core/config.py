@@ -28,6 +28,8 @@ _NON_TEXT_MODEL_MARKERS = (
     "deep-research",  # 리서치 에이전트 전용
     "lyria",         # 음악 생성
     "aqa",           # 구형 AQA 전용
+    "omni",          # 동영상 생성·편집 (gemini-omni-*-flash, Interactions API 전용)
+    "banana",        # 이미지 생성 (gemini-nano-banana-* — 이름에 image가 없음)
 )
 
 

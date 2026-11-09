@@ -266,6 +266,8 @@ def test_is_text_model():
         "gemini-live-2.5-flash-preview", "gemini-robotics-er-1.5-preview",
         "gemini-2.5-computer-use-preview-10-2025",
         "deep-research-pro-preview-12-2025", "aqa", "",
+        "gemini-omni-1.1-flash", "gemini-omni-1.2-flash",
+        "gemini-nano-banana-2.1",
     ):
         assert not is_text_model(junk), junk
 
@@ -293,6 +295,8 @@ def test_model_fetcher_excludes_non_text_models(qapp, monkeypatch):
                 _M("models/gemini-embedding-001", ["embedContent"]),
                 _M("models/gemini-2.5-flash-image", ["generateContent"]),
                 _M("models/gemini-2.5-flash-preview-tts", ["generateContent"]),
+                _M("models/gemini-omni-1.2-flash", []),
+                _M("models/gemini-nano-banana-2.1", ["generateContent"]),
                 _M("models/gemini-2.0-flash", []),
             ]
 
