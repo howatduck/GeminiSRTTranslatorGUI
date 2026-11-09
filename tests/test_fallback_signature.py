@@ -1,0 +1,190 @@
+# -*- coding: utf-8 -*-
+"""모델 폴백 체인·배치 래더·자막 서명 테스트.
+
+- core.fallback: 배치 래더와 (모델, 배치) 시도 계획
+- core.errors.failure_kind: 실패 종류 판정
+- core.subtitle_io: 서명 렌더링·큐 삽입 + 저장 패치 통합
+- app.workers: 과부하 시 모델 전환, 시간초과 시 배치 축소가 실제로
+  다음 시도로 이어지는지 가짜 백엔드로 검증
+"""
+
+import os
+import queue
+from datetime import timedelta
+
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+
+import pytest
+
+pytest.importorskip("PyQt6")
+
+from PyQt6.QtWidgets import QApplication
+
+from core.errors import failure_kind, MODEL_SWITCH_KINDS
+from core.fallback import batch_ladder, build_attempt_plan
+import core.subtitle_io as sio
+
+
+@pytest.fixture(scope="module")
+def qapp():
+    app = QApplication.instance() or QApplication([])
+    yield app
+
+
+# --- 배치 래더 / 시도 계획 ---
+
+def test_batch_ladder_steps_down_to_floor():
+    assert batch_ladder(1000, 200, 100) == [1000, 800, 600, 400, 200, 100]
+    assert batch_ladder(100, 30, 10) == [100, 70, 40, 10]
+
+
+def test_batch_ladder_disabled_cases():
+    assert batch_ladder(1000, 0, 100) == [1000]
+    assert batch_ladder(1000, 200, 0) == [1000]
+    assert batch_ladder(1000, 200, 1000) == [1000]
+
+
+def test_attempt_plan_is_level_major():
+    plan = build_attempt_plan(["A", "B"], 1000, 500, 500)
+    assert plan == [("A", 1000), ("B", 1000), ("A", 500), ("B", 500)]
+
+
+def test_attempt_plan_dedups_and_defaults():
+    assert build_attempt_plan(["A", "A", "B"], 100, 0, 0) == [("A", 100), ("B", 100)]
+    assert build_attempt_plan([], 100, 0, 0) == [(None, 100)]
+
+
+# --- 실패 종류 ---
+
+def test_failure_kind_classification():
+    assert failure_kind("작업 실패 - AI 모델 과부하(Overloaded 3회)") == "overload"
+    assert failure_kind("작업 실패 - API 할당량 고갈 (429).") == "quota"
+    assert failure_kind("작업 실패 - 서버 응답 시간 초과.") == "timeout"
+    assert failure_kind("아무 관련 없는 오류") == "unknown"
+    assert "overload" in MODEL_SWITCH_KINDS
+    assert "timeout" not in MODEL_SWITCH_KINDS
+
+
+# --- 서명 ---
+
+@pytest.fixture()
+def signature_on():
+    sio.set_signature_config(True, "start", "번역: 홍길동 · {model} · {date}")
+    sio.set_signature_model("gemini-3.5-flash")
+    yield
+    sio.set_signature_config(False, "start", "")
+    sio.set_signature_model("")
+
+
+def test_render_signature(signature_on):
+    assert sio.render_signature(today="2026-11-10") == (
+        "번역: 홍길동 · gemini-3.5-flash · 2026-11-10")
+
+
+def test_render_signature_disabled():
+    sio.set_signature_config(False, "start", "번역: {model}")
+    assert sio.render_signature(today="2026-11-10") == ""
+
+
+_CUES = [
+    "1\n00:00:05,000 --> 00:00:07,000\n안녕\n",
+    "2\n00:00:08,000 --> 00:00:09,500\n세상\n",
+]
+
+
+def test_insert_signature_at_start():
+    out = sio.insert_signature_cues(list(_CUES), "서명", "start")
+    assert len(out) == 3
+    assert out[0].startswith("1\n00:00:00,000 --> 00:00:03,000\n서명")
+    assert out[1].startswith("2\n00:00:05,000")
+    assert out[2].startswith("3\n00:00:08,000")
+
+
+def test_insert_signature_at_end():
+    out = sio.insert_signature_cues(list(_CUES), "서명", "end")
+    assert len(out) == 3
+    assert out[2].startswith("3\n00:00:09,500 --> 00:00:12,500\n서명")
+
+
+def test_save_patch_writes_signature(tmp_path, signature_on):
+    from core.gst_patches import _patched_save_subtitle_file
+
+    class Sub:
+        def __init__(self, start_ms, end_ms, content):
+            self.start = timedelta(milliseconds=start_ms)
+            self.end = timedelta(milliseconds=end_ms)
+            self.content = content
+
+    out = tmp_path / "movie.ko.srt"
+    _patched_save_subtitle_file(
+        "in.srt",
+        [Sub(5000, 7000, "안녕"), Sub(8000, 9500, "세상")],
+        str(out),
+    )
+    text = out.read_text(encoding="utf-8")
+    blocks = text.strip().split("\n\n")
+    assert "번역: 홍길동 · gemini-3.5-flash" in blocks[0]
+    assert blocks[0].split("\n")[1].startswith("00:00:00,000 --> 00:00:03,000")
+    assert blocks[1].startswith("2\n00:00:05,000")
+
+
+# --- 워커 폴백 실동작 ---
+
+class _FakeBackend:
+    def __init__(self, behavior):
+        self.behavior = behavior
+        self.seen = []
+
+    def run(self, args, mode=None, cancel_token=None):
+        self.seen.append((args["model_name"], args["batch_size"]))
+        self.behavior(args)
+
+
+def _run_worker(qapp, monkeypatch, behavior, base_config):
+    import app.workers as workers
+
+    backend = _FakeBackend(behavior)
+    monkeypatch.setattr(workers, "GstAdapter", lambda: backend)
+    jobs = queue.Queue()
+    jobs.put(("in.srt", "Korean", "out.ko.srt", False, None, None))
+    worker = workers.TranslationWorker(["key1"], jobs, base_config)
+    results = {"ok": [], "err": []}
+    worker.job_translated.connect(lambda p, lang: results["ok"].append(p))
+    worker.job_error.connect(lambda m: results["err"].append(m))
+    worker.run()
+    return backend, results
+
+
+def test_worker_switches_model_on_overload(qapp, monkeypatch):
+    def behavior(args):
+        if args["model_name"] == "m-lite":
+            raise RuntimeError("503 UNAVAILABLE: high demand")
+
+    backend, results = _run_worker(qapp, monkeypatch, behavior, {
+        "model_chain": ["m-lite", "m-flash"], "batch_size": 100})
+    assert results["ok"] == ["out.ko.srt"]
+    assert results["err"] == []
+    assert backend.seen == [("m-lite", 100), ("m-flash", 100)]
+
+
+def test_worker_shrinks_batch_on_timeout(qapp, monkeypatch):
+    def behavior(args):
+        if args["batch_size"] >= 1000:
+            raise RuntimeError("504 deadline exceeded")
+
+    backend, results = _run_worker(qapp, monkeypatch, behavior, {
+        "model_chain": ["m1"], "batch_size": 1000,
+        "batch_step_down": 500, "batch_floor": 100})
+    assert results["ok"] == ["out.ko.srt"]
+    assert backend.seen == [("m1", 1000), ("m1", 500)]
+
+
+def test_worker_gives_up_after_plan_exhausted(qapp, monkeypatch):
+    def behavior(args):
+        raise RuntimeError("503 UNAVAILABLE")
+
+    backend, results = _run_worker(qapp, monkeypatch, behavior, {
+        "model_chain": ["m1", "m2"], "batch_size": 100})
+    assert results["ok"] == []
+    assert len(results["err"]) == 1
+    assert backend.seen == [("m1", 100), ("m2", 100)]

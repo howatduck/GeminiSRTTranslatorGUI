@@ -192,6 +192,13 @@ def _patched_save_subtitle_file(*args, **kwargs):
                 if strip_final_periods_enabled():
                     text = strip_final_periods(text)
                 lines.append(f"{i}\n{start_str} --> {end_str}\n{text}\n")
+            # 번역자 서명 (활성 시에만; {model}은 워커가 알려준 성공 모델)
+            from core.subtitle_io import (
+                render_signature, signature_config, insert_signature_cues)
+            sig_text = render_signature()
+            if sig_text:
+                lines = insert_signature_cues(
+                    lines, sig_text, signature_config()["position"])
             with open(temp_out, "w", encoding="utf-8") as f:
                 f.write("\n".join(lines) + "\n")
         else:

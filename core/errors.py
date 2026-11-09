@@ -110,6 +110,27 @@ _FAILURE_ADVICE = {
 }
 
 
+def failure_kind(message):
+    """실패 메시지 1건 → 종류 키 (overload/quota/auth/timeout/safety/response/unknown)."""
+    text = str(message or "").lower()
+    for name, _label, keywords in _FAILURE_KINDS:
+        if any(k in text for k in keywords):
+            return name
+    return "unknown"
+
+
+def failure_kind_label(kind):
+    for name, label, _keywords in _FAILURE_KINDS:
+        if name == kind:
+            return label
+    return "일시적 오류"
+
+
+# 이 종류의 실패는 배치 축소가 아니라 모델 전환이 답이다 —
+# 워커 폴백이 같은 모델의 남은 프로필을 건너뛸 때 쓴다.
+MODEL_SWITCH_KINDS = frozenset({"overload", "quota", "safety"})
+
+
 def failure_advice(messages):
     """실패 메시지 목록 → (원인 라벨, 안내 문구 목록).
 
@@ -120,17 +141,11 @@ def failure_advice(messages):
     counts = {}
     last_seen = {}
     for idx, msg in enumerate(messages or []):
-        text = str(msg).lower()
-        kind = "unknown"
-        for name, _label, keywords in _FAILURE_KINDS:
-            if any(k in text for k in keywords):
-                kind = name
-                break
+        kind = failure_kind(msg)
         counts[kind] = counts.get(kind, 0) + 1
         last_seen[kind] = idx
     if not counts:
         kind = "unknown"
     else:
         kind = max(counts, key=lambda k: (counts[k], last_seen[k]))
-    label = dict((n, l) for n, l, _ in _FAILURE_KINDS).get(kind, "일시적 오류")
-    return label, list(_FAILURE_ADVICE[kind])
+    return failure_kind_label(kind), list(_FAILURE_ADVICE[kind])

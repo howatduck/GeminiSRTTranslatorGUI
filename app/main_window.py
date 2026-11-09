@@ -2,6 +2,7 @@
 """메인 윈도우: TranslatorApp."""
 
 import hashlib
+import json
 import logging
 import os
 import queue
@@ -17,7 +18,7 @@ from PyQt6.QtWidgets import (
     QPushButton, QFileDialog, QComboBox, QSpinBox, QCheckBox, QTextEdit,
     QMessageBox, QGroupBox, QFormLayout, QListWidget, QListWidgetItem,
     QSizePolicy, QFrame, QDoubleSpinBox, QProgressBar,
-    QToolButton, QScrollArea, QLayout, QDialog,
+    QToolButton, QScrollArea, QLayout, QDialog, QAbstractItemView,
 )
 
 from app.i18n import I18N
@@ -53,7 +54,8 @@ from core.style_presets import (
 )
 from core.pricing import read_report_cost, token_report_path_for
 from core.errors import failure_advice
-from core.subtitle_io import is_translation_complete, set_strip_final_periods
+from core.subtitle_io import (
+    is_translation_complete, set_strip_final_periods, set_signature_config)
 
 
 def _unique_stem(src_path):
@@ -121,6 +123,7 @@ class TranslatorApp(QWidget):
         self.completed_jobs = 0
         self.failed_jobs = 0
         self.last_job_errors = []
+        self.model_fallback_order = []
         self.job_completion_lock = threading.Lock()
         self.jobs = []
         self.recent_outputs = []
@@ -700,6 +703,12 @@ class TranslatorApp(QWidget):
         self.cmb_model.addItem(DEFAULT_MODEL)
         model_layout.addWidget(self.btn_fetch)
         model_layout.addWidget(self.cmb_model, 1)
+        self.btn_model_order = QPushButton("폴백 순서...")
+        self.btn_model_order.setToolTip(
+            "작업 실패 시 다음으로 시도할 모델 순서를 정합니다. "
+            "위에서부터 순서대로 시도하고, 실패하면 다음 모델로 자동 전환됩니다.")
+        self.btn_model_order.clicked.connect(self.open_model_priority_dialog)
+        model_layout.addWidget(self.btn_model_order)
         self.lbl_model = QLabel("사용 모델:")
         form_layout.addRow(self.lbl_model, model_layout)
 
@@ -893,6 +902,33 @@ class TranslatorApp(QWidget):
         adaptive_layout.addStretch()
         main_form_layout.addRow("적응형 복구:", adaptive_layout)
 
+        fallback_layout = QHBoxLayout()
+        self.lbl_batch_step_down = QLabel("배치 감소폭:")
+        fallback_layout.addWidget(self.lbl_batch_step_down)
+        self.spin_batch_step_down = QSpinBox()
+        self.spin_batch_step_down.setRange(0, 2000)
+        self.spin_batch_step_down.setValue(0)
+        self.spin_batch_step_down.setSingleStep(50)
+        self.spin_batch_step_down.setSpecialValueText("사용 안 함")
+        self.spin_batch_step_down.setToolTip(
+            "작업이 실패하면 배치 크기를 이만큼씩 줄여 다시 시도합니다. "
+            "0이면 배치 축소를 하지 않습니다.")
+        fallback_layout.addWidget(self.spin_batch_step_down)
+        fallback_layout.addSpacing(10)
+        self.lbl_batch_floor = QLabel("배치 하한:")
+        fallback_layout.addWidget(self.lbl_batch_floor)
+        self.spin_batch_floor = QSpinBox()
+        self.spin_batch_floor.setRange(10, 5000)
+        self.spin_batch_floor.setValue(100)
+        self.spin_batch_floor.setSingleStep(50)
+        self.spin_batch_floor.setToolTip("배치 크기를 이 값 아래로는 줄이지 않습니다.")
+        fallback_layout.addWidget(self.spin_batch_floor)
+        fallback_layout.addSpacing(10)
+        self.lbl_fallback_help = QLabel("(작업 실패 시 재시도 조건)")
+        fallback_layout.addWidget(self.lbl_fallback_help)
+        fallback_layout.addStretch()
+        main_form_layout.addRow("작업 폴백:", fallback_layout)
+
         box1 = QHBoxLayout()
         self.chk_streaming = QCheckBox("스트리밍")
         self.chk_streaming.setChecked(True)
@@ -956,6 +992,30 @@ class TranslatorApp(QWidget):
         box4.addStretch()
         main_form_layout.addRow(box4)
 
+        sig_layout = QHBoxLayout()
+        self.chk_signature = QCheckBox("자막 서명 삽입")
+        self.chk_signature.setChecked(False)
+        self.chk_signature.setToolTip(
+            "체크하면 저장되는 SRT 자막의 시작이나 끝에 서명 자막을 넣습니다. "
+            "ASS 등 다른 형식에는 적용되지 않습니다.")
+        self.chk_signature.toggled.connect(
+            lambda on: self._sync_signature_config())
+        sig_layout.addWidget(self.chk_signature)
+        self.cmb_signature_pos = QComboBox()
+        self.cmb_signature_pos.addItem("파일 시작", "start")
+        self.cmb_signature_pos.addItem("파일 끝", "end")
+        self.cmb_signature_pos.currentIndexChanged.connect(
+            lambda idx: self._sync_signature_config())
+        sig_layout.addWidget(self.cmb_signature_pos)
+        self.txt_signature = QLineEdit()
+        self.txt_signature.setPlaceholderText(
+            "서명 문구 — {model}: 사용한 모델, {date}: 번역 날짜 "
+            "(예: 번역: 홍길동 · {model} · {date})")
+        self.txt_signature.textChanged.connect(
+            lambda text: self._sync_signature_config())
+        sig_layout.addWidget(self.txt_signature, 1)
+        main_form_layout.addRow("자막 서명:", sig_layout)
+
         dialog_layout.addLayout(main_form_layout)
 
         dialog_btn_layout = QHBoxLayout()
@@ -967,6 +1027,74 @@ class TranslatorApp(QWidget):
 
     def open_advanced_settings(self):
         self.advanced_dialog.exec()
+
+    def _sync_signature_config(self):
+        """서명 위젯 상태 -> core.subtitle_io 저장 정책 동기화."""
+        try:
+            set_signature_config(
+                self.chk_signature.isChecked(),
+                self.cmb_signature_pos.currentData(),
+                self.txt_signature.text(),
+            )
+        except Exception:
+            pass
+
+    def _model_chain(self, primary):
+        """폴백 체인: 선택 모델 + 저장된 우선순위 (중복 제거, 최대 4개)."""
+        chain = []
+        for m in [primary] + list(getattr(self, 'model_fallback_order', []) or []):
+            if m and m not in chain:
+                chain.append(m)
+        return chain[:4]
+
+    def open_model_priority_dialog(self):
+        """모델 폴백 우선순위를 드래그로 정하는 다이얼로그."""
+        combo_models = [
+            self.cmb_model.itemText(i) for i in range(self.cmb_model.count())]
+        ordered = []
+        for m in ([self.cmb_model.currentText()]
+                  + list(getattr(self, 'model_fallback_order', []) or [])
+                  + combo_models):
+            if m and m not in ordered:
+                ordered.append(m)
+        dlg = QDialog(self)
+        dlg.setWindowTitle("모델 폴백 우선순위")
+        layout = QVBoxLayout(dlg)
+        layout.addWidget(QLabel(
+            "위에서부터 순서대로 시도합니다. 작업이 실패하면 다음 모델로\n"
+            "자동 전환됩니다. 항목을 드래그해서 순서를 바꾸세요."))
+        lst = QListWidget()
+        lst.setDragDropMode(QAbstractItemView.DragDropMode.InternalMove)
+        for m in ordered:
+            lst.addItem(m)
+        layout.addWidget(lst)
+        btn_row = QHBoxLayout()
+        btn_remove = QPushButton("선택 제외")
+        btn_row.addWidget(btn_remove)
+        btn_row.addStretch()
+        btn_ok = QPushButton("확인")
+        btn_cancel = QPushButton("취소")
+        btn_row.addWidget(btn_ok)
+        btn_row.addWidget(btn_cancel)
+        layout.addLayout(btn_row)
+
+        def _remove_selected():
+            row = lst.currentRow()
+            if row >= 0 and lst.count() > 1:
+                lst.takeItem(row)
+
+        btn_remove.clicked.connect(_remove_selected)
+        btn_ok.clicked.connect(dlg.accept)
+        btn_cancel.clicked.connect(dlg.reject)
+        if dlg.exec():
+            order = [lst.item(i).text() for i in range(lst.count())]
+            if order:
+                self.model_fallback_order = order
+                self.settings.setValue(
+                    "model_fallback_order", json.dumps(order))
+                idx = self.cmb_model.findText(order[0])
+                if idx >= 0:
+                    self.cmb_model.setCurrentIndex(idx)
 
     def _create_action_log_group(self, parent_layout):
         self.action_log_group = QGroupBox("터미널 출력 (VT100 Engine)")
@@ -1177,6 +1305,28 @@ class TranslatorApp(QWidget):
                 self.settings.value("strip_final_periods", True, type=bool)
             )
             set_strip_final_periods(self.chk_strip_periods.isChecked())
+            # 작업 폴백 (배치 래더) + 모델 우선순위 + 자막 서명
+            self.spin_batch_step_down.setValue(
+                self.settings.value("batch_step_down", 0, type=int))
+            self.spin_batch_floor.setValue(
+                self.settings.value("batch_floor", 100, type=int))
+            try:
+                saved_order = json.loads(
+                    str(self.settings.value("model_fallback_order", "") or ""))
+                self.model_fallback_order = (
+                    [str(m) for m in saved_order] if isinstance(saved_order, list)
+                    else [])
+            except (ValueError, TypeError):
+                self.model_fallback_order = []
+            self.chk_signature.setChecked(
+                self.settings.value("signature_enabled", False, type=bool))
+            sig_pos = str(self.settings.value("signature_position", "start") or "start")
+            pos_idx = self.cmb_signature_pos.findData(sig_pos)
+            if pos_idx >= 0:
+                self.cmb_signature_pos.setCurrentIndex(pos_idx)
+            self.txt_signature.setText(
+                str(self.settings.value("signature_template", "") or ""))
+            self._sync_signature_config()
             self.chk_token_stats.setChecked(
                 self.settings.value("token_stats", True, type=bool)
             )
@@ -1296,6 +1446,15 @@ class TranslatorApp(QWidget):
             self.settings.setValue("force_retranslate", self.chk_force_retranslate.isChecked())
             self.settings.setValue("prefer_sdh", self.chk_prefer_sdh.isChecked())
             self.settings.setValue("strip_final_periods", self.chk_strip_periods.isChecked())
+            self.settings.setValue("batch_step_down", self.spin_batch_step_down.value())
+            self.settings.setValue("batch_floor", self.spin_batch_floor.value())
+            self.settings.setValue(
+                "model_fallback_order",
+                json.dumps(getattr(self, 'model_fallback_order', []) or []))
+            self.settings.setValue("signature_enabled", self.chk_signature.isChecked())
+            self.settings.setValue(
+                "signature_position", self.cmb_signature_pos.currentData())
+            self.settings.setValue("signature_template", self.txt_signature.text())
             self.settings.setValue("token_stats", self.chk_token_stats.isChecked())
             self.settings.setValue("token_report", self.chk_token_report.isChecked())
 
@@ -1535,6 +1694,8 @@ class TranslatorApp(QWidget):
 
         # 줄 끝 마침표 제거 옵션 상태를 저장 패치에 동기화
         set_strip_final_periods(self.chk_strip_periods.isChecked())
+        # 자막 서명 설정도 저장 패치에 동기화
+        self._sync_signature_config()
 
         is_transcribe_mode = self.cmb_task_mode.currentIndex() == 1
         primary_input_source_for_jobs = None
@@ -1814,7 +1975,10 @@ class TranslatorApp(QWidget):
                 getattr(self, 'custom_presets', None),
             ),
             'model_name': selected_model,
+            'model_chain': self._model_chain(selected_model),
             'batch_size': self.spin_batch.value(),
+            'batch_step_down': self.spin_batch_step_down.value(),
+            'batch_floor': self.spin_batch_floor.value(),
             'free_quota': self.chk_free.isChecked(),
             'thoughts_log': self.chk_thoughts_log.isChecked(),
             'temperature': temp_val if temp_val > 0.0 else None,
@@ -2066,7 +2230,7 @@ class TranslatorApp(QWidget):
             self.btn_audio_file, self.lbl_audio_file, self.btn_clear_audio_file,
             self.cmb_langs, self.btn_all_lang, self.btn_none_lang,
             self.txt_custom_lang, self.btn_add_lang,
-            self.cmb_model, self.spin_start, self.spin_batch, self.txt_desc,
+            self.cmb_model, self.btn_model_order, self.spin_start, self.spin_batch, self.txt_desc,
             self.lbl_style, self.cmb_style,
             self.chk_extract_audio, self.chk_free,
             self.spin_temp, self.spin_top_p, self.spin_top_k,
@@ -2078,6 +2242,8 @@ class TranslatorApp(QWidget):
             self.chk_strip_periods,
             self.chk_token_stats,
             self.chk_token_report, self.spin_resume_context,
+            self.spin_batch_step_down, self.spin_batch_floor,
+            self.chk_signature, self.cmb_signature_pos, self.txt_signature,
             self.spin_batch_error_step, self.spin_audio_chunk_error_step,
             self.cmb_service_tier, self.chk_use_enterprise,
             self.cloud_project_input, self.cloud_api_key_input,

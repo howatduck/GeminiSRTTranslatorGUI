@@ -102,6 +102,97 @@ def strip_final_periods(text):
     return "\n".join(_strip_line_final_period(l) for l in text.split("\n"))
 
 
+# =====================================================================
+# 번역자 서명 삽입
+#
+# 저장 시점에 자막 첫머리/꼬리에 서명 큐를 넣는다. 사용자는 템플릿에
+# 자기 서명을 직접 쓰고, {model}(실제로 번역한 모델)·{date}(번역 날짜)
+# 자리표시자만 앱이 채운다. 모델명은 워커가 시도마다 알려준다 —
+# 폴백으로 모델이 바뀌어도 성공한 모델이 기록된다.
+# =====================================================================
+_signature_config = {"enabled": False, "position": "start", "template": ""}
+_signature_model = ""
+
+
+def set_signature_config(enabled, position, template):
+    """서명 정책 동기화 (앱 설정이 호출)."""
+    _signature_config["enabled"] = bool(enabled)
+    _signature_config["position"] = "end" if position == "end" else "start"
+    _signature_config["template"] = str(template or "")
+
+
+def signature_config():
+    return dict(_signature_config)
+
+
+def set_signature_model(model):
+    """이 저장을 만든 모델명 (워커가 시도 직전에 호출)."""
+    global _signature_model
+    _signature_model = str(model or "")
+
+
+def render_signature(model=None, today=None):
+    """서명 문구 렌더링. 비활성·빈 템플릿이면 빈 문자열."""
+    if not _signature_config["enabled"]:
+        return ""
+    template = _signature_config["template"].strip()
+    if not template:
+        return ""
+    import datetime
+
+    date_str = today or datetime.date.today().isoformat()
+    model_name = _signature_model if model is None else str(model or "")
+    return template.replace("{model}", model_name).replace("{date}", date_str)
+
+
+def _cue_times_ms(block):
+    """번호 포함 SRT 블록 문자열 -> (start_ms, end_ms) | None."""
+    lines = block.split("\n")
+    if len(lines) < 2:
+        return None
+    m = TIMESTAMP_RE.search(lines[1])
+    if not m:
+        return None
+    g = [int(x) for x in m.groups()]
+    start = ((g[0] * 60 + g[1]) * 60 + g[2]) * 1000 + g[3]
+    end = ((g[4] * 60 + g[5]) * 60 + g[6]) * 1000 + g[7]
+    return start, end
+
+
+def insert_signature_cues(cues, text, position="start"):
+    """번호가 매겨진 SRT 블록 목록에 서명 큐를 넣고 번호를 다시 매긴다.
+
+    cues: gst_patches가 만든 "번호\\n시간 --> 시간\\n본문\\n" 블록 목록.
+    시작 위치: 첫 큐 앞 0초부터 최대 3초 (첫 큐가 먼저 시작하면 그
+    시작까지만). 끝 위치: 마지막 큐 종료부터 3초.
+    """
+    if not cues or not text:
+        return cues
+    times = [_cue_times_ms(c) for c in cues]
+    if any(t is None for t in times):
+        return cues
+    if position == "end":
+        start_ms = times[-1][1]
+        end_ms = start_ms + 3000
+        sig = f"0\n{ms_to_timestamp(start_ms)} --> {ms_to_timestamp(end_ms)}\n{text}\n"
+        merged = list(cues) + [sig]
+    else:
+        first_start, first_end = times[0]
+        if first_start > 0:
+            end_ms = min(3000, first_start)
+        else:
+            end_ms = min(3000, first_end)
+        if end_ms <= 0:
+            return cues
+        sig = f"0\n{ms_to_timestamp(0)} --> {ms_to_timestamp(end_ms)}\n{text}\n"
+        merged = [sig] + list(cues)
+    renumbered = []
+    for i, block in enumerate(merged, start=1):
+        _old, sep, rest = block.partition("\n")
+        renumbered.append(f"{i}{sep}{rest}" if sep else f"{i}\n{block}")
+    return renumbered
+
+
 def parse_srt(text):
     """SRT 텍스트 -> 자막 entry 리스트.
 

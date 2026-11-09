@@ -19,7 +19,9 @@ from PyQt6.QtWidgets import (
 )
 
 from core.config import DEFAULT_BATCH_SIZE, DEFAULT_MODEL
-from core.errors import classify_worker_error
+from core.errors import (
+    classify_worker_error, failure_kind, failure_kind_label, MODEL_SWITCH_KINDS)
+from core.fallback import build_attempt_plan
 from core.pricing import token_report_path_for
 from core.gst_compat import (
     GENAI_IMPORT_ERROR, GST_IMPORT_ERROR, genai,
@@ -210,14 +212,28 @@ class TranslationWorker(QThread):
                     # 날린다. 입력==출력(제자리)인 경우도 라이브러리가 입력을
                     # 전부 읽은 뒤 쓰므로 안전하다.
 
+                    # 시도 계획: (모델, 배치) 프로필 × API 키 회전.
+                    # 모델 폴백 체인·배치 래더는 base_config로 전달된다.
+                    model_chain = self.base_config.get('model_chain') or [
+                        self.base_config.get('model_name', DEFAULT_MODEL)]
+                    plan = build_attempt_plan(
+                        model_chain,
+                        self.base_config.get('batch_size', DEFAULT_BATCH_SIZE),
+                        self.base_config.get('batch_step_down', 0),
+                        self.base_config.get('batch_floor', 0),
+                    )
                     max_key_attempts = max(1, len(self.api_keys))
+                    total_attempts = len(plan) * max_key_attempts
                     job_successful = False
                     last_error_msg = ""
 
-                    for attempt in range(max_key_attempts):
+                    attempt = 0
+                    plan_idx = 0
+                    while attempt < total_attempts and plan_idx < len(plan):
                         if self.isInterruptionRequested():
                             break
 
+                        profile_model, profile_batch = plan[plan_idx]
                         current_primary_api_key = (
                             self.api_keys[self.current_key_index] if self.api_keys else None
                         )
@@ -226,7 +242,7 @@ class TranslationWorker(QThread):
 
                         if attempt > 0:
                             self.progress_update.emit(
-                                f"\x1b[33m\n[작업 재시도 ({attempt+1}/{max_key_attempts}) ({msg_key})] [{target_language}] {base_name}\x1b[0m\n"
+                                f"\x1b[33m\n[작업 재시도 ({attempt+1}/{total_attempts}) ({msg_key})] [{target_language}] {base_name} (모델 {profile_model} · 배치 {profile_batch})\x1b[0m\n"
                             )
                         else:
                             self.progress_update.emit(
@@ -249,8 +265,8 @@ class TranslationWorker(QThread):
                                 # 기본값(저장된 .progress 위치)이 적용된다.
                                 'start_line': self.base_config.get('start_line'),
                                 'description': self.base_config.get('description', '') or None,
-                                'model_name': self.base_config.get('model_name', DEFAULT_MODEL),
-                                'batch_size': self.base_config.get('batch_size', DEFAULT_BATCH_SIZE),
+                                'model_name': profile_model,
+                                'batch_size': profile_batch,
                                 'streaming': self.base_config.get('streaming', True),
                                 'thinking': self.base_config.get('thinking', True),
                                 'thinking_budget': self.base_config.get('thinking_budget', 2048),
@@ -295,6 +311,13 @@ class TranslationWorker(QThread):
                             # (파라미터 필터링·구버전 fallback·로거 초기화는 어댑터 내부에서 처리)
                             # cancel_token으로 청크 경계에서 즉시 중단 가능
                             mode = "transcribe" if is_transcribe_mode else "translate"
+                            # 서명 {model}용: 이 시도를 실행하는 모델을 저장
+                            # 패치에 알린다 (폴백 성공 시 그 모델이 기록됨)
+                            try:
+                                from core.subtitle_io import set_signature_model
+                                set_signature_model(profile_model)
+                            except Exception:
+                                pass
                             self._backend.run(
                                 translator_args, mode=mode,
                                 cancel_token=self.isInterruptionRequested,
@@ -332,6 +355,28 @@ class TranslationWorker(QThread):
                         else:
                             if self.api_keys:
                                 self.current_key_index = (self.current_key_index + 1) % len(self.api_keys)
+
+                        attempt += 1
+                        # 다음 프로필 결정: 과부하·할당량·안전차단은 배치
+                        # 축소가 아니라 모델 전환이 답이라 같은 모델의 남은
+                        # 프로필을 건너뛰고, 그 외에는 키를 한 바퀴 다 쓴
+                        # 시점에 다음 프로필(다음 모델/작은 배치)로 넘어간다.
+                        kind = failure_kind(last_error_msg)
+                        if kind in MODEL_SWITCH_KINDS:
+                            nxt = plan_idx + 1
+                            while nxt < len(plan) and plan[nxt][0] == profile_model:
+                                nxt += 1
+                            if nxt < len(plan):
+                                self.progress_update.emit(
+                                    f"\x1b[33m[폴백] {profile_model} 실패({failure_kind_label(kind)}) → {plan[nxt][0]} 모델로 전환합니다.\x1b[0m\n"
+                                )
+                            plan_idx = nxt
+                        elif attempt % max_key_attempts == 0:
+                            plan_idx += 1
+                            if plan_idx < len(plan):
+                                self.progress_update.emit(
+                                    f"\x1b[33m[폴백] 재시도 조건 변경 → 모델 {plan[plan_idx][0]} · 배치 {plan[plan_idx][1]}\x1b[0m\n"
+                                )
 
                     if self.isInterruptionRequested():
                         break
