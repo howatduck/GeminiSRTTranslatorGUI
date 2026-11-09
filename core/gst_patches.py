@@ -383,6 +383,85 @@ def _noop_reduce(self, *args, **kwargs):
 
 
 # =====================================================================
+# 중단 응답성 패치 (2026-11-10): 스트리밍 중 취소 + 요청 정지 상한
+#
+# 기존에는 취소가 배치 경계에서만 확인돼, 큰 배치의 스트리밍이
+# 길어지면 중단 요청이 배치 끝까지 밀렸다. 또 라이브러리가
+# 타임아웃 없이 클라이언트를 만들어, 서버 응답이 멈추면 무한
+# 대기할 수 있었다. 두 가지를 함께 고친다.
+# =====================================================================
+
+# 단일 요청의 무활동 상한 (밀리초) — 응답 바이트가 이 시간 넘게
+# 완전히 멈추면 타임아웃으로 실패시켜 중단·폴백이 걸리게 한다.
+API_STALL_TIMEOUT_MS = 300_000
+
+
+def _build_timed_client(api_key, timeout_ms):
+    """타임아웃이 설정된 genai 클라이언트 생성 (표준 API 키 경로용)."""
+    from google import genai
+    from google.genai import types as genai_types
+    return genai.Client(
+        api_key=api_key,
+        http_options=genai_types.HttpOptions(timeout=timeout_ms))
+
+
+def _make_client_timeout_guard(original, timeout_ms=API_STALL_TIMEOUT_MS):
+    """_get_client 래퍼: 표준 경로 클라이언트에 요청 타임아웃 적용.
+
+    엔터프라이즈(Vertex) 경로는 원래 클라이언트(헤더 옵션 포함)를
+    유지하고, 재구성에 실패하면 원래 클라이언트로 폴백한다.
+    """
+    def _guarded(self, *args, **kwargs):
+        client = original(self, *args, **kwargs)
+        try:
+            if getattr(self, "use_enterprise", False):
+                return client
+            api_key = getattr(self, "current_api_key", None)
+            if not api_key:
+                return client
+            return _build_timed_client(api_key, timeout_ms)
+        except Exception:
+            return client
+    return _guarded
+
+
+def patch_client_timeout(GeminiSRTTranslator):
+    """_get_client 타임아웃 가드."""
+    if hasattr(GeminiSRTTranslator, '_get_client'):
+        GeminiSRTTranslator._get_client = _make_client_timeout_guard(
+            GeminiSRTTranslator._get_client)
+
+
+def _make_loading_cancel_guard(original):
+    """update_loading_animation 래퍼: 호출 전 취소 토큰 확인.
+
+    라이브러리는 스트리밍 청크가 올 때마다 이 함수를 부른다. 여기에
+    취소 체크를 걸면 중단 요청이 배치 끝까지 밀리지 않고 스트리밍
+    도중 다음 청크에서 바로 반영된다.
+    """
+    def _guarded(*args, **kwargs):
+        _check_cancelled()
+        return original(*args, **kwargs)
+    return _guarded
+
+
+def patch_loading_cancel():
+    """update_loading_animation(logger 원본 + main 바인딩)에 취소 체크 주입."""
+    try:
+        import gemini_srt_translator.logger as gst_logger
+        gst_logger.update_loading_animation = _make_loading_cancel_guard(
+            gst_logger.update_loading_animation)
+    except Exception:
+        pass
+    try:
+        import gemini_srt_translator.main as gst_main
+        gst_main.update_loading_animation = _make_loading_cancel_guard(
+            gst_main.update_loading_animation)
+    except Exception:
+        pass
+
+
+# =====================================================================
 # 패치 적용 단위
 # =====================================================================
 
@@ -482,6 +561,8 @@ PATCH_SET_3_8 = (
     "patch_translate_instruction",
     "patch_ffmpeg_run_command",
     "patch_noop_reduce",
+    "patch_client_timeout",
+    "patch_loading_cancel",
 )
 
 PATCH_REGISTRY = {
@@ -499,6 +580,8 @@ _PATCH_FUNCS = {
     "patch_translate_instruction": patch_translate_instruction,
     "patch_ffmpeg_run_command": patch_ffmpeg_run_command,
     "patch_noop_reduce": patch_noop_reduce,
+    "patch_client_timeout": patch_client_timeout,
+    "patch_loading_cancel": patch_loading_cancel,
 }
 
 
@@ -523,7 +606,8 @@ def apply_patches(GeminiSRTTranslator, Subtitle, SubtitleSession, version=None):
         try:
             if name == "patch_save_subtitle_file":
                 func(GeminiSRTTranslator, SubtitleSession)
-            elif name in ("patch_process_translated_lines", "patch_noop_reduce"):
+            elif name in ("patch_process_translated_lines", "patch_noop_reduce",
+                          "patch_client_timeout"):
                 func(GeminiSRTTranslator)
             elif name == "patch_parse_response":
                 func(GeminiSRTTranslator, Subtitle)

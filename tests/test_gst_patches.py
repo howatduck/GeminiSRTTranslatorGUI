@@ -41,7 +41,7 @@ def test_resolve_patch_set_known():
     ps = resolve_patch_set("3.8.3")
     assert "patch_save_subtitle_file" in ps
     assert "patch_noop_reduce" in ps
-    assert len(ps) == 7
+    assert len(ps) == 9
 
 
 def test_resolve_patch_set_unknown_falls_back(capsys):
@@ -192,3 +192,79 @@ def test_cancel_token_exception_in_token_ignored():
         assert guarded(T()) == "done"
     finally:
         set_active_cancel_token(None)
+
+
+# --- 중단 응답성 패치 (청크 단위 취소 + 클라이언트 타임아웃) ---
+
+def test_loading_cancel_guard_raises_when_cancelled():
+    from core.backend.base import BackendCancelRequested
+    from core.gst_patches import (
+        _make_loading_cancel_guard, set_active_cancel_token)
+
+    calls = []
+    guarded = _make_loading_cancel_guard(lambda *a, **k: calls.append(1) or "ok")
+    set_active_cancel_token(lambda: True)
+    try:
+        with pytest.raises(BackendCancelRequested):
+            guarded()
+        assert calls == []  # 취소 시 원본은 호출되지 않는다
+    finally:
+        set_active_cancel_token(None)
+    assert guarded() == "ok"
+    assert calls == [1]
+
+
+def test_client_timeout_guard_standard_path(monkeypatch):
+    import core.gst_patches as gp
+
+    captured = {}
+
+    def _fake_build(api_key, timeout_ms):
+        captured["api_key"] = api_key
+        captured["timeout_ms"] = timeout_ms
+        return "timed-client"
+
+    monkeypatch.setattr(gp, "_build_timed_client", _fake_build)
+    guarded = gp._make_client_timeout_guard(lambda self: "orig-client")
+
+    class _T:
+        use_enterprise = False
+        current_api_key = "KEY-1"
+
+    assert guarded(_T()) == "timed-client"
+    assert captured == {"api_key": "KEY-1", "timeout_ms": gp.API_STALL_TIMEOUT_MS}
+
+
+def test_client_timeout_guard_enterprise_and_fallback(monkeypatch):
+    import core.gst_patches as gp
+
+    guarded = gp._make_client_timeout_guard(lambda self: "orig-client")
+
+    class _Ent:
+        use_enterprise = True
+        current_api_key = "KEY-1"
+
+    assert guarded(_Ent()) == "orig-client"  # 엔터프라이즈는 원본 유지
+
+    class _NoKey:
+        use_enterprise = False
+        current_api_key = None
+
+    assert guarded(_NoKey()) == "orig-client"  # 키 없으면 원본 유지
+
+    def _boom(api_key, timeout_ms):
+        raise RuntimeError("build failed")
+
+    monkeypatch.setattr(gp, "_build_timed_client", _boom)
+
+    class _Std:
+        use_enterprise = False
+        current_api_key = "KEY-1"
+
+    assert guarded(_Std()) == "orig-client"  # 재구성 실패 시 원본 폴백
+
+
+def test_cancel_patches_registered():
+    names = resolve_patch_set("3.8.3")
+    assert "patch_client_timeout" in names
+    assert "patch_loading_cancel" in names
