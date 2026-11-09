@@ -168,36 +168,51 @@ def _patched_save_subtitle_file(*args, **kwargs):
     temp_dir = os.path.dirname(os.path.abspath(output_file)) if output_file else "."
     temp_dir = temp_dir or "."
     os.makedirs(temp_dir, exist_ok=True)
-    temp_out = os.path.join(temp_dir, f".tmp_{os.path.basename(output_file)}") if output_file else ".tmp_sub.srt"
-
-    if ext == ".srt":
-        lines = []
-        for i, sub in enumerate(translated_subtitle, start=1):
-            start_str = _ms_to_srt(sub.start)
-            end_str = _ms_to_srt(sub.end)
-            text = sub.content.replace(r"\N", "\n").replace(r"\n", "\n").strip("\r\n")
-            from core.subtitle_io import strip_final_periods, strip_final_periods_enabled
-            if strip_final_periods_enabled():
-                text = strip_final_periods(text)
-            lines.append(f"{i}\n{start_str} --> {end_str}\n{text}\n")
-        with open(temp_out, "w", encoding="utf-8") as f:
-            f.write("\n".join(lines) + "\n")
-        os.replace(temp_out, output_file)
-    else:
-        # ASS/SSA 등 다른 형식은 pysubs2를 사용하여 저장
-        import pysubs2
-        subs = pysubs2.load(input_file, encoding="utf-8")
-        # 순서(position) 기반으로 매핑하여 싱크 보장
-        sorted_subs = sorted(translated_subtitle, key=lambda s: s.index)
-        from core.subtitle_io import strip_final_periods, strip_final_periods_enabled
-        for i, sub in enumerate(sorted_subs):
-            if i < len(subs):
-                content = sub.content
+    # 임시 파일명은 실행마다 고유하게 — 동일 출력에 대한 동시 저장이 같은
+    # 임시 파일을 두고 경합하거나 크래시 잔존 파일을 재사용하지 않게 한다.
+    import tempfile
+    _fd, temp_out = tempfile.mkstemp(dir=temp_dir, prefix=".tmp_", suffix=ext)
+    os.close(_fd)
+    try:
+        # mkstemp는 0600으로 고정 생성하므로 기존 출력 파일의 권한을 잇는다
+        os.chmod(temp_out, os.stat(output_file).st_mode & 0o777)
+    except OSError:
+        try:
+            os.chmod(temp_out, 0o644)
+        except OSError:
+            pass
+    try:
+        if ext == ".srt":
+            lines = []
+            for i, sub in enumerate(translated_subtitle, start=1):
+                start_str = _ms_to_srt(sub.start)
+                end_str = _ms_to_srt(sub.end)
+                text = sub.content.replace(r"\N", "\n").replace(r"\n", "\n").strip("\r\n")
+                from core.subtitle_io import strip_final_periods, strip_final_periods_enabled
                 if strip_final_periods_enabled():
-                    content = strip_final_periods(content)
-                subs[i].text = content.replace("\n", r"\N")
-        subs.save(temp_out, encoding="utf-8")
+                    text = strip_final_periods(text)
+                lines.append(f"{i}\n{start_str} --> {end_str}\n{text}\n")
+            with open(temp_out, "w", encoding="utf-8") as f:
+                f.write("\n".join(lines) + "\n")
+        else:
+            # ASS/SSA 등 다른 형식은 pysubs2를 사용하여 저장
+            import pysubs2
+            subs = pysubs2.load(input_file, encoding="utf-8")
+            # 순서(position) 기반으로 매핑하여 싱크 보장
+            sorted_subs = sorted(translated_subtitle, key=lambda s: s.index)
+            from core.subtitle_io import strip_final_periods, strip_final_periods_enabled
+            for i, sub in enumerate(sorted_subs):
+                if i < len(subs):
+                    content = sub.content
+                    if strip_final_periods_enabled():
+                        content = strip_final_periods(content)
+                    subs[i].text = content.replace("\n", r"\N")
+            subs.save(temp_out, encoding="utf-8")
         os.replace(temp_out, output_file)
+    finally:
+        # 교체 성공 시 temp_out은 이미 사라져 있고, 실패 시 잔존분만 정리
+        if os.path.exists(temp_out):
+            os.remove(temp_out)
 
 
 def _patched_process_translated_lines(
@@ -225,10 +240,16 @@ def _patched_process_translated_lines(
 
         text = str(line.get("text", ""))
 
-        # 핵심: batch[i]의 고유 index를 우선 매핑하여 인덱스 왜곡/오프셋 방지
+        # 핵심: batch[i]의 고유 index를 우선 매핑하여 인덱스 왜곡/오프셋 방지.
+        # "index" 키가 없거나 숫자로 못 바꾸면 아래의 라인 기반 폴백으로
+        # 내려간다 (KeyError가 패치 경계 밖으로 전파되지 않게).
+        target_idx = None
         if i < len(batch):
-            target_idx = int(batch[i]["index"])
-        else:
+            try:
+                target_idx = int(batch[i].get("index"))
+            except (ValueError, TypeError, AttributeError):
+                target_idx = None
+        if target_idx is None:
             try:
                 target_idx = int(str(line.get("index", i)))
             except (ValueError, TypeError):

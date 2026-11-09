@@ -15,6 +15,7 @@ import os
 import stat
 import sys
 import tarfile
+import tempfile
 import urllib.request
 import zipfile
 
@@ -55,14 +56,23 @@ def download_ilass(dest_dir=None, version=ILASS_VERSION, log=None):
     dest_dir = dest_dir or os.path.dirname(os.path.abspath(__file__))
     os.makedirs(dest_dir, exist_ok=True)
     dest = os.path.join(dest_dir, bin_name)
-    if os.path.isfile(dest):
+    if os.path.isfile(dest) and os.path.getsize(dest) > 0:
         log(f"ilass가 이미 있습니다: {dest}")
         return dest
+    # 0바이트 같은 손상된 기존 파일은 설치된 것으로 취급하지 않고 다시 받는다
 
     log(f"ilass v{version} 다운로드 중: {url}")
     archive = dest + (".zip" if fmt == "zip" else ".tar.gz")
+    tmp_dest = None
     try:
         urllib.request.urlretrieve(url, archive)
+        # 최종 경로에 직접 쓰지 않고 임시 파일에 추출한 뒤 원자적으로 교체한다.
+        # 중간 실패(디스크 부족·손상된 아카이브)가 부분 파일을 "설치된 ilass"로
+        # 남겨 다음 실행이 무검증 재사용하는 일을 막기 위해서다.
+        fd, tmp_dest = tempfile.mkstemp(
+            dir=dest_dir, prefix=bin_name + ".", suffix=".tmp")
+        os.close(fd)
+        expected_size = None
         if fmt == "zip":
             with zipfile.ZipFile(archive) as zf:
                 member = next(
@@ -71,7 +81,8 @@ def download_ilass(dest_dir=None, version=ILASS_VERSION, log=None):
                 )
                 if member is None:
                     raise RuntimeError("zip 안에 ilass 바이너리가 없습니다.")
-                with zf.open(member) as src, open(dest, "wb") as out:
+                expected_size = zf.getinfo(member).file_size
+                with zf.open(member) as src, open(tmp_dest, "wb") as out:
                     out.write(src.read())
         else:
             with tarfile.open(archive, "r:gz") as tf:
@@ -85,21 +96,33 @@ def download_ilass(dest_dir=None, version=ILASS_VERSION, log=None):
                 if member is None or not member.isreg():
                     raise RuntimeError(
                         "tar.gz 안에 유효한 ilass 바이너리가 없습니다.")
+                expected_size = member.size
                 src = tf.extractfile(member)
                 if src is None:
                     raise RuntimeError(
                         "tar.gz 안에 유효한 ilass 바이너리가 없습니다.")
-                with src, open(dest, "wb") as out:
+                with src, open(tmp_dest, "wb") as out:
                     out.write(src.read())
 
+        actual_size = os.path.getsize(tmp_dest)
+        if expected_size is not None and actual_size != expected_size:
+            raise RuntimeError(
+                f"추출된 ilass 크기가 아카이브 기록과 다릅니다 "
+                f"(예상 {expected_size}, 실제 {actual_size}).")
+
         if bin_name == "ilass":  # Linux: 실행 권한
-            os.chmod(dest, os.stat(dest).st_mode
+            os.chmod(tmp_dest, os.stat(tmp_dest).st_mode
                      | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+
+        os.replace(tmp_dest, dest)
+        tmp_dest = None
 
         log(f"ilass 저장 완료: {dest} ({os.path.getsize(dest)} bytes)")
         log("라이선스: AGPL-3.0 — " + ILASS_HOMEPAGE)
         return dest
     finally:
+        if tmp_dest and os.path.exists(tmp_dest):
+            os.remove(tmp_dest)
         if os.path.exists(archive):
             os.remove(archive)
 
