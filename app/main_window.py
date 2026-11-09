@@ -125,6 +125,7 @@ class TranslatorApp(QWidget):
         self.failed_jobs = 0
         self.last_job_errors = []
         self.model_fallback_order = []
+        self.model_fallback_disabled = []
         self.job_completion_lock = threading.Lock()
         self.jobs = []
         self.recent_outputs = []
@@ -704,6 +705,12 @@ class TranslatorApp(QWidget):
         self.cmb_model.addItem(DEFAULT_MODEL)
         model_layout.addWidget(self.btn_fetch)
         model_layout.addWidget(self.cmb_model, 1)
+        self.chk_model_fallback = QCheckBox("폴백 사용")
+        self.chk_model_fallback.setChecked(True)
+        self.chk_model_fallback.setToolTip(
+            "체크하면 작업 실패 시 폴백 순서에 따라 다음 모델로 자동 전환합니다. "
+            "끄면 선택한 모델 하나로만 시도합니다.")
+        model_layout.addWidget(self.chk_model_fallback)
         self.btn_model_order = QPushButton("폴백 순서...")
         self.btn_model_order.setToolTip(
             "작업 실패 시 다음으로 시도할 모델 순서를 정합니다. "
@@ -1055,10 +1062,21 @@ class TranslatorApp(QWidget):
         return super().eventFilter(obj, event)
 
     def _model_chain(self, primary):
-        """폴백 체인: 선택 모델 + 저장된 우선순위 (중복 제거, 최대 4개)."""
+        """폴백 체인: 선택 모델 + 저장된 우선순위 (중복 제거, 최대 4개).
+
+        폴백 사용이 꺼져 있으면 선택 모델만 쓴다. 순서 목록에서 체크가
+        꺼진(제외된) 모델은 건너뛴다 — 단, 직접 선택한 모델은 제외
+        목록에 있어도 첫 번째로 쓴다.
+        """
         chain = []
-        for m in [primary] + list(getattr(self, 'model_fallback_order', []) or []):
-            if m and m not in chain:
+        if primary:
+            chain.append(primary)
+        chk = getattr(self, 'chk_model_fallback', None)
+        if chk is not None and not chk.isChecked():
+            return chain
+        disabled = set(getattr(self, 'model_fallback_disabled', []) or [])
+        for m in getattr(self, 'model_fallback_order', []) or []:
+            if m and m not in chain and m not in disabled:
                 chain.append(m)
         return chain[:4]
 
@@ -1077,11 +1095,27 @@ class TranslatorApp(QWidget):
         layout = QVBoxLayout(dlg)
         layout.addWidget(QLabel(
             "위에서부터 순서대로 시도합니다. 작업이 실패하면 다음 모델로\n"
-            "자동 전환됩니다. 항목을 드래그해서 순서를 바꾸세요."))
+            "자동 전환됩니다. 항목을 드래그해서 순서를 바꾸고, 체크를 끄면\n"
+            "그 모델은 건너뜁니다 (목록에는 남아 순서가 유지됩니다)."))
         lst = QListWidget()
         lst.setDragDropMode(QAbstractItemView.DragDropMode.InternalMove)
+        disabled = set(getattr(self, 'model_fallback_disabled', []) or [])
         for m in ordered:
-            lst.addItem(m)
+            item = QListWidgetItem(m)
+            item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+            item.setCheckState(
+                Qt.CheckState.Unchecked if m in disabled
+                else Qt.CheckState.Checked)
+            lst.addItem(item)
+
+        def _restyle(item):
+            off = item.checkState() == Qt.CheckState.Unchecked
+            item.setForeground(
+                QColor(Qt.GlobalColor.gray) if off else QColor())
+
+        for i in range(lst.count()):
+            _restyle(lst.item(i))
+        lst.itemChanged.connect(_restyle)
         layout.addWidget(lst)
         btn_row = QHBoxLayout()
         btn_remove = QPushButton("선택 제외")
@@ -1107,7 +1141,17 @@ class TranslatorApp(QWidget):
                 self.model_fallback_order = order
                 self.settings.setValue(
                     "model_fallback_order", json.dumps(order))
-                idx = self.cmb_model.findText(order[0])
+                self.model_fallback_disabled = [
+                    lst.item(i).text() for i in range(lst.count())
+                    if lst.item(i).checkState() == Qt.CheckState.Unchecked]
+                self.settings.setValue(
+                    "model_fallback_disabled",
+                    json.dumps(self.model_fallback_disabled))
+                # 1순위는 체크가 켜진 첫 모델로 반영한다
+                first_enabled = next(
+                    (m for m in order
+                     if m not in self.model_fallback_disabled), order[0])
+                idx = self.cmb_model.findText(first_enabled)
                 if idx >= 0:
                     self.cmb_model.setCurrentIndex(idx)
 
@@ -1333,6 +1377,16 @@ class TranslatorApp(QWidget):
                     else [])
             except (ValueError, TypeError):
                 self.model_fallback_order = []
+            try:
+                saved_disabled = json.loads(
+                    str(self.settings.value("model_fallback_disabled", "") or ""))
+                self.model_fallback_disabled = (
+                    [str(m) for m in saved_disabled]
+                    if isinstance(saved_disabled, list) else [])
+            except (ValueError, TypeError):
+                self.model_fallback_disabled = []
+            self.chk_model_fallback.setChecked(
+                self.settings.value("model_fallback_enabled", True, type=bool))
             self.chk_signature.setChecked(
                 self.settings.value("signature_enabled", False, type=bool))
             sig_pos = str(self.settings.value("signature_position", "start") or "start")
@@ -1467,6 +1521,11 @@ class TranslatorApp(QWidget):
             self.settings.setValue(
                 "model_fallback_order",
                 json.dumps(getattr(self, 'model_fallback_order', []) or []))
+            self.settings.setValue(
+                "model_fallback_disabled",
+                json.dumps(getattr(self, 'model_fallback_disabled', []) or []))
+            self.settings.setValue(
+                "model_fallback_enabled", self.chk_model_fallback.isChecked())
             self.settings.setValue("signature_enabled", self.chk_signature.isChecked())
             self.settings.setValue(
                 "signature_position", self.cmb_signature_pos.currentData())
@@ -2246,7 +2305,7 @@ class TranslatorApp(QWidget):
             self.btn_audio_file, self.lbl_audio_file, self.btn_clear_audio_file,
             self.cmb_langs, self.btn_all_lang, self.btn_none_lang,
             self.txt_custom_lang, self.btn_add_lang,
-            self.cmb_model, self.btn_model_order, self.spin_start, self.spin_batch, self.txt_desc,
+            self.cmb_model, self.chk_model_fallback, self.btn_model_order, self.spin_start, self.spin_batch, self.txt_desc,
             self.lbl_style, self.cmb_style,
             self.chk_extract_audio, self.chk_free,
             self.spin_temp, self.spin_top_p, self.spin_top_k,

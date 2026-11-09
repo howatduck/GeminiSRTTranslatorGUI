@@ -41,7 +41,7 @@ PyQt6 기반 GUI 애플리케이션으로, [gemini-srt-translator](https://githu
 - **에이전트 파일 교환**: 자막 배치를 JSON 파일로 내보내 ChatGPT 웹 등 어떤 AI로도 번역하고, 번역 파일을 가져와 검증·조립해 완성. 스킬 설치가 필요 없음
 - **SDH 자막 선택 옵션**: 영상 내장 자막 추출 시 기본은 일반 자막 우선. 고급 설정의 "SDH 자막 우선 추출"을 켜면 SDH(청각장애인용) 자막을 우선 추출
 - **줄 끝 마침표 제거 옵션**: 고급 설정에서 켜면(기본 켜짐) 번역·전사 결과를 저장할 때 각 줄 끝의 마침표를 제거해 자막다운 문체로 정리. 물음표·느낌표·말줄임표와 숫자·약어의 마침표는 유지
-- **모델 폴백 체인**: "폴백 순서..."에서 모델 우선순위를 드래그로 정해 두면, 작업 실패 시 다음 모델로 자동 전환. 과부하·할당량 초과는 즉시 모델을 바꾸고, 시간 초과 등은 고급 설정의 배치 감소폭/하한에 따라 배치 크기를 줄여 재시도
+- **모델 폴백 체인**: "폴백 순서..."에서 모델 우선순위를 드래그로 정해 두면, 작업 실패 시 다음 모델로 자동 전환. 과부하·할당량 초과는 즉시 모델을 바꾸고, 시간 초과 등은 고급 설정의 배치 감소폭/하한에 따라 배치 크기를 줄여 재시도. 모델 행의 "폴백 사용"으로 전체를 끄거나, 순서 목록에서 모델별 체크를 꺼 제외할 수 있음
 - **실패 종료 안내**: 실패한 작업이 있으면 종료 요약에 실패 건수를 구분해 표시하고, 원인 추정과 함께 다시 시도/모델 변경/배치 축소 선택지를 제시
 - **자막 서명 삽입**: 고급 설정에서 켜면 SRT 자막의 시작이나 끝에 서명 자막을 삽입. 서명 문구에 {model}(실제 사용 모델)·{date}(번역 날짜) 자리표시자 사용 가능
 - **라이브러리 업데이트 확인**: PyPI에서 gemini-srt-translator 최신 버전을 백그라운드로 확인
@@ -268,7 +268,7 @@ A PyQt6-based GUI application that leverages the [gemini-srt-translator](https:/
 - **Agent File Exchange**: Export subtitle batches as JSON files so any AI, including ChatGPT on the web, can translate them; import the result for validation and assembly. No skill installation needed
 - **SDH Track Preference**: Embedded subtitle extraction prefers regular tracks by default; enable "Prefer SDH subtitles" in Advanced Settings to extract SDH (hearing-impaired) tracks first when available
 - **Line-Final Period Removal**: When enabled in Advanced Settings (on by default), periods at the end of each subtitle line are removed when saving translated/transcribed results for a natural subtitle style. Question marks, exclamation marks, ellipses, and periods in numbers or abbreviations are kept
-- **Model Fallback Chain**: Arrange model priority by drag-and-drop in "Fallback Order..."; when a job fails, the next model is tried automatically. Overload/quota failures switch models immediately, while timeouts retry with a smaller batch size (step and floor configurable in Advanced Settings)
+- **Model Fallback Chain**: Arrange model priority by drag-and-drop in "Fallback Order..."; when a job fails, the next model is tried automatically. Overload/quota failures switch models immediately, while timeouts retry with a smaller batch size (step and floor configurable in Advanced Settings). The chain can be turned off entirely ("Use fallback" next to the model selector), and individual models can be unchecked in the order list to skip them
 - **Failure Guidance**: When jobs fail, the final summary reports failures separately and offers guided next steps — retry, switch model, or halve the batch size — based on the estimated cause
 - **Subtitle Signature**: When enabled in Advanced Settings, a signature cue is inserted at the start or end of saved SRT files. The template supports {model} (model actually used) and {date} (translation date) placeholders
 - **Library Update Check**: Check PyPI for the latest gemini-srt-translator version in the background

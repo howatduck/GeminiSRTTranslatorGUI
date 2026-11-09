@@ -32,7 +32,7 @@ _WIDGET_ATTRS = [
     "btn_audio_file", "lbl_audio_file", "btn_clear_audio_file",
     "cmb_langs", "btn_all_lang", "btn_none_lang",
     "txt_custom_lang", "btn_add_lang",
-    "cmb_model", "btn_model_order", "spin_start", "spin_batch", "txt_desc",
+    "cmb_model", "chk_model_fallback", "btn_model_order", "spin_start", "spin_batch", "txt_desc",
     "lbl_style", "cmb_style",
     "chk_extract_audio", "chk_free",
     "spin_temp", "spin_top_p", "spin_top_k",

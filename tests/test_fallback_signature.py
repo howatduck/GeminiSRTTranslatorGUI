@@ -213,3 +213,38 @@ def test_worker_gives_up_after_plan_exhausted(qapp, monkeypatch):
     assert results["ok"] == []
     assert len(results["err"]) == 1
     assert backend.seen == [("m1", 100), ("m2", 100)]
+
+
+# --- 폴백 체인 구성 (on/off + 모델별 제외) ---
+
+class _CheckBox:
+    def __init__(self, value):
+        self._value = value
+
+    def isChecked(self):
+        return self._value
+
+
+def _chain_window(qapp, enabled=True, order=(), disabled=()):
+    import app.main_window as mw
+
+    win = mw.TranslatorApp.__new__(mw.TranslatorApp)
+    win.chk_model_fallback = _CheckBox(enabled)
+    win.model_fallback_order = list(order)
+    win.model_fallback_disabled = list(disabled)
+    return win
+
+
+def test_model_chain_includes_order(qapp):
+    win = _chain_window(qapp, order=["m2", "m3", "m2"])
+    assert win._model_chain("m1") == ["m1", "m2", "m3"]
+
+
+def test_model_chain_off_uses_primary_only(qapp):
+    win = _chain_window(qapp, enabled=False, order=["m2", "m3"])
+    assert win._model_chain("m1") == ["m1"]
+
+
+def test_model_chain_skips_disabled_but_keeps_primary(qapp):
+    win = _chain_window(qapp, order=["m2", "m3"], disabled=["m2", "m1"])
+    assert win._model_chain("m1") == ["m1", "m3"]
