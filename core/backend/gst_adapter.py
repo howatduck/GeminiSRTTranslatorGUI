@@ -20,7 +20,9 @@ from core.gst_compat import (
     gst,
     reset_library_logger,
 )
-from core.gst_patches import get_library_version, set_active_cancel_token
+from core.gst_patches import (
+    get_library_version, reset_client_close_latch, set_active_cancel_token,
+)
 
 
 class GstAdapter(TranslationBackend):
@@ -59,6 +61,9 @@ class GstAdapter(TranslationBackend):
 
         # 라이브러리 전역 진행 상태 초기화 (기존 workers.py에서 작업 직전 호출)
         reset_library_logger()
+
+        # 이전 실행의 중단으로 걸린 클라이언트 닫기 래치 해제
+        reset_client_close_latch()
 
         filtered = self._filter_params(params)
 

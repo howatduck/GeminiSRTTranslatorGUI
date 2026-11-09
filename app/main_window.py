@@ -2293,6 +2293,13 @@ class TranslatorApp(QWidget):
         if self.translation_worker:
             self.translation_worker.requestInterruption()
 
+        # 진행 중인 API 연결을 끊어 응답 대기로 막힌 워커를 즉시 깨운다
+        try:
+            from core.gst_patches import force_close_active_client
+            force_close_active_client()
+        except Exception:
+            pass
+
         self.btn_stop.setEnabled(False)
 
     def set_ui_enabled(self, enabled):

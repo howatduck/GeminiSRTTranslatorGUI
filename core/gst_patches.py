@@ -396,6 +396,55 @@ def _noop_reduce(self, *args, **kwargs):
 API_STALL_TIMEOUT_MS = 300_000
 
 
+# --- 활성 클라이언트 레지스트리 (중단 즉시 반영용) ---
+# 중단 버튼은 GUI 스레드에서 눌리지만 막힌 읽기는 워커 스레드에 있다.
+# _get_client가 반환하는 클라이언트를 여기에 등록해 두고, 중단 시
+# GUI 스레드가 그 연결을 닫으면 워커의 스트림 읽기가 즉시 깨진다.
+# 래치: 중단 이후에 새로 등록되는 클라이언트도 즉시 닫아, 중단과
+# 겹친 레이스로 새 요청이 살아남지 않게 한다 (새 실행 시작 시 해제).
+_active_client_lock = threading.Lock()
+_active_client = None
+_close_latched = False
+
+
+def _close_quietly(client):
+    try:
+        client.close()
+    except Exception:
+        pass
+
+
+def _register_active_client(client):
+    """_get_client가 반환한 클라이언트를 활성 클라이언트로 등록."""
+    global _active_client
+    with _active_client_lock:
+        _active_client = client
+        latched = _close_latched
+    if latched:
+        _close_quietly(client)
+
+
+def force_close_active_client():
+    """활성 API 연결을 강제 종료하고, 이후 등록분도 즉시 닫도록 래치.
+
+    워커 스레드가 응답 대기로 막혀 있어도 그 읽기가 즉시 예외로
+    깨진다. 닫을 클라이언트가 없으면 조용히 무시한다.
+    """
+    global _close_latched
+    with _active_client_lock:
+        _close_latched = True
+        client = _active_client
+    if client is not None:
+        _close_quietly(client)
+
+
+def reset_client_close_latch():
+    """새 백엔드 실행 시작 시 닫기 래치 해제 (어댑터가 호출)."""
+    global _close_latched
+    with _active_client_lock:
+        _close_latched = False
+
+
 def _build_timed_client(api_key, timeout_ms):
     """타임아웃이 설정된 genai 클라이언트 생성 (표준 API 키 경로용)."""
     from google import genai
@@ -405,23 +454,137 @@ def _build_timed_client(api_key, timeout_ms):
         http_options=genai_types.HttpOptions(timeout=timeout_ms))
 
 
+def _cancel_aware_stream(stream):
+    """블로킹 스트림을 취소 가능한 제너레이터로 감싼다.
+
+    실제 읽기는 펌프 스레드가 맡고 소비 쪽은 0.2초마다 취소 토큰을
+    확인한다 — 응답이 완전히 멈춰 있어도(서버 과부하로 첫 토큰이
+    늦거나 연결이 멎은 경우) 중단이 즉시 반영된다. 취소되면 펌프
+    스레드는 데몬으로 남겨두고 소비 쪽만 빠져나온다 (남은 소켓은
+    클라이언트 타임아웃이 회수한다). client.close()로는 사용 중인
+    연결이 끊기지 않는 것을 실측으로 확인해 이 방식을 쓴다.
+    """
+    import queue as _queue
+    q = _queue.SimpleQueue()
+
+    def _pump():
+        try:
+            for chunk in stream:
+                q.put((True, chunk))
+            q.put((False, None))
+        except BaseException as e:  # 펌프의 오류를 소비 쪽에서 다시 던진다
+            q.put((False, e))
+
+    threading.Thread(target=_pump, daemon=True).start()
+    while True:
+        try:
+            ok, val = q.get(timeout=0.2)
+        except _queue.Empty:
+            _check_cancelled()
+            continue
+        if ok:
+            yield val
+        elif val is None:
+            return
+        else:
+            raise val
+
+
+def _cancel_aware_call(fn, *args, **kwargs):
+    """단일 블로킹 호출(비스트리밍 generate_content)을 취소 가능하게 실행."""
+    import queue as _queue
+    q = _queue.SimpleQueue()
+
+    def _run():
+        try:
+            q.put((True, fn(*args, **kwargs)))
+        except BaseException as e:
+            q.put((False, e))
+
+    threading.Thread(target=_run, daemon=True).start()
+    while True:
+        try:
+            ok, val = q.get(timeout=0.2)
+        except _queue.Empty:
+            _check_cancelled()
+            continue
+        if ok:
+            return val
+        raise val
+
+
+class _ModelsProxy:
+    """models 리소스 프록시 — 생성 호출만 취소 가능하게 감싸고 나머지는 위임."""
+
+    def __init__(self, inner):
+        object.__setattr__(self, "_inner", inner)
+
+    def __getattr__(self, name):
+        attr = getattr(object.__getattribute__(self, "_inner"), name)
+        if name == "generate_content_stream":
+            def _stream(*a, **k):
+                return _cancel_aware_stream(attr(*a, **k))
+            return _stream
+        if name == "generate_content":
+            def _call(*a, **k):
+                return _cancel_aware_call(attr, *a, **k)
+            return _call
+        return attr
+
+
+class _ClientProxy:
+    """genai 클라이언트 프록시 — models만 감싸고 나머지는 전부 위임."""
+
+    def __init__(self, inner):
+        object.__setattr__(self, "_inner", inner)
+
+    def __getattr__(self, name):
+        attr = getattr(object.__getattribute__(self, "_inner"), name)
+        if name == "models":
+            return _ModelsProxy(attr)
+        return attr
+
+    def __setattr__(self, name, value):
+        setattr(object.__getattribute__(self, "_inner"), name, value)
+
+    def close(self):
+        try:
+            object.__getattribute__(self, "_inner").close()
+        except Exception:
+            pass
+
+    def __enter__(self):
+        inner = object.__getattribute__(self, "_inner")
+        return inner.__enter__() if hasattr(inner, "__enter__") else self
+
+    def __exit__(self, *exc):
+        inner = object.__getattribute__(self, "_inner")
+        if hasattr(inner, "__exit__"):
+            return inner.__exit__(*exc)
+        return False
+
+
 def _make_client_timeout_guard(original, timeout_ms=API_STALL_TIMEOUT_MS):
     """_get_client 래퍼: 표준 경로 클라이언트에 요청 타임아웃 적용.
 
     엔터프라이즈(Vertex) 경로는 원래 클라이언트(헤더 옵션 포함)를
     유지하고, 재구성에 실패하면 원래 클라이언트로 폴백한다.
+    반환되는 클라이언트는 취소 가능 프록시로 감싸 레지스트리에
+    등록된다 (중단 즉시 반영용).
     """
     def _guarded(self, *args, **kwargs):
         client = original(self, *args, **kwargs)
+        result = client
         try:
-            if getattr(self, "use_enterprise", False):
-                return client
-            api_key = getattr(self, "current_api_key", None)
-            if not api_key:
-                return client
-            return _build_timed_client(api_key, timeout_ms)
+            if not getattr(self, "use_enterprise", False):
+                api_key = getattr(self, "current_api_key", None)
+                if api_key:
+                    result = _build_timed_client(api_key, timeout_ms)
         except Exception:
-            return client
+            result = client
+        result = _ClientProxy(result)
+        _register_active_client(result)
+        return result
     return _guarded
 
 

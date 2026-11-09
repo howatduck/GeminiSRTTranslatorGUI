@@ -231,7 +231,8 @@ def test_client_timeout_guard_standard_path(monkeypatch):
         use_enterprise = False
         current_api_key = "KEY-1"
 
-    assert guarded(_T()) == "timed-client"
+    res = guarded(_T())
+    assert object.__getattribute__(res, "_inner") == "timed-client"
     assert captured == {"api_key": "KEY-1", "timeout_ms": gp.API_STALL_TIMEOUT_MS}
 
 
@@ -240,17 +241,20 @@ def test_client_timeout_guard_enterprise_and_fallback(monkeypatch):
 
     guarded = gp._make_client_timeout_guard(lambda self: "orig-client")
 
+    def _unwrap(res):
+        return object.__getattribute__(res, "_inner")
+
     class _Ent:
         use_enterprise = True
         current_api_key = "KEY-1"
 
-    assert guarded(_Ent()) == "orig-client"  # 엔터프라이즈는 원본 유지
+    assert _unwrap(guarded(_Ent())) == "orig-client"  # 엔터프라이즈는 원본 유지
 
     class _NoKey:
         use_enterprise = False
         current_api_key = None
 
-    assert guarded(_NoKey()) == "orig-client"  # 키 없으면 원본 유지
+    assert _unwrap(guarded(_NoKey())) == "orig-client"  # 키 없으면 원본 유지
 
     def _boom(api_key, timeout_ms):
         raise RuntimeError("build failed")
@@ -261,10 +265,123 @@ def test_client_timeout_guard_enterprise_and_fallback(monkeypatch):
         use_enterprise = False
         current_api_key = "KEY-1"
 
-    assert guarded(_Std()) == "orig-client"  # 재구성 실패 시 원본 폴백
+    assert _unwrap(guarded(_Std())) == "orig-client"  # 재구성 실패 시 원본 폴백
 
 
 def test_cancel_patches_registered():
     names = resolve_patch_set("3.8.3")
     assert "patch_client_timeout" in names
     assert "patch_loading_cancel" in names
+
+
+class _FakeCloseableClient:
+    def __init__(self):
+        self.closed = 0
+
+    def close(self):
+        self.closed += 1
+
+
+def test_force_close_active_client_and_latch():
+    import core.gst_patches as gp
+
+    gp.reset_client_close_latch()
+    c1 = _FakeCloseableClient()
+    gp._register_active_client(c1)
+    assert c1.closed == 0
+    gp.force_close_active_client()
+    assert c1.closed == 1
+    # 래치: 중단 이후 등록되는 클라이언트도 즉시 닫힌다 (레이스 방지)
+    c2 = _FakeCloseableClient()
+    gp._register_active_client(c2)
+    assert c2.closed == 1
+    # 새 실행이 래치를 해제하면 정상 등록된다
+    gp.reset_client_close_latch()
+    c3 = _FakeCloseableClient()
+    gp._register_active_client(c3)
+    assert c3.closed == 0
+    gp.reset_client_close_latch()
+
+
+# --- 취소 가능 클라이언트 프록시 ---
+
+def test_cancel_aware_stream_passes_chunks_in_order():
+    import core.gst_patches as gp
+
+    gp.set_active_cancel_token(None)
+    out = list(gp._cancel_aware_stream(iter(["a", "b", "c"])))
+    assert out == ["a", "b", "c"]
+
+
+def test_cancel_aware_stream_stops_when_cancelled():
+    import threading as _th
+    import time as _time
+
+    import core.gst_patches as gp
+    from core.backend.base import BackendCancelRequested
+
+    gate = _th.Event()
+
+    def _gen():
+        yield "first"
+        gate.wait(30)  # 응답이 멈춘 상황
+        yield "never"
+
+    gp.set_active_cancel_token(None)
+    stream = gp._cancel_aware_stream(_gen())
+    assert next(stream) == "first"
+    gp.set_active_cancel_token(lambda: True)
+    t0 = _time.time()
+    try:
+        with pytest.raises(BackendCancelRequested):
+            next(stream)
+        assert _time.time() - t0 < 3  # 멈춘 스트림에서도 즉시 깨어난다
+    finally:
+        gp.set_active_cancel_token(None)
+        gate.set()
+
+
+def test_cancel_aware_call_stops_when_cancelled():
+    import time as _time
+
+    import core.gst_patches as gp
+    from core.backend.base import BackendCancelRequested
+
+    def _slow():
+        _time.sleep(30)
+        return "never"
+
+    gp.set_active_cancel_token(lambda: True)
+    t0 = _time.time()
+    try:
+        with pytest.raises(BackendCancelRequested):
+            gp._cancel_aware_call(_slow)
+        assert _time.time() - t0 < 3
+    finally:
+        gp.set_active_cancel_token(None)
+
+
+def test_client_proxy_wraps_only_generate_calls():
+    import core.gst_patches as gp
+
+    class _Models:
+        def generate_content_stream(self, **k):
+            return iter([1, 2])
+
+        def generate_content(self, **k):
+            return "resp"
+
+        def list(self):
+            return ["m"]
+
+    class _Client:
+        models = _Models()
+
+        def close(self):
+            pass
+
+    gp.set_active_cancel_token(None)
+    proxy = gp._ClientProxy(_Client())
+    assert list(proxy.models.generate_content_stream()) == [1, 2]
+    assert proxy.models.generate_content() == "resp"
+    assert proxy.models.list() == ["m"]  # 그 외 호출은 그대로 위임
