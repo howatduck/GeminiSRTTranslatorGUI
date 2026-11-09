@@ -52,7 +52,7 @@ from core.style_presets import (
     compose_description, all_presets, CUSTOM_PRESET_IDS,
 )
 from core.pricing import read_report_cost, token_report_path_for
-from core.subtitle_io import is_translation_complete
+from core.subtitle_io import is_translation_complete, set_strip_final_periods
 
 
 def _unique_stem(src_path):
@@ -323,6 +323,9 @@ class TranslatorApp(QWidget):
         if hasattr(self, 'chk_prefer_sdh'):
             self.chk_prefer_sdh.setText(self.tr_str("chk_prefer_sdh"))
             self.chk_prefer_sdh.setToolTip(self.tr_str("chk_prefer_sdh_tt"))
+        if hasattr(self, 'chk_strip_periods'):
+            self.chk_strip_periods.setText(self.tr_str("chk_strip_periods"))
+            self.chk_strip_periods.setToolTip(self.tr_str("chk_strip_periods_tt"))
         if hasattr(self, 'chk_isolate_voice'):
             self.chk_isolate_voice.setText(self.tr_str("chk_isolate_voice"))
         if hasattr(self, 'chk_extract_audio'):
@@ -937,6 +940,16 @@ class TranslatorApp(QWidget):
             "우선 추출합니다. 체크 해제 시 일반 자막을 우선합니다."
         )
         box4.addWidget(self.chk_prefer_sdh)
+        self.chk_strip_periods = QCheckBox("줄 끝 마침표 제거")
+        self.chk_strip_periods.setChecked(True)
+        self.chk_strip_periods.setToolTip(
+            "체크하면 번역·전사 결과 자막을 저장할 때 각 줄 끝의 마침표(.·。)를 "
+            "제거합니다. 물음표·느낌표·말줄임표와 숫자·약어의 마침표는 유지됩니다."
+        )
+        self.chk_strip_periods.toggled.connect(
+            lambda on: set_strip_final_periods(on)
+        )
+        box4.addWidget(self.chk_strip_periods)
         box4.addStretch()
         main_form_layout.addRow(box4)
 
@@ -1157,6 +1170,10 @@ class TranslatorApp(QWidget):
             self.chk_prefer_sdh.setChecked(
                 self.settings.value("prefer_sdh", False, type=bool)
             )
+            self.chk_strip_periods.setChecked(
+                self.settings.value("strip_final_periods", True, type=bool)
+            )
+            set_strip_final_periods(self.chk_strip_periods.isChecked())
             self.chk_token_stats.setChecked(
                 self.settings.value("token_stats", True, type=bool)
             )
@@ -1275,6 +1292,7 @@ class TranslatorApp(QWidget):
             self.settings.setValue("resume", self.chk_resume.isChecked())
             self.settings.setValue("force_retranslate", self.chk_force_retranslate.isChecked())
             self.settings.setValue("prefer_sdh", self.chk_prefer_sdh.isChecked())
+            self.settings.setValue("strip_final_periods", self.chk_strip_periods.isChecked())
             self.settings.setValue("token_stats", self.chk_token_stats.isChecked())
             self.settings.setValue("token_report", self.chk_token_report.isChecked())
 
@@ -1511,6 +1529,9 @@ class TranslatorApp(QWidget):
         self.log_output.clear_screen()
         logging.getLogger().handlers.clear()
         QApplication.processEvents()
+
+        # 줄 끝 마침표 제거 옵션 상태를 저장 패치에 동기화
+        set_strip_final_periods(self.chk_strip_periods.isChecked())
 
         is_transcribe_mode = self.cmb_task_mode.currentIndex() == 1
         primary_input_source_for_jobs = None
@@ -2044,6 +2065,7 @@ class TranslatorApp(QWidget):
             self.chk_append_lang, self.chk_reuse_extracted,
             self.chk_keep_extracted,
             self.chk_resume, self.chk_force_retranslate, self.chk_thoughts_log, self.chk_prefer_sdh,
+            self.chk_strip_periods,
             self.chk_token_stats,
             self.chk_token_report, self.spin_resume_context,
             self.spin_batch_error_step, self.spin_audio_chunk_error_step,

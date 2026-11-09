@@ -34,6 +34,74 @@ def ms_to_timestamp(ms):
     return f"{h:02d}:{mi:02d}:{s:02d},{ms:03d}"
 
 
+# =====================================================================
+# 줄 끝 마침표 제거 (자막 문장부호 정책)
+#
+# 번역 모델은 원문 문장의 마침표를 그대로 복사해 오는 경향이 있는데,
+# 한국어 자막 관행상 대사 줄 끝 마침표는 번역체로 읽힌다. 저장 시점에
+# 결정적으로 제거해 모델·모드와 무관하게 일관된 결과를 만든다.
+# =====================================================================
+_strip_final_periods = True
+
+
+def set_strip_final_periods(enabled):
+    """줄 끝 마침표 제거 정책 on/off (앱 설정이 동기화한다)."""
+    global _strip_final_periods
+    _strip_final_periods = bool(enabled)
+
+
+def strip_final_periods_enabled():
+    return _strip_final_periods
+
+
+# 마침표 뒤에 올 수 있는 닫는 기호들 (따옴표·괄호 등)
+_CLOSING_SUFFIX_CHARS = "\"'”’」』)]}"
+_TRAILING_CLOSING_TAG_RE = re.compile(r"((?:</[^>]+>)+)$")
+_DOTTED_ABBREV_RE = re.compile(r"(?:[A-Za-z]\.)*[A-Za-z]")
+
+
+def _strip_line_final_period(line):
+    s = line.rstrip()
+    if not s:
+        return s
+    tags = ""
+    m = _TRAILING_CLOSING_TAG_RE.search(s)
+    if m:
+        tags = m.group(1)
+        s = s[:m.start()]
+    suffix = ""
+    while s and s[-1] in _CLOSING_SUFFIX_CHARS:
+        suffix = s[-1] + suffix
+        s = s[:-1]
+    if not s or s[-1] not in ".。":
+        return s + suffix + tags
+    if s.endswith(".."):
+        # 말줄임표(.., ...)는 의도된 표기라 유지
+        return s + suffix + tags
+    core = s[:-1]
+    if not core:
+        return s + suffix + tags
+    if core[-1].isdigit():
+        # "3." "2.5."처럼 숫자의 일부일 수 있어 유지
+        return s + suffix + tags
+    token = core.rsplit(None, 1)[-1]
+    if "." in token and _DOTTED_ABBREV_RE.fullmatch(token):
+        # "U.S" 같은 약어의 마지막 마침표는 약어의 일부라 유지
+        return s + suffix + tags
+    return core + suffix + tags
+
+
+def strip_final_periods(text):
+    """자막 텍스트의 각 줄 끝 마침표(.·。)를 제거한다.
+
+    물음표·느낌표·말줄임표, 줄 내부 마침표, 숫자 뒤 마침표, 약어의
+    마침표는 유지한다.
+    """
+    if not text:
+        return text
+    return "\n".join(_strip_line_final_period(l) for l in text.split("\n"))
+
+
 def parse_srt(text):
     """SRT 텍스트 -> 자막 entry 리스트.
 

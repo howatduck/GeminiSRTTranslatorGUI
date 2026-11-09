@@ -40,6 +40,7 @@ PyQt6 기반 GUI 애플리케이션으로, [gemini-srt-translator](https://githu
 - **AI Agent Skill 설치**: 라이브러리의 SKILL.md를 Claude Code / Cursor·Codex·Cline / Antigravity / Gemini CLI / Muse / agy에 원클릭 설치 (전역 또는 프로젝트 폴더). 설치한 에이전트에서는 API 키 없이 에이전트 본인이 직접 번역하는 에이전트 모드 사용 가능
 - **에이전트 파일 교환**: 자막 배치를 JSON 파일로 내보내 ChatGPT 웹 등 어떤 AI로도 번역하고, 번역 파일을 가져와 검증·조립해 완성. 스킬 설치가 필요 없음
 - **SDH 자막 선택 옵션**: 영상 내장 자막 추출 시 기본은 일반 자막 우선. 고급 설정의 "SDH 자막 우선 추출"을 켜면 SDH(청각장애인용) 자막을 우선 추출
+- **줄 끝 마침표 제거 옵션**: 고급 설정에서 켜면(기본 켜짐) 번역·전사 결과를 저장할 때 각 줄 끝의 마침표를 제거해 자막다운 문체로 정리. 물음표·느낌표·말줄임표와 숫자·약어의 마침표는 유지
 - **라이브러리 업데이트 확인**: PyPI에서 gemini-srt-translator 최신 버전을 백그라운드로 확인
 - **예상 비용 표시**: "비용 리포트 저장" 체크 시 작업별 토큰 리포트의 pricing.json 기반 예상 비용(USD)을 로그에 표시
 - **진행 로그**: 작업 진행 상황 로그 기록 옵션 ("사고 로그"와 함께 토글)
@@ -263,6 +264,7 @@ A PyQt6-based GUI application that leverages the [gemini-srt-translator](https:/
 - **AI Agent Skill Installer**: One-click install of the library's SKILL.md for Claude Code / Cursor·Codex·Cline / Antigravity / Gemini CLI / Muse / agy (global or project folder). With the skill installed, an agent can translate by itself in Agent Mode without a Gemini API key
 - **Agent File Exchange**: Export subtitle batches as JSON files so any AI, including ChatGPT on the web, can translate them; import the result for validation and assembly. No skill installation needed
 - **SDH Track Preference**: Embedded subtitle extraction prefers regular tracks by default; enable "Prefer SDH subtitles" in Advanced Settings to extract SDH (hearing-impaired) tracks first when available
+- **Line-Final Period Removal**: When enabled in Advanced Settings (on by default), periods at the end of each subtitle line are removed when saving translated/transcribed results for a natural subtitle style. Question marks, exclamation marks, ellipses, and periods in numbers or abbreviations are kept
 - **Library Update Check**: Check PyPI for the latest gemini-srt-translator version in the background
 - **Estimated Cost Display**: When "save cost report" is checked, per-job estimated cost (USD, from pricing.json) is shown in the log
 - **Progress Log**: Optional per-job progress logging (toggle alongside "Thinking Log")

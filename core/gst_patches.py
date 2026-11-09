@@ -176,6 +176,9 @@ def _patched_save_subtitle_file(*args, **kwargs):
             start_str = _ms_to_srt(sub.start)
             end_str = _ms_to_srt(sub.end)
             text = sub.content.replace(r"\N", "\n").replace(r"\n", "\n").strip("\r\n")
+            from core.subtitle_io import strip_final_periods, strip_final_periods_enabled
+            if strip_final_periods_enabled():
+                text = strip_final_periods(text)
             lines.append(f"{i}\n{start_str} --> {end_str}\n{text}\n")
         with open(temp_out, "w", encoding="utf-8") as f:
             f.write("\n".join(lines) + "\n")
@@ -186,9 +189,13 @@ def _patched_save_subtitle_file(*args, **kwargs):
         subs = pysubs2.load(input_file, encoding="utf-8")
         # 순서(position) 기반으로 매핑하여 싱크 보장
         sorted_subs = sorted(translated_subtitle, key=lambda s: s.index)
+        from core.subtitle_io import strip_final_periods, strip_final_periods_enabled
         for i, sub in enumerate(sorted_subs):
             if i < len(subs):
-                subs[i].text = sub.content.replace("\n", r"\N")
+                content = sub.content
+                if strip_final_periods_enabled():
+                    content = strip_final_periods(content)
+                subs[i].text = content.replace("\n", r"\N")
         subs.save(temp_out, encoding="utf-8")
         os.replace(temp_out, output_file)
 
