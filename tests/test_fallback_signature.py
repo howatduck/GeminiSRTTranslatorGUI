@@ -308,3 +308,37 @@ def test_model_fetcher_excludes_non_text_models(qapp, monkeypatch):
     thread.models_fetched.connect(got.append)
     thread.run()
     assert got == [["gemini-2.0-flash", "gemini-2.5-flash"]]
+
+
+def test_model_fetcher_include_all_keeps_non_text_models(qapp, monkeypatch):
+    import types as _types
+    import app.workers as workers
+
+    class _M:
+        def __init__(self, name, methods):
+            self.name = name
+            self.supported_generation_methods = methods
+
+    class _Models:
+        def list(self):
+            return [
+                _M("models/gemini-2.5-flash", ["generateContent"]),
+                _M("models/gemini-embedding-001", ["embedContent"]),
+                _M("models/gemini-omni-1.2-flash", []),
+            ]
+
+    fake_client = _types.SimpleNamespace(models=_Models())
+    fake_genai = _types.SimpleNamespace(Client=lambda api_key: fake_client)
+    monkeypatch.setattr(workers, "genai", fake_genai)
+    thread = workers.ModelFetcherThread("key", include_all=True)
+    got = []
+    thread.models_fetched.connect(got.append)
+    thread.run()
+    assert got == [[
+        "gemini-2.5-flash", "gemini-embedding-001", "gemini-omni-1.2-flash"]]
+
+
+def test_model_chain_include_all_when_option_on(qapp):
+    win = _chain_window(qapp, order=["gemini-embedding-001", "m2"])
+    win.show_all_models = True
+    assert win._model_chain("m1") == ["m1", "gemini-embedding-001", "m2"]

@@ -126,6 +126,7 @@ class TranslatorApp(QWidget):
         self.last_job_errors = []
         self.model_fallback_order = []
         self.model_fallback_disabled = []
+        self.show_all_models = False
         self.job_completion_lock = threading.Lock()
         self.jobs = []
         self.recent_outputs = []
@@ -802,7 +803,7 @@ class TranslatorApp(QWidget):
 
         self.advanced_dialog = QDialog(self)
         self.advanced_dialog.setWindowTitle("고급 설정 및 튜닝 (v3.8.3 기능)")
-        self.advanced_dialog.setMinimumWidth(440)
+        self.advanced_dialog.setMinimumWidth(760)
         dialog_layout = QVBoxLayout(self.advanced_dialog)
 
         main_form_layout = QFormLayout()
@@ -937,6 +938,17 @@ class TranslatorApp(QWidget):
         fallback_layout.addStretch()
         main_form_layout.addRow("작업 폴백:", fallback_layout)
 
+        model_list_layout = QHBoxLayout()
+        self.chk_show_all_models = QCheckBox("모든 모델 표시 (번역 불가 모델 포함)")
+        self.chk_show_all_models.setToolTip(
+            "켜면 임베딩·이미지·동영상 등 텍스트 번역에 쓸 수 없는 모델까지 "
+            "모델 목록에 불러옵니다. 다음 '모델 가져오기'부터 적용됩니다.")
+        self.chk_show_all_models.stateChanged.connect(
+            lambda state: self._sync_show_all_models())
+        model_list_layout.addWidget(self.chk_show_all_models)
+        model_list_layout.addStretch()
+        main_form_layout.addRow("모델 목록:", model_list_layout)
+
         box1 = QHBoxLayout()
         self.chk_streaming = QCheckBox("스트리밍")
         self.chk_streaming.setChecked(True)
@@ -1027,6 +1039,7 @@ class TranslatorApp(QWidget):
         main_form_layout.addRow("자막 서명:", sig_layout)
 
         dialog_layout.addLayout(main_form_layout)
+        self._align_advanced_dialog(main_form_layout, tuning_grid_layout)
 
         dialog_btn_layout = QHBoxLayout()
         dialog_btn_layout.addStretch()
@@ -1037,6 +1050,63 @@ class TranslatorApp(QWidget):
 
     def open_advanced_settings(self):
         self.advanced_dialog.exec()
+
+    def _sync_show_all_models(self):
+        """'모든 모델 표시' 토글을 속성과 설정에 즉시 반영."""
+        try:
+            self.show_all_models = self.chk_show_all_models.isChecked()
+            self.settings.setValue("show_all_models", self.show_all_models)
+        except Exception:
+            pass
+
+    def _all_models_allowed(self):
+        """고급 설정 '모든 모델 표시' 여부 (미구성 환경에서는 False)."""
+        try:
+            return bool(getattr(self, "show_all_models", False))
+        except Exception:
+            return False
+
+    def _align_advanced_dialog(self, *form_layouts):
+        """고급 설정 줄맞춤 — 라벨 열과 컨트롤 너비를 통일한다.
+
+        폼이 두 개(바깥/튜닝)로 갈라져 라벨 열이 어긋나고, 복합 행의
+        스핀 너비가 제각각이라 다음 열의 시작 위치가 흔들리는 것을
+        막는다: ① 모든 폼 라벨을 가장 긴 라벨 너비로 고정 ② 복합 행
+        안쪽 라벨을 그룹별 최대 너비로 고정 ③ 짝을 이루는 컨트롤은
+        같은 고정 너비로 맞춘다.
+        """
+        labels = []
+        for layout in form_layouts:
+            for r in range(layout.rowCount()):
+                item = layout.itemAt(r, QFormLayout.ItemRole.LabelRole)
+                if item is not None and item.widget() is not None:
+                    labels.append(item.widget())
+        if labels:
+            width = max(lb.sizeHint().width() for lb in labels)
+            for lb in labels:
+                lb.setFixedWidth(width)
+        for group in (
+            (self.lbl_batch_step, self.lbl_batch_step_down),
+            (self.lbl_top_p, self.lbl_thinking_budget, self.lbl_audio_chunk,
+             self.lbl_audio_step, self.lbl_batch_floor),
+        ):
+            width = max(lb.sizeHint().width() for lb in group)
+            for lb in group:
+                lb.setFixedWidth(width)
+        for widget, width in (
+            (self.cmb_service_tier, 150), (self.spin_start, 120),
+            (self.spin_temp, 150), (self.spin_top_k, 150),
+            (self.cmb_thinking_level, 150),
+            (self.spin_top_p, 130), (self.spin_thinking_budget, 130),
+            (self.spin_audio_chunk, 130),
+            (self.spin_resume_context, 170),
+            (self.spin_batch_error_step, 120),
+            (self.spin_batch_step_down, 120),
+            (self.spin_audio_chunk_error_step, 120),
+            (self.spin_batch_floor, 120),
+            (self.cmb_signature_pos, 110),
+        ):
+            widget.setFixedWidth(width)
 
     def _sync_signature_config(self):
         """서명 위젯 상태 -> core.subtitle_io 저장 정책 동기화."""
@@ -1077,7 +1147,7 @@ class TranslatorApp(QWidget):
         disabled = set(getattr(self, 'model_fallback_disabled', []) or [])
         for m in getattr(self, 'model_fallback_order', []) or []:
             if (m and m not in chain and m not in disabled
-                    and is_text_model(m)):
+                    and (is_text_model(m) or self._all_models_allowed())):
                 chain.append(m)
         return chain[:4]
 
@@ -1090,7 +1160,9 @@ class TranslatorApp(QWidget):
                   + list(getattr(self, 'model_fallback_order', []) or [])
                   + combo_models):
             # 텍스트 번역에 못 쓰는 모델은 순서에 아예 보이지 않게 한다
-            if m and m not in ordered and is_text_model(m):
+            # ('모든 모델 표시' 옵션을 켠 경우는 예외)
+            if (m and m not in ordered
+                    and (is_text_model(m) or self._all_models_allowed())):
                 ordered.append(m)
         dlg = QDialog(self)
         dlg.setWindowTitle("모델 폴백 우선순위")
@@ -1389,6 +1461,9 @@ class TranslatorApp(QWidget):
                 self.model_fallback_disabled = []
             self.chk_model_fallback.setChecked(
                 self.settings.value("model_fallback_enabled", True, type=bool))
+            self.show_all_models = self.settings.value(
+                "show_all_models", False, type=bool)
+            self.chk_show_all_models.setChecked(self.show_all_models)
             self.chk_signature.setChecked(
                 self.settings.value("signature_enabled", False, type=bool))
             sig_pos = str(self.settings.value("signature_position", "start") or "start")
@@ -1528,6 +1603,8 @@ class TranslatorApp(QWidget):
                 json.dumps(getattr(self, 'model_fallback_disabled', []) or []))
             self.settings.setValue(
                 "model_fallback_enabled", self.chk_model_fallback.isChecked())
+            self.settings.setValue(
+                "show_all_models", self.chk_show_all_models.isChecked())
             self.settings.setValue("signature_enabled", self.chk_signature.isChecked())
             self.settings.setValue(
                 "signature_position", self.cmb_signature_pos.currentData())
@@ -1611,7 +1688,8 @@ class TranslatorApp(QWidget):
         self.append_log("모델 목록 가져오는 중...")
         self.btn_fetch.setEnabled(False)
 
-        self.model_fetcher_thread = ModelFetcherThread(api_key=api_key)
+        self.model_fetcher_thread = ModelFetcherThread(
+            api_key=api_key, include_all=self._all_models_allowed())
         self.model_fetcher_thread.models_fetched.connect(self.update_model_list)
         self.model_fetcher_thread.error_occurred.connect(self.handle_fetch_error)
         self.model_fetcher_thread.finished.connect(self._on_fetch_finished)
@@ -2327,6 +2405,7 @@ class TranslatorApp(QWidget):
             self.chk_token_stats,
             self.chk_token_report, self.spin_resume_context,
             self.spin_batch_step_down, self.spin_batch_floor,
+            self.chk_show_all_models,
             self.chk_signature, self.cmb_signature_pos, self.txt_signature,
             self.spin_batch_error_step, self.spin_audio_chunk_error_step,
             self.cmb_service_tier, self.chk_use_enterprise,

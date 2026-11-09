@@ -90,9 +90,11 @@ class ModelFetcherThread(QThread):
     models_fetched = pyqtSignal(list)
     error_occurred = pyqtSignal(str)
 
-    def __init__(self, api_key):
+    def __init__(self, api_key, include_all=False):
         super().__init__()
         self.api_key = api_key
+        # True면 텍스트 번역 불가 모델까지 포함한다 (고급 설정 옵션)
+        self.include_all = include_all
 
     def run(self):
         if not genai:
@@ -115,8 +117,12 @@ class ModelFetcherThread(QThread):
                         available_models.append(model_name)
 
             # 임베딩·이미지·TTS 등 텍스트 번역에 못 쓰는 모델은 제외
-            available_models = sorted(
-                {m for m in available_models if is_text_model(m)})
+            # (고급 설정에서 '모든 모델 표시'를 켠 경우에만 전부 포함)
+            if self.include_all:
+                available_models = sorted(set(available_models))
+            else:
+                available_models = sorted(
+                    {m for m in available_models if is_text_model(m)})
             if available_models:
                 self.models_fetched.emit(available_models)
             else:
