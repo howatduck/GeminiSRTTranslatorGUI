@@ -57,3 +57,80 @@ def classify_worker_error(exc: BaseException, *, msg_key: str, base_name: str) -
     if "permission" in err_str or "403" in err_str:
         return f"{err_base} - 권한 없음 (API 인증 오류)."
     return f"{err_base} - 라이브러리 예외: {exc}"
+
+
+# --- 실패 후 안내: 원인 추정 + 해결 가능성 있는 다음 행동 제시 ---
+
+_FAILURE_KINDS = (
+    # (종류, 원인 라벨, 판정 키워드들)
+    ("overload", "모델 서버 과부하",
+     ("과부하", "overloaded", "503", "unavailable")),
+    ("quota", "API 할당량 고갈",
+     ("할당량", "429", "quota")),
+    ("auth", "API 키 인증 오류",
+     ("권한 없음", "인증 오류", "403")),
+    ("timeout", "서버 응답 시간 초과",
+     ("시간 초과", "deadline", "504")),
+    ("safety", "AI 안전 설정 차단",
+     ("안전 설정 차단", "blocked")),
+    ("response", "API 응답 처리 오류",
+     ("schema", "스트림 응답 오류", "내부 오류")),
+)
+
+_FAILURE_ADVICE = {
+    "overload": [
+        "잠시 후 다시 시도해 보세요. 서버 과부하는 보통 일시적입니다.",
+        "모델을 바꾸면 도움이 됩니다 (예: flash-lite → flash).",
+        "배치 크기를 줄이면 실패해도 그 구간만 다시 시도합니다.",
+    ],
+    "quota": [
+        "API 키를 추가하면 자동으로 번갈아 사용합니다.",
+        "할당량이 복구되는 시간(보통 자정 전후) 뒤에 다시 시도해 보세요.",
+    ],
+    "auth": [
+        "API 키가 올바른지, 해당 모델을 쓸 권한이 있는지 확인해 보세요.",
+        "키를 다시 저장한 뒤 다시 시도해 보세요.",
+    ],
+    "timeout": [
+        "잠시 후 다시 시도해 보세요.",
+        "배치 크기를 줄이면 한 번에 처리하는 양이 줄어 시간 초과가 덜 생깁니다.",
+    ],
+    "safety": [
+        "해당 구간의 내용이 안전 필터에 걸린 것으로 보입니다.",
+        "다른 모델로 시도하면 통과하는 경우가 있습니다.",
+    ],
+    "response": [
+        "다시 시도해 보세요. 반복되면 모델 변경이 도움이 됩니다.",
+        "같은 파일에서 반복되면 배치 크기를 줄여 보세요.",
+    ],
+    "unknown": [
+        "다시 시도해 보세요. 완료된 작업은 자동으로 건너뜁니다.",
+        "반복되면 모델을 바꾸거나 배치 크기를 줄여 보세요.",
+    ],
+}
+
+
+def failure_advice(messages):
+    """실패 메시지 목록 → (원인 라벨, 안내 문구 목록).
+
+    classify_worker_error가 만든 사용자용 문구를 키워드로 되짚어 대표
+    원인을 추정한다. 가장 잦은 종류를 고르고, 동률이면 마지막 실패를
+    우선한다. 순수 함수.
+    """
+    counts = {}
+    last_seen = {}
+    for idx, msg in enumerate(messages or []):
+        text = str(msg).lower()
+        kind = "unknown"
+        for name, _label, keywords in _FAILURE_KINDS:
+            if any(k in text for k in keywords):
+                kind = name
+                break
+        counts[kind] = counts.get(kind, 0) + 1
+        last_seen[kind] = idx
+    if not counts:
+        kind = "unknown"
+    else:
+        kind = max(counts, key=lambda k: (counts[k], last_seen[k]))
+    label = dict((n, l) for n, l, _ in _FAILURE_KINDS).get(kind, "일시적 오류")
+    return label, list(_FAILURE_ADVICE[kind])

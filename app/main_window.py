@@ -52,6 +52,7 @@ from core.style_presets import (
     compose_description, all_presets, CUSTOM_PRESET_IDS,
 )
 from core.pricing import read_report_cost, token_report_path_for
+from core.errors import failure_advice
 from core.subtitle_io import is_translation_complete, set_strip_final_periods
 
 
@@ -118,6 +119,8 @@ class TranslatorApp(QWidget):
         self.job_queue = None
         self.total_jobs = 0
         self.completed_jobs = 0
+        self.failed_jobs = 0
+        self.last_job_errors = []
         self.job_completion_lock = threading.Lock()
         self.jobs = []
         self.recent_outputs = []
@@ -1771,6 +1774,8 @@ class TranslatorApp(QWidget):
         self.jobs = list(jobs)
         self.total_jobs = len(jobs) + skipped_count
         self.completed_jobs = skipped_count
+        self.failed_jobs = 0
+        self.last_job_errors = []
         self.recent_outputs = []
         for job in jobs:
             self.job_queue.put(job)
@@ -2012,6 +2017,11 @@ class TranslatorApp(QWidget):
     def _handle_job_error(self, error_message):
         with self.job_completion_lock:
             self.completed_jobs += 1
+            # 실패는 완료와 별도로 세어 종료 요약에서 구분한다
+            self.failed_jobs = getattr(self, 'failed_jobs', 0) + 1
+            # 종료 시 원인 추정·안내에 쓰기 위해 최근 실패를 보관한다
+            self.last_job_errors.append(str(error_message))
+            del self.last_job_errors[:-20]
             current = self.completed_jobs
             total = self.total_jobs
         self.progress_bar.setValue(current)
@@ -2104,8 +2114,28 @@ class TranslatorApp(QWidget):
             self.append_log(f"\x1b[32m{self.tr_str('log_all_done')}\x1b[0m")
 
         skipped_count = getattr(self, 'skipped_completed_jobs', 0)
-        translated_count = max(0, self.completed_jobs - skipped_count)
-        self.append_log(f"  요약: 번역 {translated_count}개 · 스킵 {skipped_count}개")
+        failed_count = getattr(self, 'failed_jobs', 0)
+        translated_count = max(
+            0, self.completed_jobs - skipped_count - failed_count)
+        summary = f"  요약: 번역 {translated_count}개 · 스킵 {skipped_count}개"
+        if failed_count:
+            summary += f" · 실패 {failed_count}개"
+        self.append_log(summary)
+
+        # 실패가 있으면 원인 추정과 해결 안내를 남기고, 종료 정리 뒤에
+        # 바로 실행할 수 있는 선택지(재시도/모델 변경/배치 축소)를 띄운다
+        self._failure_help_pending = 0
+        if failed_count and not self._stop_requested:
+            try:
+                label, advice = failure_advice(
+                    getattr(self, 'last_job_errors', []))
+                self.append_log(
+                    f"\x1b[33m  실패 {failed_count}개 — 원인 추정: {label}\x1b[0m")
+                for line in advice:
+                    self.append_log(f"\x1b[33m  · {line}\x1b[0m")
+                self._failure_help_pending = failed_count
+            except Exception:
+                pass
 
         self.progress_bar.setValue(self.completed_jobs)
         if self.completed_jobs >= self.total_jobs:
@@ -2151,4 +2181,75 @@ class TranslatorApp(QWidget):
         self.job_queue = None
         self.total_jobs = 0
         self.completed_jobs = 0
+        self.failed_jobs = 0
         self._stop_requested = False
+
+        # 실패 안내 다이얼로그는 종료 정리가 끝난 뒤에 띄운다 —
+        # 여기서 재시도를 시작해도 카운터 초기화가 새 실행을 덮지 않게
+        pending = getattr(self, '_failure_help_pending', 0)
+        self._failure_help_pending = 0
+        if pending:
+            try:
+                self._show_failure_dialog(pending)
+            except Exception:
+                pass
+
+    def _show_failure_dialog(self, failed_count):
+        """실패 종료 시 해결 선택지를 제시하고, 고르면 바로 재시작한다.
+
+        재시작하면 완료된 작업은 자동 스킵되고 실패분만 이어서 진행된다.
+        """
+        label, advice = failure_advice(getattr(self, 'last_job_errors', []))
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Icon.Warning)
+        box.setWindowTitle("작업 실패 안내")
+        box.setText(
+            f"{failed_count}개 작업이 실패했습니다. (원인 추정: {label})")
+        box.setInformativeText(
+            "\n".join(f"• {line}" for line in advice)
+            + "\n\n다시 시도하면 완료된 작업은 건너뛰고 실패한 작업만 이어서 진행됩니다.")
+        btn_retry = box.addButton(
+            "다시 시도", QMessageBox.ButtonRole.AcceptRole)
+        # 모델 변경 후보: lite가 아닌 다른 모델을 우선 고른다
+        btn_model = None
+        model_idx = -1
+        combo = getattr(self, 'cmb_model', None)
+        if combo is not None:
+            current = combo.currentText()
+            fallback_idx = -1
+            for i in range(combo.count()):
+                text = combo.itemText(i)
+                if not text or text == current:
+                    continue
+                if "lite" not in text.lower():
+                    model_idx = i
+                    break
+                if fallback_idx < 0:
+                    fallback_idx = i
+            if model_idx < 0:
+                model_idx = fallback_idx
+            if model_idx >= 0:
+                btn_model = box.addButton(
+                    "모델 변경 후 재시도", QMessageBox.ButtonRole.ActionRole)
+        # 배치 축소 후보: 현재 값의 절반 (최소 10)
+        btn_batch = None
+        spin = getattr(self, 'spin_batch', None)
+        if spin is not None and spin.value() > 10:
+            btn_batch = box.addButton(
+                "배치 크기 절반으로 재시도", QMessageBox.ButtonRole.ActionRole)
+        box.addButton("닫기", QMessageBox.ButtonRole.RejectRole)
+        box.exec()
+        clicked = box.clickedButton()
+        if clicked is btn_retry:
+            self.start_translation()
+        elif btn_model is not None and clicked is btn_model:
+            combo.setCurrentIndex(model_idx)
+            self.append_log(
+                f"\x1b[33m모델을 {combo.itemText(model_idx)}로 변경해 다시 시작합니다.\x1b[0m")
+            self.start_translation()
+        elif btn_batch is not None and clicked is btn_batch:
+            new_size = max(10, spin.value() // 2)
+            spin.setValue(new_size)
+            self.append_log(
+                f"\x1b[33m배치 크기를 {new_size}으로 줄여 다시 시작합니다.\x1b[0m")
+            self.start_translation()
