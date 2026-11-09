@@ -68,6 +68,24 @@ def _unique_stem(src_path):
     return f"{base}_{digest}"
 
 
+_UNIQUE_SUFFIX_RE = re.compile(r"_[0-9a-f]{8}$")
+
+
+def _output_base_name(src_path):
+    """최종 출력 파일명에 쓸 stem.
+
+    추출 temp 파일(<stem>_<해시>_extracted.srt)은 '_extracted'와
+    _unique_stem 해시를 함께 제거해 원본 stem으로 되돌린다. 해시는
+    temp 파일 고유성 전용이라 최종 출력명에 새면 플레이어가 영상과
+    자막을 자동 매칭하지 못한다. 일반 자막 파일은 stem을 그대로 쓴다.
+    """
+    stem = os.path.splitext(os.path.basename(src_path))[0]
+    if stem.endswith("_extracted"):
+        stem = stem[:-len("_extracted")]
+        stem = _UNIQUE_SUFFIX_RE.sub("", stem)
+    return stem
+
+
 def _skipped_videos_notice(videos_without_subs):
     """자막이 없어 건너뛴 영상을 알리는 로그 문구. 없으면 None.
 
@@ -1413,12 +1431,10 @@ class TranslatorApp(QWidget):
         valid_video_contexts = [v for v in (video_context_paths or []) if os.path.exists(v)]
 
         # 동일 파일명 충돌 방지: 출력용 stem이 2개 이상 겹치면 경로 해시로 구분.
-        # (추출 temp 파일은 _unique_stem으로 이미 고유하므로 여기서 겹치지 않는다)
+        # 추출 temp는 _output_base_name으로 원본 stem으로 되돌려 세므로,
+        # 다른 폴더의 동명 영상에서 뽑은 추출본도 여기서 충돌로 잡힌다.
         def _out_stem(p):
-            stem = os.path.splitext(os.path.basename(p))[0]
-            if stem.endswith("_extracted"):
-                stem = stem[:-10]
-            return stem.lower()
+            return _output_base_name(p).lower()
         stem_counts = {}
         for p in source_files_to_process:
             stem_counts[_out_stem(p)] = stem_counts.get(_out_stem(p), 0) + 1
@@ -1426,9 +1442,7 @@ class TranslatorApp(QWidget):
         for lang in target_languages:
             for idx, src_file_path in enumerate(source_files_to_process):
                 try:
-                    base_name, ext = os.path.splitext(os.path.basename(src_file_path))
-                    if base_name.endswith("_extracted"):
-                        base_name = base_name[:-10]
+                    base_name = _output_base_name(src_file_path)
                     # 출력 파일명에만 해시 추가 (비디오 컨텍스트 매칭용 base_name은 유지)
                     out_base = base_name
                     if stem_counts.get(base_name.lower(), 0) > 1:
@@ -1553,6 +1567,12 @@ class TranslatorApp(QWidget):
                 norm_target_langs = {l: _normalize_lang_name(l) for l in selected_languages}
                 prefer_sdh = self.chk_prefer_sdh.isChecked()
                 total_vids = len(valid_video_paths)
+                # 직접 저장 파일명은 기본이 영상 원본 stem이고, 같은 이름의
+                # 영상이 여럿일 때만 해시 stem(v_basename)으로 구분한다
+                _plain_stem_counts = {}
+                for _vp in valid_video_paths:
+                    _ps = os.path.splitext(os.path.basename(_vp))[0].lower()
+                    _plain_stem_counts[_ps] = _plain_stem_counts.get(_ps, 0) + 1
 
                 self.progress_bar.setRange(0, 100)
                 self.progress_bar.setValue(0)
@@ -1560,8 +1580,11 @@ class TranslatorApp(QWidget):
                 QApplication.processEvents()
 
                 for v_idx, vpath in enumerate(valid_video_paths):
-                    # 동명 파일 충돌 방지: 경로 기반 고유 stem 사용 (버그 1 수정)
+                    # 동명 파일 충돌 방지: 추출 temp 이름은 경로 해시로 고유하게 (버그 1 수정)
                     v_basename = _unique_stem(vpath)
+                    plain_stem = os.path.splitext(os.path.basename(vpath))[0]
+                    save_stem = (v_basename if _plain_stem_counts.get(
+                        plain_stem.lower(), 0) > 1 else plain_stem)
                     self.append_log(f"\x1b[34m[자막 트랙 검사 ({v_idx+1}/{total_vids})] '{os.path.basename(vpath)}' 분석 중...\x1b[0m")
                     QApplication.processEvents()
                     streams = _get_video_subtitle_streams(vpath)
@@ -1597,7 +1620,7 @@ class TranslatorApp(QWidget):
                     if same_lang_stream:
                         stream_idx = same_lang_stream.get("index", 0)
                         iso_code = _get_iso_lang_code(target_matched_lang)
-                        out_direct = os.path.join(self.output_dir, f"{v_basename}.{iso_code}.srt")
+                        out_direct = os.path.join(self.output_dir, f"{save_stem}.{iso_code}.srt")
                         reuse_extracted = self.chk_reuse_extracted.isChecked()
                         if reuse_extracted and os.path.exists(out_direct) and os.path.getsize(out_direct) > 0:
                             saved_direct_count += 1
