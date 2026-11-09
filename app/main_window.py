@@ -34,7 +34,7 @@ from app.subtitle_tools_dialog import SubtitleToolsDialog
 from app.custom_preset_dialog import CustomPresetDialog
 from core.config import (
     API_KEY_SETTINGS, APP_NAME, DEFAULT_BATCH_SIZE, DEFAULT_MODEL,
-    NUM_API_KEYS, SETTINGS_APP, SETTINGS_ORG,
+    NUM_API_KEYS, SETTINGS_APP, SETTINGS_ORG, is_text_model,
 )
 from core.gst_compat import (
     GENAI_IMPORT_ERROR, GST_IMPORT_ERROR, GeminiSRTTranslator, Subtitle,
@@ -1076,7 +1076,8 @@ class TranslatorApp(QWidget):
             return chain
         disabled = set(getattr(self, 'model_fallback_disabled', []) or [])
         for m in getattr(self, 'model_fallback_order', []) or []:
-            if m and m not in chain and m not in disabled:
+            if (m and m not in chain and m not in disabled
+                    and is_text_model(m)):
                 chain.append(m)
         return chain[:4]
 
@@ -1088,7 +1089,8 @@ class TranslatorApp(QWidget):
         for m in ([self.cmb_model.currentText()]
                   + list(getattr(self, 'model_fallback_order', []) or [])
                   + combo_models):
-            if m and m not in ordered:
+            # 텍스트 번역에 못 쓰는 모델은 순서에 아예 보이지 않게 한다
+            if m and m not in ordered and is_text_model(m):
                 ordered.append(m)
         dlg = QDialog(self)
         dlg.setWindowTitle("모델 폴백 우선순위")

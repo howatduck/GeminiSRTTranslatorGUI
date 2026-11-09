@@ -248,3 +248,59 @@ def test_model_chain_off_uses_primary_only(qapp):
 def test_model_chain_skips_disabled_but_keeps_primary(qapp):
     win = _chain_window(qapp, order=["m2", "m3"], disabled=["m2", "m1"])
     assert win._model_chain("m1") == ["m1", "m3"]
+
+
+# --- 텍스트 모델 판정 + 가져오기 필터 ---
+
+def test_is_text_model():
+    from core.config import is_text_model
+
+    assert is_text_model("gemini-3.5-flash-lite")
+    assert is_text_model("gemini-2.5-flash")
+    assert is_text_model("gemma-3-27b-it")
+    assert is_text_model("models/gemini-2.5-pro")
+    for junk in (
+        "gemini-embedding-001", "embedding-001", "imagen-4.0-generate-001",
+        "veo-3.0-generate-001", "gemini-2.5-flash-preview-tts",
+        "gemini-2.5-flash-image", "gemini-2.5-flash-native-audio-preview",
+        "gemini-live-2.5-flash-preview", "gemini-robotics-er-1.5-preview",
+        "gemini-2.5-computer-use-preview-10-2025",
+        "deep-research-pro-preview-12-2025", "aqa", "",
+    ):
+        assert not is_text_model(junk), junk
+
+
+def test_model_chain_filters_non_text_models(qapp):
+    win = _chain_window(
+        qapp, order=["gemini-embedding-001", "gemini-2.5-flash"])
+    assert win._model_chain("gemini-3.5-flash-lite") == [
+        "gemini-3.5-flash-lite", "gemini-2.5-flash"]
+
+
+def test_model_fetcher_excludes_non_text_models(qapp, monkeypatch):
+    import types as _types
+    import app.workers as workers
+
+    class _M:
+        def __init__(self, name, methods):
+            self.name = name
+            self.supported_generation_methods = methods
+
+    class _Models:
+        def list(self):
+            return [
+                _M("models/gemini-2.5-flash", ["generateContent"]),
+                _M("models/gemini-embedding-001", ["embedContent"]),
+                _M("models/gemini-2.5-flash-image", ["generateContent"]),
+                _M("models/gemini-2.5-flash-preview-tts", ["generateContent"]),
+                _M("models/gemini-2.0-flash", []),
+            ]
+
+    fake_client = _types.SimpleNamespace(models=_Models())
+    fake_genai = _types.SimpleNamespace(Client=lambda api_key: fake_client)
+    monkeypatch.setattr(workers, "genai", fake_genai)
+    thread = workers.ModelFetcherThread("key")
+    got = []
+    thread.models_fetched.connect(got.append)
+    thread.run()
+    assert got == [["gemini-2.0-flash", "gemini-2.5-flash"]]

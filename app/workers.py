@@ -18,7 +18,7 @@ from PyQt6.QtWidgets import (
     QToolButton, QScrollArea, QLayout, QDialog,
 )
 
-from core.config import DEFAULT_BATCH_SIZE, DEFAULT_MODEL
+from core.config import DEFAULT_BATCH_SIZE, DEFAULT_MODEL, is_text_model
 from core.errors import (
     classify_worker_error, failure_kind, failure_kind_label, MODEL_SWITCH_KINDS)
 from core.fallback import build_attempt_plan
@@ -114,7 +114,9 @@ class ModelFetcherThread(QThread):
                     if "gemini" in model_name:
                         available_models.append(model_name)
 
-            available_models = sorted(list(set(available_models)))
+            # 임베딩·이미지·TTS 등 텍스트 번역에 못 쓰는 모델은 제외
+            available_models = sorted(
+                {m for m in available_models if is_text_model(m)})
             if available_models:
                 self.models_fetched.emit(available_models)
             else:
