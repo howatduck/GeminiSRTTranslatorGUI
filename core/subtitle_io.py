@@ -113,6 +113,9 @@ def strip_final_periods(text):
 _signature_config = {"enabled": False, "position": "start", "template": ""}
 _signature_model = ""
 
+# 서명 칸의 기본 문구 — 처음 쓰는 사용자가 고쳐 쓰기 쉽도록 미리 채워 둔다
+DEFAULT_SIGNATURE_TEMPLATE = "번역 : GeminiSRTTranslator GUI · {model} · {date}"
+
 
 def set_signature_config(enabled, position, template):
     """서명 정책 동기화 (앱 설정이 호출)."""

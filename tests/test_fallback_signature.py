@@ -86,6 +86,31 @@ def test_render_signature_disabled():
     assert sio.render_signature(today="2026-11-10") == ""
 
 
+def test_default_signature_template_renders():
+    sio.set_signature_config(True, "start", sio.DEFAULT_SIGNATURE_TEMPLATE)
+    sio.set_signature_model("gemini-3.5-flash")
+    try:
+        assert sio.render_signature(today="2026-11-10") == (
+            "번역 : GeminiSRTTranslator GUI · gemini-3.5-flash · 2026-11-10")
+    finally:
+        sio.set_signature_config(False, "start", "")
+        sio.set_signature_model("")
+
+
+def test_fill_default_signature(qapp):
+    from PyQt6.QtWidgets import QLineEdit
+    import app.main_window as mw
+
+    win = mw.TranslatorApp.__new__(mw.TranslatorApp)
+    win.txt_signature = QLineEdit()
+    win._fill_default_signature()
+    assert win.txt_signature.text() == sio.DEFAULT_SIGNATURE_TEMPLATE
+    # 이미 내용이 있으면 건드리지 않는다
+    win.txt_signature.setText("번역: 홍길동")
+    win._fill_default_signature()
+    assert win.txt_signature.text() == "번역: 홍길동"
+
+
 _CUES = [
     "1\n00:00:05,000 --> 00:00:07,000\n안녕\n",
     "2\n00:00:08,000 --> 00:00:09,500\n세상\n",

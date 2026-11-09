@@ -11,7 +11,7 @@ import sys
 import threading
 import time
 
-from PyQt6.QtCore import Qt, QSettings, QThread, pyqtSignal, QObject, QTimer
+from PyQt6.QtCore import Qt, QSettings, QThread, pyqtSignal, QObject, QTimer, QEvent
 from PyQt6.QtGui import QFont, QTextCursor, QTextCharFormat, QColor, QStandardItemModel, QStandardItem
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
@@ -55,7 +55,8 @@ from core.style_presets import (
 from core.pricing import read_report_cost, token_report_path_for
 from core.errors import failure_advice
 from core.subtitle_io import (
-    is_translation_complete, set_strip_final_periods, set_signature_config)
+    is_translation_complete, set_strip_final_periods, set_signature_config,
+    DEFAULT_SIGNATURE_TEMPLATE)
 
 
 def _unique_stem(src_path):
@@ -1011,6 +1012,8 @@ class TranslatorApp(QWidget):
         self.txt_signature.setPlaceholderText(
             "서명 문구 — {model}: 사용한 모델, {date}: 번역 날짜 "
             "(예: 번역: 홍길동 · {model} · {date})")
+        # 비어 있는 칸을 클릭하면 기본 문구가 채워져 고쳐 쓰기 쉽다
+        self.txt_signature.installEventFilter(self)
         self.txt_signature.textChanged.connect(
             lambda text: self._sync_signature_config())
         sig_layout.addWidget(self.txt_signature, 1)
@@ -1038,6 +1041,18 @@ class TranslatorApp(QWidget):
             )
         except Exception:
             pass
+
+    def _fill_default_signature(self):
+        """서명 칸이 비어 있으면 기본 문구를 채운다 (고쳐 쓰기 쉽게)."""
+        field = getattr(self, "txt_signature", None)
+        if field is not None and not field.text().strip():
+            field.setText(DEFAULT_SIGNATURE_TEMPLATE)
+
+    def eventFilter(self, obj, event):
+        if (event.type() == QEvent.Type.FocusIn
+                and obj is getattr(self, "txt_signature", None)):
+            self._fill_default_signature()
+        return super().eventFilter(obj, event)
 
     def _model_chain(self, primary):
         """폴백 체인: 선택 모델 + 저장된 우선순위 (중복 제거, 최대 4개)."""
@@ -1325,7 +1340,8 @@ class TranslatorApp(QWidget):
             if pos_idx >= 0:
                 self.cmb_signature_pos.setCurrentIndex(pos_idx)
             self.txt_signature.setText(
-                str(self.settings.value("signature_template", "") or ""))
+                str(self.settings.value(
+                    "signature_template", DEFAULT_SIGNATURE_TEMPLATE) or ""))
             self._sync_signature_config()
             self.chk_token_stats.setChecked(
                 self.settings.value("token_stats", True, type=bool)
