@@ -190,8 +190,10 @@ class TranslationWorker(QThread):
 
         try:
             while not self.isInterruptionRequested():
+                job_taken = False
                 try:
                     job = self.job_queue.get_nowait()
+                    job_taken = True
                     if job is None:
                         break
 
@@ -404,7 +406,6 @@ class TranslationWorker(QThread):
                                 f"→ 시스템 보호를 위해 작업을 중단합니다. "
                                 f"(API 키/네트워크/할당량 상태를 확인하세요) ====\x1b[0m\n"
                             )
-                            self.job_queue.task_done()
                             break
 
                         backoff = min(
@@ -418,10 +419,7 @@ class TranslationWorker(QThread):
                         try:
                             time.sleep(backoff)
                         except ForceAbortException:
-                            self.job_queue.task_done()
                             break
-
-                    self.job_queue.task_done()
 
                 except queue.Empty:
                     if not self.isInterruptionRequested():
@@ -436,6 +434,12 @@ class TranslationWorker(QThread):
                         )
                         self.job_error.emit(f"루프 오류: {e}")
                     break
+                finally:
+                    # 작업 1건당 task_done() 정확히 1회: get_nowait() 성공
+                    # 이후의 모든 탈출 경로(정상·실패·중단·예외)를 여기서
+                    # 한 번에 확인한다. 분산 호출은 누락·이중 호출의 원인.
+                    if job_taken:
+                        self.job_queue.task_done()
         finally:
             sys.stdout = original_stdout
             sys.stderr = original_stderr

@@ -215,6 +215,34 @@ def test_worker_gives_up_after_plan_exhausted(qapp, monkeypatch):
     assert backend.seen == [("m1", 100), ("m2", 100)]
 
 
+def test_worker_acks_job_on_cancel(qapp, monkeypatch):
+    """사용자 중단으로 시도 루프를 탈출해도 task_done()이 정확히 1회 불린다.
+
+    회귀: 중단 경로가 바깥 작업 루프까지 break하면서 말미의
+    task_done()을 건너뛰어 큐 미완료 카운터가 남던 문제.
+    requestInterruption()은 실제 스레드가 뜬 상태에서만 동작하므로
+    run() 직접 호출이 아니라 start()로 실스레드에서 검증한다.
+    """
+    import app.workers as workers
+
+    backend = _FakeBackend(None)
+    monkeypatch.setattr(workers, "GstAdapter", lambda: backend)
+    jobs = queue.Queue()
+    jobs.put(("in.srt", "Korean", "out.ko.srt", False, None, None))
+    worker = workers.TranslationWorker(
+        ["key1"], jobs, {"model_chain": ["m1"], "batch_size": 100})
+
+    def behavior(args):
+        worker.requestInterruption()
+        raise workers.ForceAbortException("사용자 중단 요청")
+
+    backend.behavior = behavior
+    worker.start()
+    assert worker.wait(10000)
+    assert jobs.unfinished_tasks == 0
+    assert jobs.qsize() == 0
+
+
 # --- 폴백 체인 구성 (on/off + 모델별 제외) ---
 
 class _CheckBox:
