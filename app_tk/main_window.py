@@ -456,7 +456,7 @@ class TranslatorAppTk:
         self.btn_out = self._track(ttk.Button(
             row, text="출력 폴더 선택", command=self.select_output_directory))
         self.btn_out.pack(side="left")
-        out_entry = ttk.Entry(row, textvariable=self.vars["out_label"], state="readonly", width=12)
+        out_entry = ttk.Entry(row, textvariable=self.vars["out_label"], state="readonly", width=8)
         out_entry.pack(side="left", fill="x", expand=True, padx=4)
         self.btn_preview = self._track(ttk.Button(
             row, text="번역 결과 미리보기/편집", command=self.open_preview_editor))
