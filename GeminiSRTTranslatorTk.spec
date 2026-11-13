@@ -53,8 +53,10 @@ hiddenimports = [
 ]
 
 # collect submodules, data & binaries for key packages
-# collect_all() returns 3-tuples (src, dest, typecode) internally;
-# Analysis expects 2-tuples (src, dest), so we strip the typecode.
+# collect_all()의 반환 순서는 (datas, binaries, hiddenimports)이며,
+# 각 항목은 (src, dest, typecode) 3-튜플이라 Analysis용 2-튜플로 자른다.
+# (Qt판 스펙의 잘못된 언팩 순서를 따라 하면 tkinterdnd2의 바이너리
+# 튜플이 hiddenimports로 들어가 TypeError로 죽는다 — 실측)
 def _to_2tuple(items):
     result = []
     for item in items:
@@ -65,7 +67,7 @@ def _to_2tuple(items):
 for pkg in ['google.genai', 'gemini_srt_translator', 'pyte', 'pysubs2',
             'json_repair', 'pydantic', 'httpx', 'certifi', 'tkinterdnd2']:
     try:
-        tmp_datas, tmp_hidden, tmp_binaries = collect_all(pkg)
+        tmp_datas, tmp_binaries, tmp_hidden = collect_all(pkg)
         datas.extend(_to_2tuple(tmp_datas))
         hiddenimports.extend(tmp_hidden)
         binaries.extend(_to_2tuple(tmp_binaries))
