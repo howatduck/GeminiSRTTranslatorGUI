@@ -414,3 +414,73 @@ def test_splash_constructs_and_progresses(tmp_path):
         splash.close()
     finally:
         root.destroy()
+
+
+@pytest.mark.skipif(not os.environ.get("DISPLAY"), reason="DISPLAY 없음 (xvfb-run 필요)")
+def test_failure_help_toggle_gates_dialog(tmp_path):
+    tk = pytest.importorskip("tkinter")
+    import app_tk.main_window as mw
+    if mw.gst is None:
+        pytest.skip("gemini-srt-translator 미설치 환경 (시작 경고 모달 방지)")
+    from app_tk.main_window import TranslatorAppTk
+
+    root = tk.Tk()
+    root.withdraw()
+    try:
+        path = str(tmp_path / "tk-fh.json")
+        app = TranslatorAppTk(root, settings_path=path)
+        # 기본값은 켜짐 (기존 동작 유지)
+        assert app.vars["show_failure_help"].get() is True
+        assert app._failure_help_enabled() is True
+
+        shown = []
+        app._show_failure_dialog = shown.append
+        app._failure_help_pending = 3
+        app._maybe_show_failure_dialog()
+        assert shown == [3]
+        assert app._failure_help_pending == 0
+
+        # 끄면 설정에 즉시 저장되고, 안내창은 건너뛴다
+        app.vars["show_failure_help"].set(False)
+        app._sync_failure_help()
+        data = json.loads(open(path, encoding="utf-8").read())
+        assert data["show_failure_help"] is False
+        app._failure_help_pending = 2
+        app._maybe_show_failure_dialog()
+        assert shown == [3]  # 추가 호출 없음
+        assert app._failure_help_pending == 0
+
+        # 재시작 시 꺼진 상태가 복원된다
+        app2 = TranslatorAppTk(root, settings_path=path)
+        assert app2.vars["show_failure_help"].get() is False
+        assert app2._failure_help_enabled() is False
+    finally:
+        root.destroy()
+
+
+@pytest.mark.skipif(not os.environ.get("DISPLAY"), reason="DISPLAY 없음 (xvfb-run 필요)")
+def test_custom_lang_placeholder_shows_guidance(tmp_path):
+    tk = pytest.importorskip("tkinter")
+    import app_tk.main_window as mw
+    if mw.gst is None:
+        pytest.skip("gemini-srt-translator 미설치 환경 (시작 경고 모달 방지)")
+    from app_tk.main_window import TranslatorAppTk
+
+    root = tk.Tk()
+    root.withdraw()
+    try:
+        app = TranslatorAppTk(root, settings_path=str(tmp_path / "tk-ph.json"))
+        label = app._custom_lang_ph
+        # Qt판과 같은 안내문구, 값은 오염시키지 않는다
+        assert label.cget("text") == app.tr_str("custom_lang_ph")
+        assert app.vars["custom_lang"].get() == ""
+        root.update_idletasks()
+        assert label.place_info()  # 빈 칸이라 안내가 보인다
+        # 입력하면 사라지고, 지우면 돌아온다
+        app.vars["custom_lang"].set("Vietnamese")
+        assert not label.place_info()
+        app.vars["custom_lang"].set("")
+        root.update_idletasks()
+        assert label.place_info()
+    finally:
+        root.destroy()

@@ -13,7 +13,7 @@ from tkinter import ttk
 import pyte
 
 from app_tk.theme import (
-    FONT_MONO, FONT_MONO_BOLD, LISTBOX_STYLE, TERMINAL_BG,
+    FONT_MONO, FONT_MONO_BOLD, FONT_UI, LISTBOX_STYLE, TERMINAL_BG,
 )
 
 
@@ -391,3 +391,37 @@ def enable_file_drop(widget, callback):
         return True
     except Exception:
         return False
+
+
+def set_entry_placeholder(entry, var, text):
+    """ttk.Entry용 플레이스홀더 (QLineEdit 플레이스홀더 패리티).
+
+    값(StringVar)은 건드리지 않는다 — 입력칸이 비어 있고 포커스가
+    없을 때만 회색 안내 라벨을 입력칸 위에 겹쳐 보인다. 라벨을
+    클릭하면 입력칸으로 포커스를 넘긴다. 반환값은 안내 라벨로,
+    표시 문구를 바꾸거나(언어 전환) 상태를 검사할 때 쓴다.
+    """
+    label = tk.Label(entry, text=text, font=FONT_UI,
+                     foreground="#7a7a7a", background="#ffffff")
+    state = {"focused": False}
+
+    def refresh(*_args):
+        if not var.get() and not state["focused"]:
+            label.place(x=6, rely=0.5, anchor="w")
+        else:
+            label.place_forget()
+
+    def on_focus_in(_event):
+        state["focused"] = True
+        label.place_forget()
+
+    def on_focus_out(_event):
+        state["focused"] = False
+        refresh()
+
+    var.trace_add("write", refresh)
+    entry.bind("<FocusIn>", on_focus_in, add="+")
+    entry.bind("<FocusOut>", on_focus_out, add="+")
+    label.bind("<Button-1>", lambda _e: entry.focus_set())
+    refresh()
+    return label

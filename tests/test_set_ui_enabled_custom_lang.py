@@ -43,7 +43,7 @@ _WIDGET_ATTRS = [
     "chk_resume", "chk_force_retranslate", "chk_thoughts_log", "chk_prefer_sdh",
     "chk_strip_periods",
     "chk_token_stats",
-    "chk_token_report", "spin_resume_context",
+    "chk_token_report", "chk_show_failure_help", "spin_resume_context",
     "spin_batch_step_down", "spin_batch_floor", "chk_show_all_models",
     "chk_signature", "cmb_signature_pos", "txt_signature",
     "spin_batch_error_step", "spin_audio_chunk_error_step",

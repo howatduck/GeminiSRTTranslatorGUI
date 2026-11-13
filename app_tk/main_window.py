@@ -23,6 +23,7 @@ from app_tk.settings import JsonSettings
 from app_tk.theme import LISTBOX_STYLE, TEXT_STYLE, make_title_strip
 from app_tk.widgets import (
     CheckableDropdown, TerminalLog, enable_file_drop, set_enabled,
+    set_entry_placeholder,
 )
 from app_tk.workers import ModelFetcherThread, TranslationWorker, UpdateCheckThread
 from core.config import (
@@ -211,6 +212,7 @@ class TranslatorAppTk:
             ("free", True), ("isolate_voice", True),
             ("streaming", True), ("thinking", True), ("resume", True),
             ("force_retranslate", False), ("prefer_sdh", False),
+            ("show_failure_help", True),
             ("strip_periods", True), ("thoughts_log", False),
             ("progress_log", False), ("token_stats", True),
             ("token_report", False), ("show_all_models", False),
@@ -528,6 +530,9 @@ class TranslatorAppTk:
         lang_entry.pack(side="left", fill="x", expand=True)
         lang_entry.bind("<Return>", lambda e: self.add_custom_language())
         self.txt_custom_lang = lang_entry
+        # Qt판 플레이스홀더 안내문구 패리티 (Tk Entry에는 기본 기능이 없음)
+        self._custom_lang_ph = set_entry_placeholder(
+            lang_entry, self.vars["custom_lang"], self.tr_str("custom_lang_ph"))
         self.btn_add_lang = self._track(ttk.Button(
             row, text="추가", command=self.add_custom_language))
         self.btn_add_lang.pack(side="left", padx=(4, 0))
@@ -790,6 +795,16 @@ class TranslatorAppTk:
                     chk.configure(command=lambda: set_strip_final_periods(
                         self.vars["strip_periods"].get()))
 
+        r = ttk.Frame(body)
+        r.pack(fill="x", pady=2)
+        ttk.Label(r, text="실패 안내:", width=14).pack(side="left")
+        chk = ttk.Checkbutton(
+            r, text="번역 실패 시 안내창 표시 (끄면 로그에만 남김 — 자동화용)",
+            variable=self.vars["show_failure_help"],
+            command=self._sync_failure_help)
+        chk.pack(side="left")
+        self._track(chk)
+
         btn_row = ttk.Frame(dlg)
         btn_row.pack(fill="x", padx=10, pady=8)
         ttk.Button(btn_row, text="닫기",
@@ -812,6 +827,20 @@ class TranslatorAppTk:
             self.settings.setValue("show_all_models", self.show_all_models)
         except Exception:
             pass
+
+    def _sync_failure_help(self):
+        try:
+            self.settings.setValue(
+                "show_failure_help",
+                bool(self.vars["show_failure_help"].get()))
+        except Exception:
+            pass
+
+    def _failure_help_enabled(self):
+        try:
+            return bool(self.vars["show_failure_help"].get())
+        except Exception:
+            return True
 
     def _all_models_allowed(self):
         try:
@@ -874,6 +903,8 @@ class TranslatorAppTk:
         self._refresh_style_combo()
         self._update_api_keys_summary()
         self.cmb_langs.set_placeholder_text(self.tr_str("cmb_langs_ph"))
+        if getattr(self, "_custom_lang_ph", None) is not None:
+            self._custom_lang_ph.configure(text=self.tr_str("custom_lang_ph"))
         self.save_settings()
 
     # ------------------------------------------------------------------
@@ -1102,6 +1133,8 @@ class TranslatorAppTk:
             self._sync_signature_config()
             self.vars["token_stats"].set(self.settings.value("token_stats", True, type=bool))
             self.vars["token_report"].set(self.settings.value("token_report", False, type=bool))
+            self.vars["show_failure_help"].set(
+                self.settings.value("show_failure_help", True, type=bool))
 
             saved_languages_str = str(self.settings.value("selected_languages", "") or "")
             saved_languages = saved_languages_str.split(',') if saved_languages_str else []
@@ -1860,9 +1893,17 @@ class TranslatorAppTk:
         self.failed_jobs = 0
         self._stop_requested = False
 
+        self._maybe_show_failure_dialog()
+
+    def _maybe_show_failure_dialog(self):
+        """종료 정리 뒤 실패 안내창 표시 (고급 설정에서 끌 수 있다).
+
+        안내창은 모달이라 무인 자동화를 막을 수 있다 — 꺼져 있으면
+        로그에 남은 원인 추정·조언만으로 충분하므로 건너뛴다.
+        """
         pending = getattr(self, '_failure_help_pending', 0)
         self._failure_help_pending = 0
-        if pending:
+        if pending and self._failure_help_enabled():
             try:
                 self._show_failure_dialog(pending)
             except Exception:

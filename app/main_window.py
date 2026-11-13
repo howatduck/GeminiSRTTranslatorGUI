@@ -985,10 +985,19 @@ class TranslatorApp(QWidget):
         self.chk_thoughts_log.setChecked(False)
         self.chk_progress_log = QCheckBox("진행 로그")
         self.chk_progress_log.setChecked(False)
+        self.chk_show_failure_help = QCheckBox("번역 실패 시 안내창 표시")
+        self.chk_show_failure_help.setChecked(True)
+        self.chk_show_failure_help.setToolTip(
+            "끄면 작업 실패 시 뜨는 모달 안내창을 띄우지 않고, 원인 추정과 "
+            "조언을 로그에만 남깁니다. 폴백·자동화 실행이 안내창에서 "
+            "멈추지 않게 할 때 끄세요.")
+        self.chk_show_failure_help.stateChanged.connect(
+            lambda state: self._sync_failure_help())
         box3.addWidget(self.chk_token_stats)
         box3.addWidget(self.chk_token_report)
         box3.addWidget(self.chk_thoughts_log)
         box3.addWidget(self.chk_progress_log)
+        box3.addWidget(self.chk_show_failure_help)
         main_form_layout.addRow(box3)
 
         box4 = QHBoxLayout()
@@ -1058,6 +1067,21 @@ class TranslatorApp(QWidget):
             self.settings.setValue("show_all_models", self.show_all_models)
         except Exception:
             pass
+
+    def _sync_failure_help(self):
+        """'실패 안내창 표시' 토글을 설정에 즉시 반영."""
+        try:
+            self.settings.setValue(
+                "show_failure_help", self.chk_show_failure_help.isChecked())
+        except Exception:
+            pass
+
+    def _failure_help_enabled(self):
+        """실패 안내창 표시 여부 (설정 미구성 환경에서는 True)."""
+        try:
+            return bool(self.settings.value("show_failure_help", True, type=bool))
+        except Exception:
+            return True
 
     def _all_models_allowed(self):
         """고급 설정 '모든 모델 표시' 여부 (미구성 환경에서는 False)."""
@@ -1519,6 +1543,9 @@ class TranslatorApp(QWidget):
             self.chk_progress_log.setChecked(
                 self.settings.value("progress_log", False, type=bool)
             )
+            self.chk_show_failure_help.setChecked(
+                self.settings.value("show_failure_help", True, type=bool)
+            )
             self.chk_free.setChecked(
                 self.settings.value("free_quota", True, type=bool)
             )
@@ -1629,6 +1656,7 @@ class TranslatorApp(QWidget):
             self.settings.setValue("thinking_budget", self.spin_thinking_budget.value())
             self.settings.setValue("thoughts_log", self.chk_thoughts_log.isChecked())
             self.settings.setValue("progress_log", self.chk_progress_log.isChecked())
+            self.settings.setValue("show_failure_help", self.chk_show_failure_help.isChecked())
             self.settings.setValue("free_quota", self.chk_free.isChecked())
 
             self.settings.setValue("resume_context_size", self.spin_resume_context.value())
@@ -2403,7 +2431,7 @@ class TranslatorApp(QWidget):
             self.chk_resume, self.chk_force_retranslate, self.chk_thoughts_log, self.chk_prefer_sdh,
             self.chk_strip_periods,
             self.chk_token_stats,
-            self.chk_token_report, self.spin_resume_context,
+            self.chk_token_report, self.chk_show_failure_help, self.spin_resume_context,
             self.spin_batch_step_down, self.spin_batch_floor,
             self.chk_show_all_models,
             self.chk_signature, self.cmb_signature_pos, self.txt_signature,
@@ -2514,10 +2542,11 @@ class TranslatorApp(QWidget):
         self._stop_requested = False
 
         # 실패 안내 다이얼로그는 종료 정리가 끝난 뒤에 띄운다 —
-        # 여기서 재시도를 시작해도 카운터 초기화가 새 실행을 덮지 않게
+        # 여기서 재시도를 시작해도 카운터 초기화가 새 실행을 덮지 않게.
+        # 고급 설정에서 안내창을 끄면(자동화용) 로그 기록만으로 충분하다
         pending = getattr(self, '_failure_help_pending', 0)
         self._failure_help_pending = 0
-        if pending:
+        if pending and self._failure_help_enabled():
             try:
                 self._show_failure_dialog(pending)
             except Exception:
