@@ -252,6 +252,14 @@ class TranslatorAppTk:
 
         make_title_strip(self.root, "GEMINI SRT TRANSLATOR",
                          "Tkinter · Retro Edition")
+        _icon_png = os.path.join(_base, "assets", "app_tk.png")
+        if os.path.exists(_icon_png):
+            try:
+                _img = tk.PhotoImage(file=_icon_png)
+                self.root.iconphoto(True, _img)
+                self.root._tk_icon_image = _img  # GC 방지 참조 유지
+            except Exception:
+                pass
         main = ttk.Frame(self.root)
         main.pack(fill="both", expand=True)
         top = ttk.Frame(main)

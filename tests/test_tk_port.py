@@ -379,3 +379,38 @@ def test_enable_file_drop_degrades_gracefully():
         assert result in (True, False)  # tkinterdnd2 유무에 따라 다름, 크래시만 없으면 됨
     finally:
         root.destroy()
+
+
+# ----------------------------------------------------------------------
+# 레트로 아이콘 + 스플래시
+# ----------------------------------------------------------------------
+def test_tk_icon_assets_valid():
+    root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    png = os.path.join(root_dir, "assets", "app_tk.png")
+    ico = os.path.join(root_dir, "assets", "app_tk.ico")
+    assert os.path.isfile(png) and os.path.getsize(png) > 500
+    assert os.path.isfile(ico) and os.path.getsize(ico) > 1000
+    with open(png, "rb") as f:
+        assert f.read(8) == b"\x89PNG\r\n\x1a\n"
+    with open(ico, "rb") as f:
+        assert f.read(4) == b"\x00\x00\x01\x00"  # ICO 매직
+
+
+@pytest.mark.skipif(not os.environ.get("DISPLAY"), reason="DISPLAY 없음 (xvfb-run 필요)")
+def test_splash_constructs_and_progresses(tmp_path):
+    tk = pytest.importorskip("tkinter")
+    from app_tk.splash import SplashScreen
+    from app_tk.theme import apply_retro_theme
+
+    root = tk.Tk()
+    root.withdraw()
+    try:
+        apply_retro_theme(root)
+        splash = SplashScreen(root)
+        splash.set_progress(0.5, "절반 로딩 중...")
+        assert splash._fraction == 0.5
+        assert splash.status_var.get() == "절반 로딩 중..."
+        splash.set_progress(1.0, "완료")
+        splash.close()
+    finally:
+        root.destroy()
