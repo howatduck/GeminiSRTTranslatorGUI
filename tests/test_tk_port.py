@@ -210,3 +210,172 @@ def test_tk_window_builds_and_settings_roundtrip(tmp_path):
         assert app2.vars["batch"].get() == 321
     finally:
         root.destroy()
+
+
+# ----------------------------------------------------------------------
+# 2단계: 레트로 테마 + 다이얼로그 4종 (디스플레이 필요)
+# ----------------------------------------------------------------------
+class _StubApp:
+    """다이얼로그 테스트용 최소 앱 스텁 (tr_str만 실제 i18n 사용)."""
+
+    app_lang = "ko"
+    custom_presets = {}
+    input_files = []
+
+    def tr_str(self, key, **kwargs):
+        from app.i18n import I18N
+        template = I18N["ko"].get(key, key)
+        if kwargs:
+            try:
+                return template.format(**kwargs)
+            except Exception:
+                return template
+        return template
+
+
+def _no_modal(monkeypatch):
+    class FakeMB:
+        @staticmethod
+        def showinfo(*a, **k):
+            return "ok"
+
+        @staticmethod
+        def showwarning(*a, **k):
+            return "ok"
+
+        @staticmethod
+        def showerror(*a, **k):
+            return "ok"
+
+        @staticmethod
+        def askyesno(*a, **k):
+            return True
+
+    monkeypatch.setattr("app_tk.dialogs2.messagebox", FakeMB)
+
+
+@pytest.mark.skipif(not os.environ.get("DISPLAY"), reason="DISPLAY 없음 (xvfb-run 필요)")
+def test_retro_theme_applies_and_strip_builds(tmp_path):
+    tk = pytest.importorskip("tkinter")
+    from app_tk.theme import apply_retro_theme, make_title_strip, FACE, NAVY
+
+    root = tk.Tk()
+    root.withdraw()
+    try:
+        apply_retro_theme(root)
+        assert root.cget("background") == FACE
+        strip = make_title_strip(root, "TEST", "sub")
+        assert str(strip.cget("background")) == NAVY
+        # 이름 폰트가 GC로 사라지지 않고 유지되는지 (버튼 폭 폭증 회귀 방지)
+        from tkinter import font as tkfont
+        from tkinter import ttk as _ttk
+        assert "RetroUI" in tkfont.names()
+        btn = _ttk.Button(root, text="전체 해제")
+        btn.pack()
+        root.update_idletasks()
+        assert btn.winfo_reqwidth() < 120
+    finally:
+        root.destroy()
+
+
+@pytest.mark.skipif(not os.environ.get("DISPLAY"), reason="DISPLAY 없음 (xvfb-run 필요)")
+def test_preview_dialog_loads_edits_and_saves(tmp_path, monkeypatch):
+    tk = pytest.importorskip("tkinter")
+    _no_modal(monkeypatch)
+    from app_tk.dialogs2 import SubtitlePreviewDialogTk
+
+    srt = ("1\n00:00:01,000 --> 00:00:02,000\nHello world\n\n"
+           "2\n00:00:03,000 --> 00:00:04,000\nSecond line\n")
+    trans = tmp_path / "movie.ko.srt"
+    orig = tmp_path / "movie.srt"
+    trans.write_text(srt, encoding="utf-8")
+    orig.write_text(srt, encoding="utf-8")
+
+    root = tk.Tk()
+    root.withdraw()
+    try:
+        dlg = SubtitlePreviewDialogTk(root, _StubApp(), str(trans), str(orig))
+        root.update_idletasks()
+        assert len(dlg.trans_entries) == 2
+        assert len(dlg.tree.get_children()) == 2
+        # 검색 필터
+        dlg.search_var.set("Second")
+        assert len(dlg.tree.get_children()) == 1
+        dlg.search_var.set("")
+        # 편집 반영 + 저장 (백업 생성 포함)
+        dlg.trans_entries[0]["text"] = "안녕 세상"
+        dlg._dirty = True
+        dlg._save()
+        saved = trans.read_text(encoding="utf-8")
+        assert "안녕 세상" in saved
+        assert (tmp_path / "movie.ko.srt.bak").exists()
+        dlg._close()
+    finally:
+        root.destroy()
+
+
+@pytest.mark.skipif(not os.environ.get("DISPLAY"), reason="DISPLAY 없음 (xvfb-run 필요)")
+def test_skill_and_agent_dialogs(tmp_path, monkeypatch):
+    tk = pytest.importorskip("tkinter")
+    _no_modal(monkeypatch)
+    from app_tk.dialogs2 import AgentExchangeDialogTk, SkillInstallDialogTk
+
+    root = tk.Tk()
+    root.withdraw()
+    try:
+        # 스킬 설치: 프로젝트 범위로 agy 대상 설치 → 결과 텍스트가 채워짐
+        skill = SkillInstallDialogTk(root, _StubApp())
+        skill.scope_var.set(1)
+        skill._on_scope_changed()
+        skill.folder_var.set(str(tmp_path))
+        skill.cmb_platform.current(skill._target_ids.index("agy"))
+        skill._do_install()
+        assert skill.result.get("1.0", "end").strip()
+        skill._close()
+
+        # 에이전트 교환: 내보내기 → 상태 확인까지
+        srt = tmp_path / "ep.srt"
+        srt.write_text("1\n00:00:01,000 --> 00:00:02,000\nHello\n",
+                       encoding="utf-8")
+        agent = AgentExchangeDialogTk(root, _StubApp())
+        agent.file_var.set(str(srt))
+        agent._do_export()
+        out = agent.result.get("1.0", "end")
+        assert out.strip()
+        agent._do_status()
+        assert agent.result.get("1.0", "end").strip()
+        agent._close()
+    finally:
+        root.destroy()
+
+
+@pytest.mark.skipif(not os.environ.get("DISPLAY"), reason="DISPLAY 없음 (xvfb-run 필요)")
+def test_subtitle_tools_dialog_empty_folder(tmp_path, monkeypatch):
+    tk = pytest.importorskip("tkinter")
+    _no_modal(monkeypatch)
+    from app_tk.dialogs2 import SubtitleToolsDialogTk
+
+    root = tk.Tk()
+    root.withdraw()
+    try:
+        dlg = SubtitleToolsDialogTk(root, _StubApp())
+        dlg.folder_var.set(str(tmp_path))
+        dlg._refresh_preview()  # 빈 폴더: 예외 없이 종료
+        dlg._close()
+    finally:
+        root.destroy()
+
+
+@pytest.mark.skipif(not os.environ.get("DISPLAY"), reason="DISPLAY 없음 (xvfb-run 필요)")
+def test_enable_file_drop_degrades_gracefully():
+    tk = pytest.importorskip("tkinter")
+    from app_tk.widgets import enable_file_drop
+
+    root = tk.Tk()
+    root.withdraw()
+    try:
+        lb = tk.Listbox(root)
+        result = enable_file_drop(lb, lambda paths: None)
+        assert result in (True, False)  # tkinterdnd2 유무에 따라 다름, 크래시만 없으면 됨
+    finally:
+        root.destroy()

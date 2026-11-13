@@ -12,6 +12,10 @@ from tkinter import ttk
 
 import pyte
 
+from app_tk.theme import (
+    FONT_MONO, FONT_MONO_BOLD, LISTBOX_STYLE, TERMINAL_BG,
+)
+
 
 def set_enabled(widget, enabled):
     """ttk/tk 위젯 공통 활성/비활성 전환."""
@@ -39,11 +43,12 @@ class TerminalLog(tk.Frame):
     }
 
     def __init__(self, parent, cols=150, lines=50, history=2000):
-        super().__init__(parent)
+        super().__init__(parent, relief="sunken", borderwidth=2,
+                         background=TERMINAL_BG)
         self.text = tk.Text(
-            self, wrap="none", bg="#0c0c0c", fg="#cccccc",
+            self, wrap="none", bg=TERMINAL_BG, fg="#cccccc", height=20,
             insertbackground="#cccccc", relief="flat", borderwidth=0,
-            font=("Consolas", 10), padx=4, pady=4, undo=False,
+            font=FONT_MONO, padx=4, pady=4, undo=False,
         )
         yscroll = ttk.Scrollbar(self, orient="vertical", command=self.text.yview)
         xscroll = ttk.Scrollbar(self, orient="horizontal", command=self.text.xview)
@@ -174,7 +179,7 @@ class TerminalLog(tk.Frame):
             if bg:
                 kwargs["background"] = bg
             if bold:
-                kwargs["font"] = ("Consolas", 10, "bold")
+                kwargs["font"] = FONT_MONO_BOLD
             self.text.tag_configure(name, **kwargs)
         return name
 
@@ -316,7 +321,7 @@ class CheckableDropdown(ttk.Frame):
         frame.pack(fill="both", expand=True)
         listbox = tk.Listbox(
             frame, height=min(18, max(5, len(self._items))),
-            width=42, activestyle="none", selectmode="browse")
+            width=42, selectmode="browse", **LISTBOX_STYLE)
         scrollbar = ttk.Scrollbar(frame, orient="vertical", command=listbox.yview)
         listbox.configure(yscrollcommand=scrollbar.set)
         listbox.grid(row=0, column=0, sticky="nsew")
@@ -358,3 +363,31 @@ class CheckableDropdown(ttk.Frame):
             except Exception:
                 pass
             self._popup = None
+
+
+def enable_file_drop(widget, callback):
+    """OS 파일 드래그&드롭 등록 (tkinterdnd2 필요, 없으면 조용히 비활성).
+
+    루트가 TkinterDnD.Tk일 때만 실제 동작한다. callback에는 경로
+    리스트가 넘어간다. 등록 성공 시 True.
+    """
+    try:
+        from tkinterdnd2 import DND_FILES
+    except Exception:
+        return False
+    try:
+        widget.drop_target_register(DND_FILES)
+
+        def _on_drop(event):
+            try:
+                paths = list(widget.tk.splitlist(event.data))
+            except Exception:
+                paths = [event.data]
+            if paths:
+                callback(paths)
+            return "break"
+
+        widget.dnd_bind("<<Drop>>", _on_drop)
+        return True
+    except Exception:
+        return False

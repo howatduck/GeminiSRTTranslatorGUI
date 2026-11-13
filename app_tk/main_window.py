@@ -20,7 +20,10 @@ from tkinter import filedialog, messagebox, ttk
 from app.i18n import I18N
 from app_tk.dialogs import CustomPresetDialog, ModelPriorityDialog
 from app_tk.settings import JsonSettings
-from app_tk.widgets import CheckableDropdown, TerminalLog, set_enabled
+from app_tk.theme import LISTBOX_STYLE, TEXT_STYLE, make_title_strip
+from app_tk.widgets import (
+    CheckableDropdown, TerminalLog, enable_file_drop, set_enabled,
+)
 from app_tk.workers import ModelFetcherThread, TranslationWorker, UpdateCheckThread
 from core.config import (
     API_KEY_SETTINGS, APP_NAME, DEFAULT_BATCH_SIZE, DEFAULT_MODEL,
@@ -238,7 +241,7 @@ class TranslatorAppTk:
     # ------------------------------------------------------------------
     def _build_ui(self):
         self.root.title(APP_NAME)
-        self.root.geometry("1000x700")
+        self.root.geometry("1080x820")
         _base = getattr(sys, "_MEIPASS", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         _icon_path = os.path.join(_base, "assets", "app.ico")
         if os.path.exists(_icon_path):
@@ -247,6 +250,8 @@ class TranslatorAppTk:
             except Exception:
                 pass
 
+        make_title_strip(self.root, "GEMINI SRT TRANSLATOR",
+                         "Tkinter · Retro Edition")
         main = ttk.Frame(self.root)
         main.pack(fill="both", expand=True)
         top = ttk.Frame(main)
@@ -438,11 +443,11 @@ class TranslatorAppTk:
             row, text="입력 SRT/ASS 파일 선택 (번역용)", command=self.select_input_files)
         self.btn_files.pack(side="left", fill="x", expand=True)
         self.btn_clear_files = self._track(ttk.Button(
-            row, text="X", width=3, command=self.clear_input_files))
+            row, text="X", width=3, style="Small.TButton", command=self.clear_input_files))
         self.btn_clear_files.pack(side="left", padx=(4, 0))
         self._track(self.btn_files)
 
-        self.lst_files = tk.Listbox(group, height=3)
+        self.lst_files = tk.Listbox(group, height=3, **LISTBOX_STYLE)
         self.lst_files.pack(fill="x", padx=6, pady=2)
         self._track(self.lst_files)
 
@@ -451,7 +456,7 @@ class TranslatorAppTk:
         self.btn_out = self._track(ttk.Button(
             row, text="출력 폴더 선택", command=self.select_output_directory))
         self.btn_out.pack(side="left")
-        out_entry = ttk.Entry(row, textvariable=self.vars["out_label"], state="readonly")
+        out_entry = ttk.Entry(row, textvariable=self.vars["out_label"], state="readonly", width=12)
         out_entry.pack(side="left", fill="x", expand=True, padx=4)
         self.btn_preview = self._track(ttk.Button(
             row, text="번역 결과 미리보기/편집", command=self.open_preview_editor))
@@ -463,13 +468,16 @@ class TranslatorAppTk:
             row, text="비디오 파일 선택 (다중 가능)", command=self.select_video_file)
         self.btn_video_file.pack(side="left", fill="x", expand=True)
         self.btn_clear_video_file = self._track(ttk.Button(
-            row, text="X", width=3, command=self.clear_video_file))
+            row, text="X", width=3, style="Small.TButton", command=self.clear_video_file))
         self.btn_clear_video_file.pack(side="left", padx=(4, 0))
         self._track(self.btn_video_file)
 
-        self.lst_video_files = tk.Listbox(group, height=3)
+        self.lst_video_files = tk.Listbox(group, height=3, **LISTBOX_STYLE)
         self.lst_video_files.pack(fill="x", padx=6, pady=2)
         self._track(self.lst_video_files)
+        # OS 파일 드래그&드롭 (tkinterdnd2 있을 때만 활성)
+        enable_file_drop(self.lst_files, self._on_drop_input_files)
+        enable_file_drop(self.lst_video_files, self._on_drop_video_files)
 
         row = ttk.Frame(group)
         row.pack(fill="x", padx=6, pady=2)
@@ -480,7 +488,7 @@ class TranslatorAppTk:
                                      state="readonly")
         self.audio_entry.pack(side="left", fill="x", expand=True, padx=4)
         self.btn_clear_audio_file = self._track(ttk.Button(
-            row, text="X", width=3, command=self.clear_audio_file))
+            row, text="X", width=3, style="Small.TButton", command=self.clear_audio_file))
         self.btn_clear_audio_file.pack(side="left")
         self._track(self.btn_audio_file)
         self._set_audio_label("")
@@ -491,10 +499,12 @@ class TranslatorAppTk:
         row.pack(fill="x", padx=6, pady=2)
         ttk.Label(row, text="출력 대상 언어:").pack(side="left")
         self.btn_none_lang = self._track(ttk.Button(
-            row, text="전체 해제", command=self.deselect_all_languages))
+            row, text="전체 해제", style="Small.TButton",
+            command=self.deselect_all_languages))
         self.btn_none_lang.pack(side="right")
         self.btn_all_lang = self._track(ttk.Button(
-            row, text="전체 선택", command=self.select_all_languages))
+            row, text="전체 선택", style="Small.TButton",
+            command=self.select_all_languages))
         self.btn_all_lang.pack(side="right", padx=(0, 4))
 
         self.cmb_langs = CheckableDropdown(group)
@@ -585,7 +595,7 @@ class TranslatorAppTk:
         self._track(spin)
 
         ttk.Label(group, text="프롬프트/지침 입력 (선택):").pack(anchor="w", padx=6, pady=(4, 0))
-        self.txt_desc = tk.Text(group, height=3, wrap="word")
+        self.txt_desc = tk.Text(group, height=3, wrap="word", **TEXT_STYLE)
         self.txt_desc.pack(fill="x", padx=6, pady=2)
         self._track(self.txt_desc)
 
@@ -1958,23 +1968,98 @@ class TranslatorAppTk:
         self.update_check_thread = None
 
     # ------------------------------------------------------------------
-    # 2단계 포팅 대상 (미리보기/자막 도구/스킬 설치/에이전트 교환)
+    # 드래그&드롭 수신
     # ------------------------------------------------------------------
-    def _phase2_notice(self, feature):
-        messagebox.showinfo(
-            "준비 중",
-            f"{feature}은(는) Tkinter 포팅 2단계에서 제공됩니다.\n"
-            "현재는 PyQt판(main.py)에서 사용할 수 있습니다.",
-            parent=self.root)
+    def _on_drop_input_files(self, paths):
+        added = []
+        for p in paths:
+            if (os.path.isfile(p) and p.lower().endswith((".srt", ".ass"))
+                    and p not in self.input_files):
+                self.input_files.append(p)
+                self.lst_files.insert("end", os.path.basename(p))
+                added.append(p)
+        if added:
+            self.settings.setValue("last_input_dir", os.path.dirname(added[0]))
+
+    def _on_drop_video_files(self, paths):
+        video_exts = (".mp4", ".mkv", ".avi", ".mov", ".webm", ".flv", ".wmv")
+        added = []
+        for p in paths:
+            if (os.path.isfile(p) and p.lower().endswith(video_exts)
+                    and p not in self.video_file_paths):
+                self.video_file_paths.append(p)
+                self.lst_video_files.insert("end", os.path.basename(p))
+                added.append(p)
+        if added:
+            self.settings.setValue("last_media_dir", os.path.dirname(added[0]))
+
+    # ------------------------------------------------------------------
+    # 2단계 다이얼로그 (미리보기/자막 도구/스킬 설치/에이전트 교환)
+    # ------------------------------------------------------------------
+    def _pick_from_list(self, title, label, items):
+        """단일 선택 목록 다이얼로그 (QInputDialog.getItem 대체)."""
+        dlg = tk.Toplevel(self.root)
+        dlg.title(title)
+        dlg.transient(self.root)
+        dlg.grab_set()
+        ttk.Label(dlg, text=label).pack(anchor="w", padx=10, pady=(10, 4))
+        lb = tk.Listbox(dlg, width=56, height=min(12, len(items)),
+                        **LISTBOX_STYLE)
+        lb.pack(fill="both", expand=True, padx=10)
+        for item in items:
+            lb.insert("end", item)
+        lb.selection_set(0)
+        result = {"index": None}
+
+        def ok():
+            sel = lb.curselection()
+            result["index"] = sel[0] if sel else None
+            dlg.destroy()
+
+        row = ttk.Frame(dlg)
+        row.pack(fill="x", padx=10, pady=8)
+        ttk.Button(row, text="취소", command=dlg.destroy).pack(side="right")
+        ttk.Button(row, text="확인", command=ok).pack(side="right", padx=(0, 6))
+        lb.bind("<Double-Button-1>", lambda e: ok())
+        dlg.wait_window()
+        return result["index"]
 
     def open_preview_editor(self):
-        self._phase2_notice("번역 결과 미리보기/편집")
+        from app_tk.dialogs2 import SubtitlePreviewDialogTk
+
+        translated, original = None, None
+        if self.recent_outputs:
+            if len(self.recent_outputs) == 1:
+                translated, original = self.recent_outputs[0]
+            else:
+                items = [os.path.basename(p) for p, _ in self.recent_outputs]
+                idx = self._pick_from_list(
+                    self.tr_str("preview_title"),
+                    self.tr_str("preview_choose_file"), items)
+                if idx is None:
+                    return
+                translated, original = self.recent_outputs[idx]
+        else:
+            path = filedialog.askopenfilename(
+                parent=self.root, title=self.tr_str("preview_open_translated"),
+                initialdir=self.output_dir,
+                filetypes=[("Subtitles", "*.srt"), ("All Files", "*")])
+            if not path:
+                return
+            translated = path
+        # 원본이 자막 파일이 아니면 대조 표시 안 함 (PyQt판과 동일)
+        if original and not original.lower().endswith((".srt", ".ass")):
+            original = None
+        SubtitlePreviewDialogTk(self.root, self, translated, original)
 
     def open_subtitle_tools(self):
-        self._phase2_notice("자막 정리 도구")
+        from app_tk.dialogs2 import SubtitleToolsDialogTk
+        SubtitleToolsDialogTk(self.root, self)
 
     def open_skill_installer(self):
-        self._phase2_notice("AI Agent Skill 설치")
+        from app_tk.dialogs2 import SkillInstallDialogTk
+        SkillInstallDialogTk(self.root, self)
 
     def open_agent_exchange(self):
-        self._phase2_notice("에이전트 파일 교환")
+        from app_tk.dialogs2 import AgentExchangeDialogTk
+        AgentExchangeDialogTk(self.root, self)
