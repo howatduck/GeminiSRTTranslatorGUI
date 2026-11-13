@@ -27,6 +27,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          pip install tkinterdnd2
 
       - name: Patch gemini-srt-translator library syntax errors
         shell: python
@@ -94,6 +95,10 @@ jobs:
         run: |
           pyinstaller --clean --noconfirm GeminiSRTTranslator.spec
 
+      - name: Build Tk EXE with PyInstaller
+        run: |
+          pyinstaller --clean --noconfirm GeminiSRTTranslatorTk.spec
+
 
       - name: Package into ZIP
         shell: pwsh
@@ -102,6 +107,10 @@ jobs:
           Compress-Archive -Path "dist\GeminiSRTTranslator.exe" -DestinationPath $zipName
           "ZIP_NAME=$zipName" >> $env:GITHUB_ENV
           Write-Host "Created $zipName"
+          $zipNameTk = "GeminiSRTTranslator-Windows-Tk-${{ github.ref_name }}.zip"
+          Compress-Archive -Path "dist\GeminiSRTTranslatorTk.exe" -DestinationPath $zipNameTk
+          "ZIP_NAME_TK=$zipNameTk" >> $env:GITHUB_ENV
+          Write-Host "Created $zipNameTk"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
@@ -110,11 +119,20 @@ jobs:
           path: dist/GeminiSRTTranslator.exe
           if-no-files-found: error
 
+      - name: Upload Tk artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: GeminiSRTTranslator-Windows-Tk-${{ github.ref_name }}
+          path: dist/GeminiSRTTranslatorTk.exe
+          if-no-files-found: error
+
       - name: Upload to GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v3
         with:
-          files: ${{ env.ZIP_NAME }}
+          files: |
+            ${{ env.ZIP_NAME }}
+            ${{ env.ZIP_NAME_TK }}
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
