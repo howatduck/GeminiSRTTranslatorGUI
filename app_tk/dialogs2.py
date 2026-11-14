@@ -24,11 +24,13 @@ CPS_WARN_THRESHOLD = 20.0  # 초당 글자수 경고 기준 (PyQt판과 동일)
 class _DialogBase:
     """Toplevel 공통: tr 위임 + 스레드→UI 큐 디스패치."""
 
-    def _init_dialog(self, root, app, title, geometry):
+    def _init_dialog(self, root, app, title_key, geometry):
         self.root = root
         self.app = app
         self.dlg = tk.Toplevel(root)
-        self.dlg.title(title)
+        # 제목은 키로 받아 여기서 해석한다 — 호출부에서 self._t(키)를 인자로
+        # 넘기면 self.app 설정 전에 평가돼 키 문자열이 제목이 되는 버그가 있었다
+        self.dlg.title(self._t(title_key))
         self.dlg.geometry(geometry)
         self.dlg.transient(root)
         self.dlg.grab_set()
@@ -81,7 +83,7 @@ class SubtitlePreviewDialogTk(_DialogBase):
         self.orig_entries = []
         self._dirty = False
         self._view_indices = []
-        self._init_dialog(root, app, self._t("preview_title"), "1100x700")
+        self._init_dialog(root, app, "preview_title", "1100x700")
         dlg = self.dlg
         dlg.protocol("WM_DELETE_WINDOW", self._request_close)
 
@@ -351,7 +353,7 @@ def run_install(target, is_global, folder=None):
 
 class SkillInstallDialogTk(_DialogBase):
     def __init__(self, root, app):
-        self._init_dialog(root, app, self._t("skill_dialog_title"), "560x420")
+        self._init_dialog(root, app, "skill_dialog_title", "560x420")
         dlg = self.dlg
         dlg.protocol("WM_DELETE_WINDOW", self._close)
 
@@ -453,7 +455,7 @@ class AgentExchangeDialogTk(_DialogBase):
     def __init__(self, root, app):
         from core import agent_bridge
         self._bridge = agent_bridge
-        self._init_dialog(root, app, self._t("agent_dialog_title"), "600x480")
+        self._init_dialog(root, app, "agent_dialog_title", "600x480")
         dlg = self.dlg
         dlg.protocol("WM_DELETE_WINDOW", self._close)
 
@@ -686,8 +688,7 @@ class SubtitleToolsDialogTk(_DialogBase):
         self._st = st
         self._worker = None
         self._dl_worker = None
-        self._init_dialog(root, app, self._t("subtools_dialog_title"),
-                          "720x640")
+        self._init_dialog(root, app, "subtools_dialog_title", "720x640")
         dlg = self.dlg
         dlg.protocol("WM_DELETE_WINDOW", self._request_close)
 

@@ -113,6 +113,7 @@ class TranslatorAppTk:
 
         self._ui_queue = queue.Queue()
         self._toggle_widgets = []
+        self._i18n_texts = []
 
         self._init_vars()
         self._build_ui()
@@ -228,6 +229,31 @@ class TranslatorAppTk:
         except Exception:
             return fallback
 
+    def _trw(self, widget, key, **kwargs):
+        # 위젯 문구를 i18n 키로 설정하고 언어 전환 시 재적용 목록에 등록
+        try:
+            widget.configure(text=self.tr_str(key, **kwargs))
+        except Exception:
+            pass
+        self._i18n_texts.append((widget, key, kwargs))
+        return widget
+
+    def _update_ui_language(self):
+        # 언어 전환 시 등록 문구 전체를 현재 언어로 재적용 (Qt판 패리티)
+        for widget, key, kwargs in list(self._i18n_texts):
+            try:
+                widget.configure(text=self.tr_str(key, **kwargs))
+            except Exception:
+                pass
+        for dlg, key in ((getattr(self, "api_keys_dialog", None), "dialog_api_title"),
+                         (getattr(self, "advanced_dialog", None), "advanced_dialog_title")):
+            if dlg is not None:
+                try:
+                    dlg.title(self.tr_str(key))
+                except Exception:
+                    pass
+        self._set_audio_label(getattr(self, "audio_file_path", ""))
+
     def tr_str(self, key, **kwargs):
         lang = getattr(self, "app_lang", "ko")
         template = I18N.get(lang, I18N["ko"]).get(key, I18N["ko"].get(key, key))
@@ -283,17 +309,21 @@ class TranslatorAppTk:
         return widget
 
     def _create_api_group(self, parent):
-        group = ttk.LabelFrame(parent, text="API 키 설정")
+        group = ttk.LabelFrame(parent)
         group.pack(fill="x", padx=4, pady=4)
         self.api_group = group
+        self._trw(group, "api_group_title")
 
         row = ttk.Frame(group)
         row.pack(fill="x", padx=6, pady=4)
         self.btn_manage_api_keys = self._track(ttk.Button(
-            row, text="API 키 관리...", command=self._open_api_keys_dialog))
+            row, command=self._open_api_keys_dialog))
+        self._trw(self.btn_manage_api_keys, "btn_manage_api_keys")
         self.btn_manage_api_keys.pack(side="left")
         ttk.Label(row, textvariable=self.vars["api_summary"]).pack(side="left", padx=6)
-        ttk.Label(row, text="언어/Lang:").pack(side="left", padx=(16, 2))
+        self.lbl_app_lang = ttk.Label(row)
+        self._trw(self.lbl_app_lang, "lbl_app_lang")
+        self.lbl_app_lang.pack(side="left", padx=(16, 2))
         self.cmb_app_lang = ttk.Combobox(
             row, values=["한국어", "English"], state="readonly", width=9,
             textvariable=self.vars["app_lang"])
@@ -304,9 +334,9 @@ class TranslatorAppTk:
         ent_row = ttk.Frame(group)
         ent_row.pack(fill="x", padx=6, pady=2)
         self.chk_use_enterprise = ttk.Checkbutton(
-            ent_row, text="Agent Platform (Enterprise) 사용",
-            variable=self.vars["use_enterprise"],
+            ent_row, variable=self.vars["use_enterprise"],
             command=self._on_enterprise_changed)
+        self._trw(self.chk_use_enterprise, "chk_use_enterprise")
         self.chk_use_enterprise.pack(side="left")
         self._track(self.chk_use_enterprise)
 
@@ -320,14 +350,18 @@ class TranslatorAppTk:
         for label, key, _ph, secret in erows:
             r = ttk.Frame(self.enterprise_frame)
             r.pack(fill="x", padx=6, pady=2)
-            ttk.Label(r, text=label, width=16).pack(side="left")
+            _clbl = ttk.Label(r, text=label, width=16)
+            _clbl.pack(side="left")
+            self._trw(_clbl, key + "_label")
             entry = ttk.Entry(r, textvariable=self.vars[key],
                               show="•" if secret else "")
             entry.pack(side="left", fill="x", expand=True)
             self.cloud_inputs[key] = self._track(entry)
         r = ttk.Frame(self.enterprise_frame)
         r.pack(fill="x", padx=6, pady=2)
-        ttk.Label(r, text="Request Type:", width=16).pack(side="left")
+        _rtlbl = ttk.Label(r, width=16)
+        self._trw(_rtlbl, "request_type_label")
+        _rtlbl.pack(side="left")
         cmb_rt = ttk.Combobox(
             r, values=["Default", "shared", "dedicated"], state="readonly",
             textvariable=self.vars["request_type"], width=14)
@@ -337,7 +371,8 @@ class TranslatorAppTk:
         # (enterprise_frame은 체크 시에만 pack한다)
 
         self.btn_save_api = self._track(ttk.Button(
-            group, text="설정 저장", command=self.save_settings))
+            group, command=self.save_settings))
+        self._trw(self.btn_save_api, "btn_save_api")
         self.btn_save_api.pack(anchor="w", padx=6, pady=4)
 
     def _on_enterprise_changed(self):
@@ -351,18 +386,16 @@ class TranslatorAppTk:
 
     def _build_api_keys_dialog(self):
         dlg = tk.Toplevel(self.root)
-        dlg.title("API 키 관리 (최대 10개)")
+        dlg.title(self.tr_str("dialog_api_title"))
         dlg.geometry("480x500")
         dlg.transient(self.root)
         dlg.withdraw()
         self.api_keys_dialog = dlg
         dlg.protocol("WM_DELETE_WINDOW", self._close_api_keys_dialog)
 
-        ttk.Label(
-            dlg,
-            text="무료 할당량을 극대화하려면 여러 개의 Gemini API 키를 등록하세요.\n"
-                 "작업(job)마다 아래 순서대로 키를 돌려가며 사용합니다.",
-            justify="left", wraplength=440).pack(anchor="w", padx=10, pady=8)
+        self.dialog_info_label = ttk.Label(dlg, justify="left", wraplength=440)
+        self._trw(self.dialog_info_label, "dialog_api_info")
+        self.dialog_info_label.pack(anchor="w", padx=10, pady=8)
 
         canvas_frame = ttk.Frame(dlg)
         canvas_frame.pack(fill="both", expand=True, padx=10)
@@ -377,26 +410,36 @@ class TranslatorAppTk:
                    lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
 
         self.api_key_entries = []
+        self.api_key_labels = []
         for i in range(NUM_API_KEYS):
             r = ttk.Frame(inner)
             r.pack(fill="x", pady=2)
-            ttk.Label(r, text=f"API 키 {i+1}:", width=10).pack(side="left")
+            _klbl = ttk.Label(r, width=10)
+            self._trw(_klbl, "api_key_label", index=i + 1)
+            _klbl.pack(side="left")
+            self.api_key_labels.append(_klbl)
             entry = ttk.Entry(r, textvariable=self.api_key_vars[i], show="•", width=44)
             entry.pack(side="left", fill="x", expand=True)
             self.api_key_entries.append(entry)
             self._track(entry)
 
         chk = ttk.Checkbutton(
-            dlg, text="API 키 표시", variable=self.vars["show_api_keys"],
+            dlg, variable=self.vars["show_api_keys"],
             command=self._toggle_api_keys_visibility)
+        self._trw(chk, "chk_show_api_keys")
         chk.pack(anchor="w", padx=10, pady=4)
+        self._track(chk)
 
         btn_row = ttk.Frame(dlg)
         btn_row.pack(fill="x", padx=10, pady=8)
-        ttk.Button(btn_row, text="닫기",
-                   command=self._close_api_keys_dialog).pack(side="right")
-        ttk.Button(btn_row, text="저장",
-                   command=self._save_api_keys_and_close).pack(side="right", padx=(0, 6))
+        self.btn_dialog_close = ttk.Button(
+            btn_row, command=self._close_api_keys_dialog)
+        self._trw(self.btn_dialog_close, "btn_close")
+        self.btn_dialog_close.pack(side="right")
+        self.btn_dialog_save = ttk.Button(
+            btn_row, command=self._save_api_keys_and_close)
+        self._trw(self.btn_dialog_save, "btn_save")
+        self.btn_dialog_save.pack(side="right", padx=(0, 6))
 
     def _toggle_api_keys_visibility(self):
         show = "" if self.vars["show_api_keys"].get() else "•"
@@ -433,13 +476,16 @@ class TranslatorAppTk:
     # 파일 및 언어 그룹
     # ------------------------------------------------------------------
     def _create_file_lang_group(self, parent):
-        group = ttk.LabelFrame(parent, text="파일 및 언어 설정")
+        group = ttk.LabelFrame(parent)
         group.pack(fill="both", expand=True, padx=4, pady=4)
         self.file_lang_group = group
+        self._trw(group, "file_lang_group_title")
 
         row = ttk.Frame(group)
         row.pack(fill="x", padx=6, pady=4)
-        ttk.Label(row, text="작업 모드:").pack(side="left")
+        _tmlbl = ttk.Label(row)
+        self._trw(_tmlbl, "lbl_task_mode")
+        _tmlbl.pack(side="left")
         self.cmb_task_mode = ttk.Combobox(
             row, state="readonly", textvariable=self.vars["task_mode"], width=36)
         self.cmb_task_mode.pack(side="left", fill="x", expand=True, padx=4)
@@ -449,8 +495,8 @@ class TranslatorAppTk:
 
         row = ttk.Frame(group)
         row.pack(fill="x", padx=6, pady=2)
-        self.btn_files = ttk.Button(
-            row, text="입력 SRT/ASS 파일 선택 (번역용)", command=self.select_input_files)
+        self.btn_files = ttk.Button(row, command=self.select_input_files)
+        self._trw(self.btn_files, "btn_files")
         self.btn_files.pack(side="left", fill="x", expand=True)
         self.btn_clear_files = self._track(ttk.Button(
             row, text="X", width=3, style="Small.TButton", command=self.clear_input_files))
@@ -464,18 +510,20 @@ class TranslatorAppTk:
         row = ttk.Frame(group)
         row.pack(fill="x", padx=6, pady=2)
         self.btn_out = self._track(ttk.Button(
-            row, text="출력 폴더 선택", command=self.select_output_directory))
+            row, command=self.select_output_directory))
+        self._trw(self.btn_out, "btn_out")
         self.btn_out.pack(side="left")
         out_entry = ttk.Entry(row, textvariable=self.vars["out_label"], state="readonly", width=8)
         out_entry.pack(side="left", fill="x", expand=True, padx=4)
         self.btn_preview = self._track(ttk.Button(
-            row, text="번역 결과 미리보기/편집", command=self.open_preview_editor))
+            row, command=self.open_preview_editor))
+        self._trw(self.btn_preview, "btn_preview")
         self.btn_preview.pack(side="left")
 
         row = ttk.Frame(group)
         row.pack(fill="x", padx=6, pady=2)
-        self.btn_video_file = ttk.Button(
-            row, text="비디오 파일 선택 (다중 가능)", command=self.select_video_file)
+        self.btn_video_file = ttk.Button(row, command=self.select_video_file)
+        self._trw(self.btn_video_file, "btn_video_file")
         self.btn_video_file.pack(side="left", fill="x", expand=True)
         self.btn_clear_video_file = self._track(ttk.Button(
             row, text="X", width=3, style="Small.TButton", command=self.clear_video_file))
@@ -491,8 +539,8 @@ class TranslatorAppTk:
 
         row = ttk.Frame(group)
         row.pack(fill="x", padx=6, pady=2)
-        self.btn_audio_file = ttk.Button(
-            row, text="오디오 파일 선택", command=self.select_audio_file)
+        self.btn_audio_file = ttk.Button(row, command=self.select_audio_file)
+        self._trw(self.btn_audio_file, "btn_audio_file")
         self.btn_audio_file.pack(side="left")
         self.audio_entry = ttk.Entry(row, textvariable=self.vars["audio_label"],
                                      state="readonly")
@@ -507,14 +555,18 @@ class TranslatorAppTk:
 
         row = ttk.Frame(group)
         row.pack(fill="x", padx=6, pady=2)
-        ttk.Label(row, text="출력 대상 언어:").pack(side="left")
+        _tllbl = ttk.Label(row)
+        self._trw(_tllbl, "lbl_target_lang")
+        _tllbl.pack(side="left")
         self.btn_none_lang = self._track(ttk.Button(
-            row, text="전체 해제", style="Small.TButton",
+            row, style="Small.TButton",
             command=self.deselect_all_languages))
+        self._trw(self.btn_none_lang, "btn_none_lang")
         self.btn_none_lang.pack(side="right")
         self.btn_all_lang = self._track(ttk.Button(
-            row, text="전체 선택", style="Small.TButton",
+            row, style="Small.TButton",
             command=self.select_all_languages))
+        self._trw(self.btn_all_lang, "btn_all_lang")
         self.btn_all_lang.pack(side="right", padx=(0, 4))
 
         self.cmb_langs = CheckableDropdown(group)
@@ -534,7 +586,8 @@ class TranslatorAppTk:
         self._custom_lang_ph = set_entry_placeholder(
             lang_entry, self.vars["custom_lang"], self.tr_str("custom_lang_ph"))
         self.btn_add_lang = self._track(ttk.Button(
-            row, text="추가", command=self.add_custom_language))
+            row, command=self.add_custom_language))
+        self._trw(self.btn_add_lang, "btn_add_lang")
         self.btn_add_lang.pack(side="left", padx=(4, 0))
         self._track(lang_entry)
 
@@ -556,20 +609,24 @@ class TranslatorAppTk:
         if path:
             self.vars["audio_label"].set(os.path.basename(path))
         else:
-            self.vars["audio_label"].set("오디오 파일 (전사 타겟 또는 번역 컨텍스트)")
+            self.vars["audio_label"].set(self.tr_str("lbl_audio_file_ph"))
 
     # ------------------------------------------------------------------
     # 기본 설정 그룹
     # ------------------------------------------------------------------
     def _create_main_options_group(self, parent):
-        group = ttk.LabelFrame(parent, text="기본 설정")
+        group = ttk.LabelFrame(parent)
         group.pack(fill="x", padx=4, pady=4)
         self.main_options_group = group
+        self._trw(group, "main_options_group_title")
 
         row = ttk.Frame(group)
         row.pack(fill="x", padx=6, pady=4)
-        ttk.Label(row, text="사용 모델:").pack(side="left")
-        self.btn_fetch = ttk.Button(row, text="모델 가져오기", command=self.fetch_models)
+        _mlbl = ttk.Label(row)
+        self._trw(_mlbl, "lbl_model")
+        _mlbl.pack(side="left")
+        self.btn_fetch = ttk.Button(row, command=self.fetch_models)
+        self._trw(self.btn_fetch, "btn_fetch")
         self.btn_fetch.pack(side="left", padx=(6, 4))
         if not genai:
             set_enabled(self.btn_fetch, False)
@@ -587,56 +644,70 @@ class TranslatorAppTk:
 
         row = ttk.Frame(group)
         row.pack(fill="x", padx=6, pady=2)
-        for text, key in (("출력 파일명에 언어명 접미사 추가", "append_lang"),
-                          ("추출된 자막 재사용 (재추출 안 함)", "reuse_extracted")):
-            chk = ttk.Checkbutton(row, text=text, variable=self.vars[key])
-            chk.pack(side="left", padx=(0, 14))
-            self._track(chk)
+        self.chk_append_lang = ttk.Checkbutton(row, variable=self.vars["append_lang"])
+        self._trw(self.chk_append_lang, "chk_append_lang")
+        self.chk_append_lang.pack(side="left", padx=(0, 14))
+        self._track(self.chk_append_lang)
+        self.chk_reuse_extracted = ttk.Checkbutton(
+            row, variable=self.vars["reuse_extracted"])
+        self._trw(self.chk_reuse_extracted, "chk_reuse_extracted")
+        self.chk_reuse_extracted.pack(side="left", padx=(0, 14))
+        self._track(self.chk_reuse_extracted)
         row = ttk.Frame(group)
         row.pack(fill="x", padx=6, pady=2)
-        chk = ttk.Checkbutton(
-            row, text="추출된 원본 자막 유지 (대조 미리보기용)",
-            variable=self.vars["keep_extracted"])
-        chk.pack(side="left")
-        self._track(chk)
+        self.chk_keep_extracted = ttk.Checkbutton(
+            row, variable=self.vars["keep_extracted"])
+        self._trw(self.chk_keep_extracted, "chk_keep_extracted")
+        self.chk_keep_extracted.pack(side="left")
+        self._track(self.chk_keep_extracted)
 
         row = ttk.Frame(group)
         row.pack(fill="x", padx=6, pady=2)
-        ttk.Label(row, text="배치 크기:").pack(side="left")
+        _blbl = ttk.Label(row)
+        self._trw(_blbl, "lbl_batch")
+        _blbl.pack(side="left")
         spin = ttk.Spinbox(row, from_=1, to=5000, textvariable=self.vars["batch"], width=8)
         spin.pack(side="left", padx=4)
         self._track(spin)
 
-        ttk.Label(group, text="프롬프트/지침 입력 (선택):").pack(anchor="w", padx=6, pady=(4, 0))
+        _plbl = ttk.Label(group)
+        self._trw(_plbl, "lbl_prompt")
+        _plbl.pack(anchor="w", padx=6, pady=(4, 0))
         self.txt_desc = tk.Text(group, height=3, wrap="word", **TEXT_STYLE)
         self.txt_desc.pack(fill="x", padx=6, pady=2)
         self._track(self.txt_desc)
 
         row = ttk.Frame(group)
         row.pack(fill="x", padx=6, pady=2)
-        ttk.Label(row, text="번역 스타일 프리셋:").pack(side="left")
+        _slbl = ttk.Label(row)
+        self._trw(_slbl, "lbl_style")
+        _slbl.pack(side="left")
         self.cmb_style = ttk.Combobox(row, state="readonly", width=34,
                                       textvariable=self.vars["style"])
         self.cmb_style.pack(side="left", padx=4)
         self._track(self.cmb_style)
         self.btn_edit_custom = self._track(ttk.Button(
-            row, text=self.tr_str("btn_edit_custom_preset"),
-            command=self.open_custom_preset_editor))
+            row, command=self.open_custom_preset_editor))
+        self._trw(self.btn_edit_custom, "btn_edit_custom_preset")
         self.btn_edit_custom.pack(side="left")
 
         row = ttk.Frame(group)
         row.pack(fill="x", padx=6, pady=4)
         self.btn_skill_install = self._track(ttk.Button(
-            row, text=self.tr_str("btn_skill_install"), command=self.open_skill_installer))
+            row, command=self.open_skill_installer))
+        self._trw(self.btn_skill_install, "btn_skill_install")
         self.btn_skill_install.pack(side="left")
         self.btn_update_check = self._track(ttk.Button(
-            row, text=self.tr_str("btn_update_check"), command=self.check_library_update))
+            row, command=self.check_library_update))
+        self._trw(self.btn_update_check, "btn_update_check")
         self.btn_update_check.pack(side="left", padx=4)
         self.btn_subtitle_tools = self._track(ttk.Button(
-            row, text=self.tr_str("btn_subtitle_tools"), command=self.open_subtitle_tools))
+            row, command=self.open_subtitle_tools))
+        self._trw(self.btn_subtitle_tools, "btn_subtitle_tools")
         self.btn_subtitle_tools.pack(side="left")
         self.btn_agent_exchange = self._track(ttk.Button(
-            row, text=self.tr_str("btn_agent_exchange"), command=self.open_agent_exchange))
+            row, command=self.open_agent_exchange))
+        self._trw(self.btn_agent_exchange, "btn_agent_exchange")
         self.btn_agent_exchange.pack(side="left", padx=4)
 
     def _refresh_style_combo(self):
@@ -669,14 +740,14 @@ class TranslatorAppTk:
         row = ttk.Frame(parent)
         row.pack(fill="x", padx=4, pady=2)
         self.btn_advanced = self._track(ttk.Button(
-            row, text="⚙ 고급 설정 및 튜닝 (v3.8.3 기능) 열기",
-            command=self.open_advanced_settings))
+            row, command=self.open_advanced_settings))
+        self._trw(self.btn_advanced, "btn_advanced")
         self.btn_advanced.pack(side="left")
         self._build_advanced_dialog()
 
     def _build_advanced_dialog(self):
         dlg = tk.Toplevel(self.root)
-        dlg.title("고급 설정 및 튜닝 (v3.8.3 기능)")
+        dlg.title(self.tr_str("advanced_dialog_title"))
         dlg.geometry("760x430")
         dlg.transient(self.root)
         dlg.withdraw()
@@ -693,19 +764,22 @@ class TranslatorAppTk:
             self._track(w)
             return w
 
-        def row(label):
+        def row(label, key=None):
             r = ttk.Frame(body)
             r.pack(fill="x", pady=2)
-            ttk.Label(r, text=label, width=14).pack(side="left")
+            lbl = ttk.Label(r, text=label, width=14)
+            lbl.pack(side="left")
+            if key:
+                self._trw(lbl, key)
             return r
 
-        r = row("서비스 티어:")
+        r = row("서비스 티어:", "lbl_service_tier")
         cmb = ttk.Combobox(r, values=["Default", "standard", "flex", "priority"],
                            state="readonly", textvariable=self.vars["service_tier"], width=16)
         cmb.pack(side="left")
         self._track(cmb)
 
-        r = row("시작 라인:")
+        r = row("시작 라인:", "lbl_start_line")
         spin(r, "start_line", 1, 99999).pack(side="left")
 
         r = row("Temp:")
@@ -715,27 +789,39 @@ class TranslatorAppTk:
 
         r = row("Top_k:")
         spin(r, "top_k", 0, 100).pack(side="left")
-        ttk.Label(r, text="사고 예산:", width=10).pack(side="left", padx=(12, 0))
+        _tblbl = ttk.Label(r, width=10)
+        self._trw(_tblbl, "lbl_thinking_budget")
+        _tblbl.pack(side="left", padx=(12, 0))
         spin(r, "thinking_budget", 0, 32768).pack(side="left")
 
-        r = row("사고 수준:")
+        r = row("사고 수준:", "lbl_thinking_level")
         cmb = ttk.Combobox(r, values=["Default", "Minimal", "Low", "Medium", "High"],
                            state="readonly", textvariable=self.vars["thinking_level"], width=16)
         cmb.pack(side="left")
         self._track(cmb)
-        ttk.Label(r, text="오디오청크:", width=10).pack(side="left", padx=(12, 0))
+        _aclbl = ttk.Label(r, width=10)
+        self._trw(_aclbl, "lbl_audio_chunk")
+        _aclbl.pack(side="left", padx=(12, 0))
         spin(r, "audio_chunk", 60, 3600).pack(side="left")
 
         r = row("Context Size:")
         spin(r, "resume_context", 0, 10000).pack(side="left")
-        ttk.Label(r, text="(문맥/재개 시 참조 라인 수, 0: 비활성)").pack(side="left", padx=6)
+        _rhlbl = ttk.Label(r)
+        self._trw(_rhlbl, "lbl_resume_help")
+        _rhlbl.pack(side="left", padx=6)
 
         r = row("적응형 복구:")
-        ttk.Label(r, text="배치 축소단위:", width=14).pack(side="left")
+        _bslbl = ttk.Label(r, width=14)
+        self._trw(_bslbl, "lbl_batch_step")
+        _bslbl.pack(side="left")
         spin(r, "batch_error_step", 10, 1000, 50).pack(side="left")
-        ttk.Label(r, text="오디오 축소단위:", width=14).pack(side="left", padx=(12, 0))
+        _aslbl = ttk.Label(r, width=14)
+        self._trw(_aslbl, "lbl_audio_step")
+        _aslbl.pack(side="left", padx=(12, 0))
         spin(r, "audio_chunk_error_step", 10, 600, 30).pack(side="left")
-        ttk.Label(r, text="(오류 시 자동감축)").pack(side="left", padx=6)
+        _ahlbl = ttk.Label(r)
+        self._trw(_ahlbl, "lbl_adaptive_help")
+        _ahlbl.pack(side="left", padx=6)
 
         r = row("작업 폴백:")
         ttk.Label(r, text="배치 감소폭:", width=14).pack(side="left")
@@ -771,24 +857,27 @@ class TranslatorAppTk:
         self._track(sig_entry)
 
         checks1 = (
-            ("스트리밍", "streaming"), ("사고기능", "thinking"),
-            ("중단된 작업 이어하기", "resume"),
-            ("기존 번역 파일 덮어쓰기 (강제 재번역)", "force_retranslate"),
+            ("chk_streaming", "streaming"), ("chk_thinking", "thinking"),
+            ("chk_resume", "resume"),
+            ("chk_force_retranslate", "force_retranslate"),
         )
         checks2 = (
-            ("SDH 자막 우선 추출", "prefer_sdh"),
-            ("줄 끝 마침표 제거", "strip_periods"),
-            ("음성 분리", "isolate_voice"), ("오디오 추출", "extract_audio"),
-            ("무료 할당량", "free"), ("토큰 통계", "token_stats"),
-            ("토큰 리포트", "token_report"), ("사고 로그", "thoughts_log"),
-            ("진행 로그", "progress_log"),
+            ("chk_prefer_sdh", "prefer_sdh"),
+            ("chk_strip_periods", "strip_periods"),
+            ("chk_isolate_voice", "isolate_voice"),
+            ("chk_extract_audio", "extract_audio"),
+            ("chk_free", "free"), ("chk_token_stats", "token_stats"),
+            ("chk_token_report", "token_report"),
+            ("chk_thoughts_log", "thoughts_log"),
+            ("chk_progress_log", "progress_log"),
         )
         for group in (checks1, checks2):
             r = ttk.Frame(body)
             r.pack(fill="x", pady=2)
             ttk.Label(r, text="", width=14).pack(side="left")
-            for text, key in group:
-                chk = ttk.Checkbutton(r, text=text, variable=self.vars[key])
+            for text_key, key in group:
+                chk = ttk.Checkbutton(r, variable=self.vars[key])
+                self._trw(chk, text_key)
                 chk.pack(side="left", padx=(0, 10))
                 self._track(chk)
                 if key == "strip_periods":
@@ -797,18 +886,22 @@ class TranslatorAppTk:
 
         r = ttk.Frame(body)
         r.pack(fill="x", pady=2)
-        ttk.Label(r, text="실패 안내:", width=14).pack(side="left")
+        _fhlbl = ttk.Label(r, width=14)
+        self._trw(_fhlbl, "lbl_failure_help")
+        _fhlbl.pack(side="left")
         chk = ttk.Checkbutton(
-            r, text="번역 실패 시 안내창 표시 (끄면 로그에만 남김 — 자동화용)",
-            variable=self.vars["show_failure_help"],
+            r, variable=self.vars["show_failure_help"],
             command=self._sync_failure_help)
+        self._trw(chk, "chk_show_failure_help")
         chk.pack(side="left")
         self._track(chk)
 
         btn_row = ttk.Frame(dlg)
         btn_row.pack(fill="x", padx=10, pady=8)
-        ttk.Button(btn_row, text="닫기",
-                   command=self._close_advanced_dialog).pack(side="right")
+        self.btn_adv_close = ttk.Button(
+            btn_row, command=self._close_advanced_dialog)
+        self._trw(self.btn_adv_close, "btn_close")
+        self.btn_adv_close.pack(side="right")
 
     def open_advanced_settings(self):
         self.advanced_dialog.deiconify()
@@ -869,17 +962,20 @@ class TranslatorAppTk:
     # 실행/로그 그룹
     # ------------------------------------------------------------------
     def _create_action_log_group(self, parent):
-        group = ttk.LabelFrame(parent, text="터미널 출력 (VT100 Engine)")
+        group = ttk.LabelFrame(parent)
         group.pack(fill="both", expand=True, padx=4, pady=4)
         self.action_log_group = group
+        self._trw(group, "action_log_group_title")
 
         row = ttk.Frame(group)
         row.pack(fill="x", padx=6, pady=4)
-        self.btn_start = ttk.Button(row, text="작업 시작", command=self.start_translation)
+        self.btn_start = ttk.Button(row, command=self.start_translation)
+        self._trw(self.btn_start, "btn_start")
         self.btn_start.pack(side="left")
         if not gst:
             set_enabled(self.btn_start, False)
-        self.btn_stop = ttk.Button(row, text="작업 중단", command=self.stop_translation)
+        self.btn_stop = ttk.Button(row, command=self.stop_translation)
+        self._trw(self.btn_stop, "btn_stop")
         self.btn_stop.pack(side="left", padx=4)
         set_enabled(self.btn_stop, False)
         self.progress_bar = ttk.Progressbar(
@@ -902,6 +998,7 @@ class TranslatorAppTk:
         self._set_task_mode_items()
         self._refresh_style_combo()
         self._update_api_keys_summary()
+        self._update_ui_language()
         self.cmb_langs.set_placeholder_text(self.tr_str("cmb_langs_ph"))
         if getattr(self, "_custom_lang_ph", None) is not None:
             self._custom_lang_ph.configure(text=self.tr_str("custom_lang_ph"))
@@ -991,7 +1088,7 @@ class TranslatorAppTk:
 
     def select_video_file(self):
         files = filedialog.askopenfilenames(
-            parent=self.root, title="비디오 파일 선택 (다중 선택 가능)",
+            parent=self.root, title=self.tr_str("fd_select_video"),
             initialdir=self.settings.value("last_media_dir", self.output_dir),
             filetypes=[("Video Files", "*.mp4 *.mkv *.avi *.mov *.webm *.flv *.wmv"),
                        ("All Files", "*")])
@@ -1004,7 +1101,7 @@ class TranslatorAppTk:
 
     def select_audio_file(self):
         file_path = filedialog.askopenfilename(
-            parent=self.root, title="오디오 파일 선택",
+            parent=self.root, title=self.tr_str("fd_select_audio"),
             initialdir=self.settings.value("last_media_dir", self.output_dir),
             filetypes=[("Audio Files", "*.mp3 *.wav *.aac *.m4a *.ogg *.flac *.wma"),
                        ("All Files", "*")])
@@ -1016,7 +1113,7 @@ class TranslatorAppTk:
     def select_input_files(self):
         last_input_dir = self.settings.value("last_input_dir", self.output_dir)
         files = filedialog.askopenfilenames(
-            parent=self.root, title="SRT/ASS 파일 선택", initialdir=last_input_dir,
+            parent=self.root, title=self.tr_str("fd_select_srt"), initialdir=last_input_dir,
             filetypes=[("Subtitle Files", "*.srt *.ass"), ("All Files", "*")])
         if files:
             self.input_files = list(files)
@@ -1027,7 +1124,7 @@ class TranslatorAppTk:
 
     def select_output_directory(self):
         directory = filedialog.askdirectory(
-            parent=self.root, title="출력 폴더 선택", initialdir=self.output_dir)
+            parent=self.root, title=self.tr_str("fd_select_out"), initialdir=self.output_dir)
         if directory:
             self.output_dir = directory
             self.vars["out_label"].set(directory)

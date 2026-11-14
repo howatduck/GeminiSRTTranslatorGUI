@@ -484,3 +484,100 @@ def test_custom_lang_placeholder_shows_guidance(tmp_path):
         assert label.place_info()
     finally:
         root.destroy()
+
+
+# ----------------------------------------------------------------------
+# UI 언어 전환 (영어 선택 시 전체 영문화 — Qt판 update_ui_language 패리티)
+# ----------------------------------------------------------------------
+def _registered(app, key):
+    return next(w for w, k, _kw in app._i18n_texts if k == key)
+
+
+def _make_tk_app(tmp_path, name="tk-lang.json"):
+    """언어 전환 테스트용 앱 생성 (기존 창 테스트와 같은 가드 패턴)."""
+    tk = pytest.importorskip("tkinter")
+    import app_tk.main_window as mw
+    if mw.gst is None:
+        pytest.skip("gemini-srt-translator 미설치 환경 (시작 경고 모달 방지)")
+    from app_tk.main_window import TranslatorAppTk
+    root = tk.Tk()
+    root.withdraw()
+    app = TranslatorAppTk(root, settings_path=str(tmp_path / name))
+    return root, app
+
+
+@pytest.mark.skipif(not os.environ.get("DISPLAY"), reason="DISPLAY 없음 (xvfb-run 필요)")
+def test_tk_language_switch_retexts_main_window(tmp_path):
+    from app.i18n import I18N
+    root, app = _make_tk_app(tmp_path)
+    try:
+        assert app.btn_start.cget("text") == "🚀 작업 시작"
+        assert app.api_group.cget("text") == "API 키 설정"
+        assert app.advanced_dialog.title() == "고급 설정 및 튜닝 (v3.8.3 기능)"
+        assert app.api_keys_dialog.title() == "API 키 관리 (최대 10개)"
+        assert _registered(app, "chk_streaming").cget("text") == "스트리밍"
+        assert app.api_key_labels[0].cget("text") == "API 키 1:"
+
+        app.vars["app_lang"].set("English")
+        app._on_app_lang_changed()
+        assert app.btn_start.cget("text") == "🚀 Start Task"
+        assert app.btn_stop.cget("text") == "🛑 Stop Task"
+        assert app.api_group.cget("text") == "API Key Settings"
+        assert app.file_lang_group.cget("text") == \
+            I18N["en"]["file_lang_group_title"]
+        assert app.advanced_dialog.title() == I18N["en"]["advanced_dialog_title"]
+        assert app.api_keys_dialog.title() == I18N["en"]["dialog_api_title"]
+        assert _registered(app, "chk_streaming").cget("text") == \
+            I18N["en"]["chk_streaming"]
+        assert _registered(app, "chk_show_failure_help").cget("text") == \
+            I18N["en"]["chk_show_failure_help"]
+        assert _registered(app, "btn_fetch").cget("text") == "Fetch Models"
+        assert app.btn_advanced.cget("text") == I18N["en"]["btn_advanced"]
+        assert app.api_key_labels[0].cget("text") == "API Key 1:"
+        assert app.api_key_labels[9].cget("text") == "API Key 10:"
+        assert app.vars["audio_label"].get() == I18N["en"]["lbl_audio_file_ph"]
+
+        app.vars["app_lang"].set("한국어")
+        app._on_app_lang_changed()
+        assert app.btn_start.cget("text") == "🚀 작업 시작"
+        assert app.api_group.cget("text") == "API 키 설정"
+        assert _registered(app, "chk_streaming").cget("text") == "스트리밍"
+    finally:
+        root.destroy()
+
+
+@pytest.mark.skipif(not os.environ.get("DISPLAY"), reason="DISPLAY 없음 (xvfb-run 필요)")
+def test_tk_dialogs_follow_app_language(tmp_path):
+    from app.i18n import I18N
+    from app_tk.dialogs2 import SkillInstallDialogTk, SubtitlePreviewDialogTk
+    root, app = _make_tk_app(tmp_path, "tk-lang2.json")
+    try:
+        # 한글 모드 제목부터 (제목 키가 그대로 노출되는 버그 회귀 방지)
+        skill_ko = SkillInstallDialogTk(app.root, app)
+        try:
+            assert skill_ko.dlg.title() == I18N["ko"]["skill_dialog_title"]
+        finally:
+            skill_ko._close()
+
+        app.vars["app_lang"].set("English")
+        app._on_app_lang_changed()
+
+        skill = SkillInstallDialogTk(app.root, app)
+        try:
+            assert skill.dlg.title() == I18N["en"]["skill_dialog_title"]
+            assert "All" in list(skill.cmb_platform.cget("values"))
+        finally:
+            skill._close()
+
+        srt = tmp_path / "en.srt"
+        srt.write_text("1\n00:00:01,000 --> 00:00:02,000\nHello\n",
+                       encoding="utf-8")
+        preview = SubtitlePreviewDialogTk(app.root, app, str(srt))
+        try:
+            assert preview.dlg.title() == I18N["en"]["preview_title"]
+            assert preview.tree.heading("trans", "text") == \
+                I18N["en"]["preview_col_trans"]
+        finally:
+            preview._request_close()
+    finally:
+        root.destroy()

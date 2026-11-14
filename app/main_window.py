@@ -349,6 +349,8 @@ class TranslatorApp(QWidget):
             self.chk_thoughts_log.setText(self.tr_str("chk_thoughts_log"))
         if hasattr(self, 'chk_progress_log'):
             self.chk_progress_log.setText(self.tr_str("chk_progress_log"))
+        if hasattr(self, 'chk_show_failure_help'):
+            self.chk_show_failure_help.setText(self.tr_str("chk_show_failure_help"))
         if hasattr(self, 'btn_adv_close'):
             self.btn_adv_close.setText(self.tr_str("btn_close"))
 
