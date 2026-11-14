@@ -279,6 +279,10 @@ class TranslatorApp(QWidget):
         if hasattr(self, 'chk_keep_extracted'):
             self.chk_keep_extracted.setText(self.tr_str("chk_keep_extracted"))
             self.chk_keep_extracted.setToolTip(self.tr_str("chk_keep_extracted_tt"))
+        if hasattr(self, 'chk_model_fallback'):
+            self.chk_model_fallback.setText(self.tr_str("chk_model_fallback"))
+        if hasattr(self, 'btn_model_order'):
+            self.btn_model_order.setText(self.tr_str("btn_model_order"))
         if hasattr(self, 'lbl_batch'):
             self.lbl_batch.setText(self.tr_str("lbl_batch"))
         if hasattr(self, 'lbl_prompt'):
@@ -351,6 +355,11 @@ class TranslatorApp(QWidget):
             self.chk_progress_log.setText(self.tr_str("chk_progress_log"))
         if hasattr(self, 'chk_show_failure_help'):
             self.chk_show_failure_help.setText(self.tr_str("chk_show_failure_help"))
+        if hasattr(self, 'chk_signature'):
+            self.chk_signature.setText(self.tr_str("chk_signature"))
+        if hasattr(self, 'cmb_signature_pos'):
+            self.cmb_signature_pos.setItemText(0, self.tr_str("sig_pos_start"))
+            self.cmb_signature_pos.setItemText(1, self.tr_str("sig_pos_end"))
         if hasattr(self, 'btn_adv_close'):
             self.btn_adv_close.setText(self.tr_str("btn_close"))
 

@@ -252,6 +252,16 @@ class TranslatorAppTk:
                     dlg.title(self.tr_str(key))
                 except Exception:
                     pass
+        # 서명 위치 콤보: 데이터(start/end) 기준으로 표시 문구만 교체
+        try:
+            data = self._signature_pos_data()
+            self.cmb_signature_pos.configure(
+                values=[self.tr_str("sig_pos_start"), self.tr_str("sig_pos_end")])
+            self.vars["signature_pos"].set(
+                self.tr_str("sig_pos_end") if data == "end"
+                else self.tr_str("sig_pos_start"))
+        except Exception:
+            pass
         self._set_audio_label(getattr(self, "audio_file_path", ""))
 
     def tr_str(self, key, **kwargs):
@@ -635,11 +645,13 @@ class TranslatorAppTk:
         self.cmb_model.pack(side="left", fill="x", expand=True)
         self._track(self.cmb_model)
         self.chk_model_fallback = ttk.Checkbutton(
-            row, text="폴백 사용", variable=self.vars["model_fallback"])
+            row, variable=self.vars["model_fallback"])
+        self._trw(self.chk_model_fallback, "chk_model_fallback")
         self.chk_model_fallback.pack(side="left", padx=(6, 2))
         self._track(self.chk_model_fallback)
         self.btn_model_order = self._track(ttk.Button(
-            row, text="폴백 순서...", command=self.open_model_priority_dialog))
+            row, command=self.open_model_priority_dialog))
+        self._trw(self.btn_model_order, "btn_model_order")
         self.btn_model_order.pack(side="left")
 
         row = ttk.Frame(group)
@@ -839,12 +851,14 @@ class TranslatorAppTk:
 
         r = row("자막 서명:")
         chk = ttk.Checkbutton(
-            r, text="자막 서명 삽입", variable=self.vars["signature"],
+            r, variable=self.vars["signature"],
             command=self._sync_signature_config)
+        self._trw(chk, "chk_signature")
         chk.pack(side="left")
         self._track(chk)
         self.cmb_signature_pos = ttk.Combobox(
-            r, values=["자막 시작", "자막 끝"], state="readonly", width=10,
+            r, values=[self.tr_str("sig_pos_start"), self.tr_str("sig_pos_end")],
+            state="readonly", width=10,
             textvariable=self.vars["signature_pos"])
         self.cmb_signature_pos.pack(side="left", padx=4)
         self.cmb_signature_pos.bind("<<ComboboxSelected>>",
@@ -942,7 +956,10 @@ class TranslatorAppTk:
             return False
 
     def _signature_pos_data(self):
-        return "end" if self.vars["signature_pos"].get() == "자막 끝" else "start"
+        # 표시 문구는 언어별로 다르므로 양쪽 언어의 '끝' 문구를 모두 인식
+        current = self.vars["signature_pos"].get()
+        ends = {I18N["ko"]["sig_pos_end"], I18N["en"]["sig_pos_end"]}
+        return "end" if current in ends else "start"
 
     def _sync_signature_config(self):
         try:
@@ -1224,7 +1241,9 @@ class TranslatorAppTk:
             self.vars["show_all_models"].set(self.show_all_models)
             self.vars["signature"].set(self.settings.value("signature_enabled", False, type=bool))
             sig_pos = str(self.settings.value("signature_position", "start") or "start")
-            self.vars["signature_pos"].set("자막 끝" if sig_pos == "end" else "자막 시작")
+            self.vars["signature_pos"].set(
+                self.tr_str("sig_pos_end") if sig_pos == "end"
+                else self.tr_str("sig_pos_start"))
             self.vars["signature_template"].set(str(self.settings.value(
                 "signature_template", DEFAULT_SIGNATURE_TEMPLATE) or ""))
             self._sync_signature_config()

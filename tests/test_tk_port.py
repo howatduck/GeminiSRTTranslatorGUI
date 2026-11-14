@@ -517,6 +517,11 @@ def test_tk_language_switch_retexts_main_window(tmp_path):
         assert app.api_keys_dialog.title() == "API 키 관리 (최대 10개)"
         assert _registered(app, "chk_streaming").cget("text") == "스트리밍"
         assert app.api_key_labels[0].cget("text") == "API 키 1:"
+        assert app.chk_model_fallback.cget("text") == "폴백 사용"
+        assert app.btn_model_order.cget("text") == "폴백 순서..."
+        assert _registered(app, "chk_signature").cget("text") == "자막 서명 삽입"
+        app.vars["signature_pos"].set("자막 끝")
+        assert app._signature_pos_data() == "end"
 
         app.vars["app_lang"].set("English")
         app._on_app_lang_changed()
@@ -533,6 +538,15 @@ def test_tk_language_switch_retexts_main_window(tmp_path):
             I18N["en"]["chk_show_failure_help"]
         assert _registered(app, "btn_fetch").cget("text") == "Fetch Models"
         assert app.btn_advanced.cget("text") == I18N["en"]["btn_advanced"]
+        assert app.chk_model_fallback.cget("text") == "Use model fallback"
+        assert app.btn_model_order.cget("text") == "Fallback Order..."
+        assert _registered(app, "chk_signature").cget("text") == \
+            "Insert subtitle signature"
+        # 서명 위치: 표시만 영어로 바뀌고 데이터(end)는 유지된다
+        assert list(app.cmb_signature_pos.cget("values")) == \
+            ["Start of file", "End of file"]
+        assert app.vars["signature_pos"].get() == "End of file"
+        assert app._signature_pos_data() == "end"
         assert app.api_key_labels[0].cget("text") == "API Key 1:"
         assert app.api_key_labels[9].cget("text") == "API Key 10:"
         assert app.vars["audio_label"].get() == I18N["en"]["lbl_audio_file_ph"]
@@ -542,6 +556,8 @@ def test_tk_language_switch_retexts_main_window(tmp_path):
         assert app.btn_start.cget("text") == "🚀 작업 시작"
         assert app.api_group.cget("text") == "API 키 설정"
         assert _registered(app, "chk_streaming").cget("text") == "스트리밍"
+        assert app.vars["signature_pos"].get() == "자막 끝"
+        assert app._signature_pos_data() == "end"
     finally:
         root.destroy()
 
