@@ -68,15 +68,14 @@ def _output_base_name(src_path):
     return stem
 
 
-def _skipped_videos_notice(videos_without_subs):
+def _skipped_videos_notice(videos_without_subs, lang="ko"):
     """자막이 없어 건너뛴 영상을 알리는 로그 문구 (PyQt판과 동일)."""
     if not videos_without_subs:
         return None
     names = ", ".join(os.path.basename(v) for v in videos_without_subs)
-    return (
-        f"  → 내장 자막이 없어 건너뛴 영상 {len(videos_without_subs)}개: {names} "
-        f"(전사 모드로 따로 실행하세요)"
-    )
+    template = I18N.get(lang, I18N["ko"]).get(
+        "ext_skipped_notice", I18N["ko"]["ext_skipped_notice"])
+    return template.format(count=len(videos_without_subs), names=names)
 
 
 class TranslatorAppTk:
@@ -126,16 +125,13 @@ class TranslatorAppTk:
         if GST_IMPORT_ERROR or GENAI_IMPORT_ERROR:
             msg = ""
             if GST_IMPORT_ERROR:
-                msg += (
-                    "gemini-srt-translator 로드 실패 → '작업 시작' 버튼이 비활성화됩니다.\n"
-                    f"오류 내용: {GST_IMPORT_ERROR}\n\n"
-                )
+                msg += self.tr_str(
+                    "warn_gst_failed", error=GST_IMPORT_ERROR) + "\n\n"
             if GENAI_IMPORT_ERROR:
-                msg += (
-                    "google-genai 로드 실패 → '모델 가져오기' 버튼이 비활성화됩니다.\n"
-                    f"오류 내용: {GENAI_IMPORT_ERROR}\n"
-                )
-            messagebox.showwarning("라이브러리 로드 경고", msg, parent=self.root)
+                msg += self.tr_str(
+                    "warn_genai_failed", error=GENAI_IMPORT_ERROR) + "\n"
+            messagebox.showwarning(
+                self.tr_str("warn_library_title"), msg, parent=self.root)
 
     # ------------------------------------------------------------------
     # UI 스레드 디스패치 (워커 시그널 → Tk 메인 루프)
@@ -822,7 +818,7 @@ class TranslatorAppTk:
         self._trw(_rhlbl, "lbl_resume_help")
         _rhlbl.pack(side="left", padx=6)
 
-        r = row("적응형 복구:")
+        r = row(None, "lbl_adaptive_section")
         _bslbl = ttk.Label(r, width=14)
         self._trw(_bslbl, "lbl_batch_step")
         _bslbl.pack(side="left")
@@ -835,21 +831,28 @@ class TranslatorAppTk:
         self._trw(_ahlbl, "lbl_adaptive_help")
         _ahlbl.pack(side="left", padx=6)
 
-        r = row("작업 폴백:")
-        ttk.Label(r, text="배치 감소폭:", width=14).pack(side="left")
+        r = row(None, "lbl_job_fallback_section")
+        _bsdlbl = ttk.Label(r, width=14)
+        self._trw(_bsdlbl, "lbl_batch_step_down")
+        _bsdlbl.pack(side="left")
         spin(r, "batch_step_down", 0, 2000, 50).pack(side="left")
-        ttk.Label(r, text="배치 하한:", width=14).pack(side="left", padx=(12, 0))
+        _bfllbl = ttk.Label(r, width=14)
+        self._trw(_bfllbl, "lbl_batch_floor")
+        _bfllbl.pack(side="left", padx=(12, 0))
         spin(r, "batch_floor", 10, 5000, 50).pack(side="left")
-        ttk.Label(r, text="(작업 실패 시 재시도 조건)").pack(side="left", padx=6)
+        _frhlbl = ttk.Label(r)
+        self._trw(_frhlbl, "lbl_fallback_retry_help")
+        _frhlbl.pack(side="left", padx=6)
 
-        r = row("모델 목록:")
+        r = row(None, "lbl_model_list_section")
         chk = ttk.Checkbutton(
-            r, text="모든 모델 표시 (번역 불가 모델 포함)",
-            variable=self.vars["show_all_models"], command=self._sync_show_all_models)
+            r, variable=self.vars["show_all_models"],
+            command=self._sync_show_all_models)
+        self._trw(chk, "chk_show_all_models")
         chk.pack(side="left")
         self._track(chk)
 
-        r = row("자막 서명:")
+        r = row(None, "lbl_signature_section")
         chk = ttk.Checkbutton(
             r, variable=self.vars["signature"],
             command=self._sync_signature_config)
@@ -1049,7 +1052,8 @@ class TranslatorAppTk:
                     and (is_text_model(m) or self._all_models_allowed())):
                 ordered.append(m)
         dlg = ModelPriorityDialog(
-            self.root, ordered, getattr(self, 'model_fallback_disabled', []))
+            self.root, ordered, getattr(self, 'model_fallback_disabled', []),
+            lang=self.app_lang)
         if dlg.result:
             order, disabled = dlg.result
             if order:
@@ -1365,9 +1369,8 @@ class TranslatorAppTk:
     def _on_close(self):
         if self.translation_worker and self.translation_worker.isRunning():
             if not messagebox.askyesno(
-                    "종료 확인",
-                    "작업이 진행 중입니다. 프로그램을 종료하시겠습니까?\n\n"
-                    "(현재 작업은 중단되며, 재개 기능으로 나중에 이어서 할 수 있습니다.)",
+                    self.tr_str("dlg_exit_title"),
+                    self.tr_str("dlg_exit_msg"),
                     parent=self.root):
                 return
             self.stop_translation()
@@ -1380,21 +1383,25 @@ class TranslatorAppTk:
     # ------------------------------------------------------------------
     def fetch_models(self):
         if not genai:
-            messagebox.showerror("오류", "'google-genai' 필요", parent=self.root)
+            messagebox.showerror(
+                self.tr_str("dlg_error_title"),
+                self.tr_str("msg_genai_required"), parent=self.root)
             return
         api_key = self.api_key_vars[0].get().strip()
         if not api_key:
-            messagebox.showwarning("API 키 필요", "기본 API 키(1)가 필요합니다.", parent=self.root)
+            messagebox.showwarning(
+                self.tr_str("dlg_need_api_key_title"),
+                self.tr_str("dlg_need_api_key_msg"), parent=self.root)
             return
         if self.model_fetcher_thread and self.model_fetcher_thread.isRunning():
             return
 
         self.log_output.clear_screen()
-        self.append_log("모델 목록 가져오는 중...")
+        self.append_log(self.tr_str("log_fetching_models"))
         set_enabled(self.btn_fetch, False)
 
         self.model_fetcher_thread = ModelFetcherThread(
-            api_key=api_key, include_all=self._all_models_allowed())
+            api_key=api_key, include_all=self._all_models_allowed(), lang=self.app_lang)
         self.model_fetcher_thread.bind_dispatch(self._dispatch)
         self.model_fetcher_thread.models_fetched.connect(self.update_model_list)
         self.model_fetcher_thread.error_occurred.connect(self.handle_fetch_error)
@@ -1482,8 +1489,7 @@ class TranslatorAppTk:
                             f"{hashlib.sha1(os.path.abspath(src_file_path).encode('utf-8')).hexdigest()[:8]}"
                         )
                         self.append_log(
-                            f"\x1b[33m  ⚠ 동일 파일명 충돌: '{os.path.basename(src_file_path)}' → "
-                            f"출력 파일명을 '{out_base}'로 구분합니다\x1b[0m"
+                            f"\x1b[33m{self.tr_str('ext_collision', name=os.path.basename(src_file_path), out=out_base)}\x1b[0m"
                         )
                     tag = "_transcribed" if is_transcribe_mode else ""
                     if append_lang or len(target_languages) > 1:
@@ -1511,8 +1517,7 @@ class TranslatorAppTk:
                     ):
                         self.skipped_completed_jobs += 1
                         self.append_log(
-                            f"\x1b[32m  ✔ [스킵] '{os.path.basename(output_filepath)}' "
-                            f"이미 번역 완료 → 생략\x1b[0m"
+                            f"\x1b[32m{self.tr_str('ext_skip_done', name=os.path.basename(output_filepath))}\x1b[0m"
                         )
                         continue
 
@@ -1527,16 +1532,18 @@ class TranslatorAppTk:
     def start_translation(self):
         if not gst:
             messagebox.showerror(
-                "오류",
-                "'gemini-srt-translator' 라이브러리를 불러올 수 없습니다.\n"
-                f"{GST_IMPORT_ERROR or ''}", parent=self.root)
+                self.tr_str("dlg_error_title"),
+                self.tr_str("msg_library_unavailable")
+                + f"{GST_IMPORT_ERROR or ''}", parent=self.root)
             return
 
         valid_api_keys_from_ui = [
             var.get().strip() for var in self.api_key_vars if var.get().strip()
         ]
         if not valid_api_keys_from_ui:
-            messagebox.showwarning("API 키", "API 키를 하나 이상 입력해야 합니다.", parent=self.root)
+            messagebox.showwarning(
+                self.tr_str("msg_api_key_title"),
+                self.tr_str("msg_api_key_required"), parent=self.root)
             return
 
         reset_library_logger()
@@ -1557,7 +1564,9 @@ class TranslatorAppTk:
 
         selected_languages = self.cmb_langs.checked_items()
         if not selected_languages:
-            messagebox.showwarning("언어 선택", "대상 언어를 하나 이상 선택하세요.", parent=self.root)
+            messagebox.showwarning(
+                self.tr_str("dlg_need_lang_title"),
+                self.tr_str("dlg_need_lang_msg"), parent=self.root)
             return
 
         if not self.output_dir or not os.path.isdir(self.output_dir):
@@ -1565,7 +1574,9 @@ class TranslatorAppTk:
                 os.makedirs(self.output_dir, exist_ok=True)
             except OSError as e:
                 messagebox.showerror(
-                    "출력 폴더 오류", f"출력 폴더를 생성할 수 없습니다:\n{e}", parent=self.root)
+                    self.tr_str("dlg_need_output_err_title"),
+                    self.tr_str("dlg_need_output_err_msg", err=e),
+                    parent=self.root)
                 return
 
         if is_transcribe_mode:
@@ -1579,7 +1590,8 @@ class TranslatorAppTk:
                 media_type_for_jobs = 'audio'
             else:
                 messagebox.showwarning(
-                    "미디어 필요", "전사(Transcribe)할 대상 비디오/오디오 파일을 선택하세요.",
+                    self.tr_str("dlg_need_media_title"),
+                    self.tr_str("dlg_need_media_msg"),
                     parent=self.root)
                 return
         else:
@@ -1601,7 +1613,7 @@ class TranslatorAppTk:
 
                 self.progress_bar.configure(maximum=100)
                 self.vars["progress"].set(0)
-                self.vars["progress_text"].set("자막 트랙 검사 중... (0%)")
+                self.vars["progress_text"].set(self.tr_str("ext_inspecting"))
                 self._pump()
 
                 for v_idx, vpath in enumerate(valid_video_paths):
@@ -1609,16 +1621,16 @@ class TranslatorAppTk:
                     plain_stem = os.path.splitext(os.path.basename(vpath))[0]
                     save_stem = (v_basename if _plain_stem_counts.get(
                         plain_stem.lower(), 0) > 1 else plain_stem)
-                    self.append_log(f"\x1b[34m[자막 트랙 검사 ({v_idx+1}/{total_vids})] '{os.path.basename(vpath)}' 분석 중...\x1b[0m")
+                    self.append_log(f"\x1b[34m{self.tr_str('ext_inspect_header', idx=v_idx + 1, total=total_vids, name=os.path.basename(vpath))}\x1b[0m")
                     self._pump()
                     streams = _get_video_subtitle_streams(vpath)
 
                     if not streams:
-                        self.append_log("\x1b[33m  → 내장 자막 트랙 없음\x1b[0m")
+                        self.append_log(f"\x1b[33m{self.tr_str('ext_no_tracks')}\x1b[0m")
                         videos_without_subs.append(vpath)
                         overall_pct = int(((v_idx + 1) / total_vids) * 100)
                         self.vars["progress"].set(overall_pct)
-                        self.vars["progress_text"].set(f"자막 트랙 검사 중... ({v_idx+1}/{total_vids}) ({overall_pct}%)")
+                        self.vars["progress_text"].set(self.tr_str("ext_inspect_progress", idx=v_idx + 1, total=total_vids, pct=overall_pct))
                         self._pump()
                         continue
 
@@ -1630,7 +1642,7 @@ class TranslatorAppTk:
                                 vid_prog = (video_index + (pct / 100.0)) / total_vids
                                 overall_pct = int(min(100.0, max(0.0, vid_prog * 100.0)))
                                 self.vars["progress"].set(overall_pct)
-                                self.vars["progress_text"].set(f"[{video_index+1}/{total_vids}] 자막 추출 중: {pct:.1f}% ({overall_pct}%)")
+                                self.vars["progress_text"].set(self.tr_str("ext_extract_progress", idx=video_index + 1, total=total_vids, pct=f"{pct:.1f}", overall=overall_pct))
                                 self._pump()
                         return _cb
 
@@ -1645,25 +1657,25 @@ class TranslatorAppTk:
                         if reuse_extracted and os.path.exists(out_direct) and os.path.getsize(out_direct) > 0:
                             saved_direct_count += 1
                             self.append_log(
-                                f"\x1b[32m  ✔ [재사용] 목표 언어({target_matched_lang}) 자막 '{os.path.basename(out_direct)}' 이미 존재 → 추출 생략\x1b[0m"
+                                f"\x1b[32m{self.tr_str('ext_reuse_target', lang=target_matched_lang, name=os.path.basename(out_direct))}\x1b[0m"
                             )
                         else:
-                            self.append_log(f"\x1b[36m  → 목표 언어({target_matched_lang}) 트랙 #{stream_idx} 발견!{' [SDH]' if _is_sdh_stream(same_lang_stream) else ''} 추출 중...\x1b[0m")
+                            self.append_log(f"\x1b[36m{self.tr_str('ext_target_found', lang=target_matched_lang, idx=stream_idx, sdh=' [SDH]' if _is_sdh_stream(same_lang_stream) else '')}\x1b[0m")
                             self._pump()
                             cb = make_progress_cb(v_idx, os.path.basename(vpath))
                             if _extract_subtitle_track(vpath, stream_idx, out_direct, progress_callback=cb):
                                 saved_direct_count += 1
                                 self.append_log(
-                                    f"\x1b[32m  ✔ [추출 완료] 번역 불필요: '{os.path.basename(out_direct)}' 저장됨\x1b[0m"
+                                    f"\x1b[32m{self.tr_str('ext_extracted_direct', name=os.path.basename(out_direct))}\x1b[0m"
                                 )
                             else:
                                 self.append_log(
-                                    f"\x1b[31m  ✘ [추출 실패] 목표 언어({target_matched_lang}) 자막 추출 실패 → 전사 질의 대상으로 이동\x1b[0m"
+                                    f"\x1b[31m{self.tr_str('ext_extract_failed', lang=target_matched_lang)}\x1b[0m"
                                 )
                                 videos_without_subs.append(vpath)
                         overall_pct = int(((v_idx + 1) / total_vids) * 100)
                         self.vars["progress"].set(overall_pct)
-                        self.vars["progress_text"].set(f"자막 트랙 검사/추출 완료 ({v_idx+1}/{total_vids}) ({overall_pct}%)")
+                        self.vars["progress_text"].set(self.tr_str("ext_done_progress", idx=v_idx + 1, total=total_vids, pct=overall_pct))
                         self._pump()
                         continue
 
@@ -1672,43 +1684,43 @@ class TranslatorAppTk:
                     temp_srt_path = os.path.join(self.output_dir, f"{v_basename}_extracted.srt")
                     reuse_extracted = self.vars["reuse_extracted"].get()
                     if reuse_extracted and os.path.exists(temp_srt_path) and os.path.getsize(temp_srt_path) > 0:
-                        self.append_log(f"\x1b[32m  ✔ [재사용] '{os.path.basename(temp_srt_path)}' 이미 존재 → 재추출 생략\x1b[0m")
+                        self.append_log(f"\x1b[32m{self.tr_str('ext_reuse', name=os.path.basename(temp_srt_path))}\x1b[0m")
                         extracted_sub_files.append((temp_srt_path, vpath))
                     else:
-                        self.append_log(f"\x1b[36m  → 자막 트랙 #{stream_idx} 추출 중: '{os.path.basename(temp_srt_path)}'{' [SDH]' if _is_sdh_stream(best_stream) else ''}...\x1b[0m")
+                        self.append_log(f"\x1b[36m{self.tr_str('ext_extracting', idx=stream_idx, name=os.path.basename(temp_srt_path), sdh=' [SDH]' if _is_sdh_stream(best_stream) else '')}\x1b[0m")
                         self._pump()
                         cb = make_progress_cb(v_idx, os.path.basename(vpath))
                         if _extract_subtitle_track(vpath, stream_idx, temp_srt_path, progress_callback=cb):
                             extracted_sub_files.append((temp_srt_path, vpath))
                             self.append_log(
-                                f"\x1b[32m  ✔ [추출 완료] '{os.path.basename(temp_srt_path)}' 추출 완료 → 번역 대상으로 등록됨\x1b[0m"
+                                f"\x1b[32m{self.tr_str('ext_extracted', name=os.path.basename(temp_srt_path))}\x1b[0m"
                             )
                         else:
                             videos_without_subs.append(vpath)
 
                     overall_pct = int(((v_idx + 1) / total_vids) * 100)
                     self.vars["progress"].set(overall_pct)
-                    self.vars["progress_text"].set(f"자막 트랙 검사/추출 완료 ({v_idx+1}/{total_vids}) ({overall_pct}%)")
+                    self.vars["progress_text"].set(self.tr_str("ext_done_progress", idx=v_idx + 1, total=total_vids, pct=overall_pct))
                     self._pump()
 
                 if extracted_sub_files:
                     primary_input_source_for_jobs = [item[0] for item in extracted_sub_files]
                     valid_video_paths = [item[1] for item in extracted_sub_files]
                     self.extracted_temp_files = [item[0] for item in extracted_sub_files]
-                    notice = _skipped_videos_notice(videos_without_subs)
+                    notice = _skipped_videos_notice(
+                        videos_without_subs, self.app_lang)
                     if notice:
                         self.append_log(f"\x1b[33m{notice}\x1b[0m")
                 elif saved_direct_count > 0 and not videos_without_subs:
                     messagebox.showinfo(
-                        "완료",
-                        f"선택한 영상의 내장 자막({saved_direct_count}개)이 목표 언어와 일치하여 번역 없이 바로 추출/저장되었습니다.",
+                        self.tr_str("msg_all_done_title"),
+                        self.tr_str("ext_direct_saved_body", count=saved_direct_count),
                         parent=self.root)
                     return
                 else:
                     ret = messagebox.askyesno(
-                        "오디오 전사(Transcribe) 확인",
-                        "선택한 비디오 파일에 추출 가능한 내장 자막 트랙이 없습니다.\n\n"
-                        "비디오에서 오디오를 추출하여 [전사(Transcribe)] 방식으로 자막을 생성할까요?",
+                        self.tr_str("dlg_transcribe_title"),
+                        self.tr_str("msg_no_embedded_tracks"),
                         parent=self.root)
                     if ret:
                         items = [self.tr_str("task_mode_translate"), self.tr_str("task_mode_transcribe")]
@@ -1722,22 +1734,29 @@ class TranslatorAppTk:
                         return
             else:
                 messagebox.showwarning(
-                    "파일 필요", "번역할 SRT/ASS 자막 파일 또는 비디오 파일을 선택하세요.",
+                    self.tr_str("dlg_need_file_title"),
+                    self.tr_str("dlg_need_file_msg"),
                     parent=self.root)
                 return
 
         selected_model = self.vars["model"].get()
         if not selected_model:
-            messagebox.showwarning("모델 선택", "사용할 모델을 선택하세요.", parent=self.root)
+            messagebox.showwarning(
+                self.tr_str("dlg_need_model_title"),
+                self.tr_str("dlg_need_model_msg"), parent=self.root)
             return
 
         selected_languages = self.cmb_langs.checked_items()
         if not selected_languages:
-            messagebox.showwarning("언어 선택", "대상 언어를 하나 이상 선택하세요.", parent=self.root)
+            messagebox.showwarning(
+                self.tr_str("dlg_need_lang_title"),
+                self.tr_str("dlg_need_lang_msg"), parent=self.root)
             return
 
         if self.translation_worker and self.translation_worker.isRunning():
-            messagebox.showinfo("작업 중", "이미 작업이 진행 중입니다.", parent=self.root)
+            messagebox.showinfo(
+                self.tr_str("dlg_in_progress_title"),
+                self.tr_str("dlg_in_progress_msg"), parent=self.root)
             return
 
         self.save_settings()
@@ -1750,11 +1769,13 @@ class TranslatorAppTk:
         if not jobs:
             if skipped_count:
                 messagebox.showinfo(
-                    "완료",
-                    f"선택한 작업 {skipped_count}개가 모두 이미 번역 완료 상태입니다.\n"
-                    "새로 실행할 작업이 없습니다.", parent=self.root)
+                    self.tr_str("msg_all_done_title"),
+                    self.tr_str("msg_all_done_body", count=skipped_count),
+                    parent=self.root)
             else:
-                messagebox.showwarning("작업 생성 실패", "생성된 작업이 없습니다.", parent=self.root)
+                messagebox.showwarning(
+                    self.tr_str("dlg_job_failed_title"),
+                    self.tr_str("dlg_job_failed_msg"), parent=self.root)
             return
 
         self.job_queue = queue.Queue()
@@ -1843,7 +1864,8 @@ class TranslatorAppTk:
         self._stop_requested = False
 
         self.translation_worker = TranslationWorker(
-            valid_api_keys_from_ui, self.job_queue, base_config)
+            valid_api_keys_from_ui, self.job_queue, base_config,
+            lang=self.app_lang)
         self.translation_worker.bind_dispatch(self._dispatch)
         self.translation_worker.progress_update.connect(self.log_output.feed)
         self.translation_worker.raw_output_update.connect(self.log_output.feed)
@@ -1952,16 +1974,18 @@ class TranslatorAppTk:
         skipped_count = getattr(self, 'skipped_completed_jobs', 0)
         failed_count = getattr(self, 'failed_jobs', 0)
         translated_count = max(0, self.completed_jobs - skipped_count - failed_count)
-        summary = f"  요약: 번역 {translated_count}개 · 스킵 {skipped_count}개"
+        summary = self.tr_str(
+            "log_summary_counts", done=translated_count, skipped=skipped_count)
         if failed_count:
-            summary += f" · 실패 {failed_count}개"
+            summary += self.tr_str("log_summary_failed", failed=failed_count)
         self.append_log(summary)
 
         self._failure_help_pending = 0
         if failed_count and not self._stop_requested:
             try:
-                label, advice = failure_advice(getattr(self, 'last_job_errors', []))
-                self.append_log(f"\x1b[33m  실패 {failed_count}개 — 원인 추정: {label}\x1b[0m")
+                label, advice = failure_advice(
+                    getattr(self, 'last_job_errors', []), lang=self.app_lang)
+                self.append_log(f"\x1b[33m{self.tr_str('log_failed_detail', count=failed_count, label=label)}\x1b[0m")
                 for line in advice:
                     self.append_log(f"\x1b[33m  · {line}\x1b[0m")
                 self._failure_help_pending = failed_count
@@ -2026,15 +2050,17 @@ class TranslatorAppTk:
                 pass
 
     def _show_failure_dialog(self, failed_count):
-        label, advice = failure_advice(getattr(self, 'last_job_errors', []))
+        label, advice = failure_advice(
+            getattr(self, 'last_job_errors', []), lang=self.app_lang)
         dlg = tk.Toplevel(self.root)
-        dlg.title("작업 실패 안내")
+        dlg.title(self.tr_str("fail_title"))
         dlg.transient(self.root)
         dlg.grab_set()
-        ttk.Label(dlg, text=f"{failed_count}개 작업이 실패했습니다. (원인 추정: {label})",
+        ttk.Label(dlg, text=self.tr_str(
+            "fail_summary", count=failed_count, label=label),
                   font=("", 10, "bold")).pack(anchor="w", padx=12, pady=(12, 4))
         body = "\n".join(f"• {line}" for line in advice)
-        body += "\n\n다시 시도하면 완료된 작업은 건너뛰고 실패한 작업만 이어서 진행됩니다."
+        body += self.tr_str("fail_retry_note")
         ttk.Label(dlg, text=body, justify="left", wraplength=460).pack(
             anchor="w", padx=12, pady=4)
 
@@ -2073,7 +2099,7 @@ class TranslatorAppTk:
             close()
             self.vars["model"].set(model_candidate)
             self.append_log(
-                f"\x1b[33m모델을 {model_candidate}로 변경해 다시 시작합니다.\x1b[0m")
+                f"\x1b[33m{self.tr_str('log_restart_model', model=model_candidate)}\x1b[0m")
             self.start_translation()
 
         def do_batch():
@@ -2081,17 +2107,19 @@ class TranslatorAppTk:
             new_size = max(10, batch_val // 2)
             self.vars["batch"].set(new_size)
             self.append_log(
-                f"\x1b[33m배치 크기를 {new_size}으로 줄여 다시 시작합니다.\x1b[0m")
+                f"\x1b[33m{self.tr_str('log_restart_batch', size=new_size)}\x1b[0m")
             self.start_translation()
 
-        ttk.Button(row, text="닫기", command=close).pack(side="right")
+        ttk.Button(row, text=self.tr_str("btn_close"),
+                   command=close).pack(side="right")
         if batch_val > 10:
-            ttk.Button(row, text="배치 크기 절반으로 재시도",
+            ttk.Button(row, text=self.tr_str("btn_retry_half"),
                        command=do_batch).pack(side="right", padx=4)
         if model_candidate:
-            ttk.Button(row, text="모델 변경 후 재시도",
+            ttk.Button(row, text=self.tr_str("btn_retry_model"),
                        command=do_model).pack(side="right", padx=4)
-        ttk.Button(row, text="다시 시도", command=do_retry).pack(side="right", padx=4)
+        ttk.Button(row, text=self.tr_str("btn_retry"),
+                   command=do_retry).pack(side="right", padx=4)
         dlg.protocol("WM_DELETE_WINDOW", close)
 
     # ------------------------------------------------------------------
@@ -2102,7 +2130,7 @@ class TranslatorAppTk:
             return
         set_enabled(self.btn_update_check, False)
         self.btn_update_check.configure(text=self.tr_str("btn_update_checking"))
-        self.update_check_thread = UpdateCheckThread()
+        self.update_check_thread = UpdateCheckThread(lang=self.app_lang)
         self.update_check_thread.bind_dispatch(self._dispatch)
         self.update_check_thread.check_done.connect(self._on_update_check_done)
         self.update_check_thread.error_occurred.connect(self._on_update_check_error)
@@ -2183,8 +2211,10 @@ class TranslatorAppTk:
 
         row = ttk.Frame(dlg)
         row.pack(fill="x", padx=10, pady=8)
-        ttk.Button(row, text="취소", command=dlg.destroy).pack(side="right")
-        ttk.Button(row, text="확인", command=ok).pack(side="right", padx=(0, 6))
+        ttk.Button(row, text=self.tr_str("btn_cancel"),
+                   command=dlg.destroy).pack(side="right")
+        ttk.Button(row, text=self.tr_str("btn_ok"),
+                   command=ok).pack(side="right", padx=(0, 6))
         lb.bind("<Double-Button-1>", lambda e: ok())
         dlg.wait_window()
         return result["index"]

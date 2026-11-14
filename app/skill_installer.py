@@ -72,10 +72,8 @@ def run_install(target, is_global, folder=None):
         return install_extra_skill(target, is_global=is_global,
                                    cwd=folder), []
     if install_skill is None:
-        raise RuntimeError(
-            "라이브러리의 install_skill을 사용할 수 없습니다. "
-            "gemini-srt-translator를 최신 버전으로 업데이트하세요."
-        )
+        # 메시지는 i18n 키로 던지고 다이얼로그에서 번역해 표시한다
+        raise RuntimeError("skill_install_unavailable")
     if is_global:
         return _as_paths(install_skill(target=target, is_global=True)), []
     return _as_paths(install_skill(target=target, is_global=False,
@@ -177,7 +175,11 @@ class SkillInstallDialog(QDialog):
         try:
             paths, errors = run_install(target, is_global, folder)
         except Exception as e:
-            self.result_view.setPlainText(self._t("skill_install_failed", err=str(e)))
+            err = (self._t(e.args[0])
+                   if e.args and e.args[0] == "skill_install_unavailable"
+                   else str(e))
+            self.result_view.setPlainText(
+                self._t("skill_install_failed", err=err))
             return
         lines = []
         if paths:

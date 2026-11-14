@@ -132,6 +132,15 @@ def _dialog_window(qapp, monkeypatch):
     monkeypatch.setattr(mw, "QMessageBox", _FakeBox)
     _FakeBox.instances = []
     win = mw.TranslatorApp.__new__(mw.TranslatorApp)
+    win.app_lang = "ko"
+
+    from app.i18n import I18N
+
+    def _real_tr(key, **kw):
+        text = I18N["ko"].get(key, key)
+        return text.format(**kw) if kw else text
+
+    win.tr_str = _real_tr
     win.last_job_errors = [OVERLOAD_MSG]
     win.logs = []
     win.append_log = lambda msg: win.logs.append(msg)

@@ -18,6 +18,7 @@ from PyQt6.QtWidgets import (
     QToolButton, QScrollArea, QLayout, QDialog,
 )
 
+from app.i18n import I18N
 from core.config import DEFAULT_BATCH_SIZE, DEFAULT_MODEL, is_text_model
 from core.errors import (
     classify_worker_error, failure_kind, failure_kind_label, MODEL_SWITCH_KINDS)
@@ -30,6 +31,18 @@ from core.backend import BackendCancelRequested, GstAdapter
 from core.media import (
     _extract_subtitle_track, _get_media_duration, _get_video_subtitle_streams,
 )
+
+
+def _tr(ui_lang, tkey, **kwargs):
+    # 주의: 템플릿 플레이스홀더 {lang}·{key}와 인자 이름이 겹치면 안 된다
+    template = I18N.get(ui_lang, I18N["ko"]).get(
+        tkey, I18N["ko"].get(tkey, tkey))
+    if kwargs:
+        try:
+            return template.format(**kwargs)
+        except Exception:
+            return template
+    return template
 
 
 # =====================================================================
@@ -67,20 +80,26 @@ class UpdateCheckThread(QThread):
     check_done = pyqtSignal(object, object)  # (installed_version, latest_version)
     error_occurred = pyqtSignal(str)
 
+    def __init__(self, lang="ko"):
+        super().__init__()
+        self.lang = lang
+
     def run(self):
         try:
             from core.update_check import (
                 fetch_latest_version, get_installed_version,
             )
         except Exception as e:
-            self.error_occurred.emit(f"업데이트 확인 모듈 로드 실패: {e}")
+            self.error_occurred.emit(
+                _tr(self.lang, "wrk_update_module_failed", error=e))
             return
         try:
             installed = get_installed_version()
             latest = fetch_latest_version()
             self.check_done.emit(installed, latest)
         except Exception as e:
-            self.error_occurred.emit(f"업데이트 확인 실패: {e}")
+            self.error_occurred.emit(
+                _tr(self.lang, "wrk_update_check_failed", error=e))
 
 
 # =====================================================================
@@ -90,18 +109,19 @@ class ModelFetcherThread(QThread):
     models_fetched = pyqtSignal(list)
     error_occurred = pyqtSignal(str)
 
-    def __init__(self, api_key, include_all=False):
+    def __init__(self, api_key, include_all=False, lang="ko"):
         super().__init__()
+        self.lang = lang
         self.api_key = api_key
         # True면 텍스트 번역 불가 모델까지 포함한다 (고급 설정 옵션)
         self.include_all = include_all
 
     def run(self):
         if not genai:
-            self.error_occurred.emit("google-genai 라이브러리가 없습니다.")
+            self.error_occurred.emit(_tr(self.lang, "wrk_no_genai"))
             return
         if not self.api_key:
-            self.error_occurred.emit("모델 목록을 가져오려면 기본 API 키가 필요합니다.")
+            self.error_occurred.emit(_tr(self.lang, "wrk_need_primary_key"))
             return
         try:
             client = genai.Client(api_key=self.api_key)
@@ -126,9 +146,9 @@ class ModelFetcherThread(QThread):
             if available_models:
                 self.models_fetched.emit(available_models)
             else:
-                self.error_occurred.emit("사용 가능한 생성 모델을 찾을 수 없습니다.")
+                self.error_occurred.emit(_tr(self.lang, "wrk_no_models"))
         except Exception as e:
-            self.error_occurred.emit(f"모델 가져오기 실패: {e}")
+            self.error_occurred.emit(_tr(self.lang, "wrk_fetch_failed", error=e))
 
 
 # =====================================================================
@@ -141,8 +161,9 @@ class TranslationWorker(QThread):
     job_error = pyqtSignal(str)
     finished_signal = pyqtSignal()
 
-    def __init__(self, valid_api_keys, job_queue, base_config):
+    def __init__(self, valid_api_keys, job_queue, base_config, lang="ko"):
         super().__init__()
+        self.lang = lang
         self.api_keys = list(valid_api_keys)
         self.job_queue = job_queue
         self.base_config = base_config
@@ -161,11 +182,14 @@ class TranslationWorker(QThread):
 
     def run(self):
         task_mode = self.base_config.get('task_mode', 'translate')
-        task_name = "전사(Transcribe)" if task_mode == 'transcribe' else "번역(Translate)"
+        task_name = _tr(
+            self.lang,
+            "wrk_job_transcribe" if task_mode == 'transcribe'
+            else "wrk_job_translate")
 
         key_count = len(self.api_keys) if self.api_keys else 0
         self.progress_update.emit(
-            f"\x1b[36m==== {task_name} 워커 시작 (총 API 키: {key_count}개) ====\x1b[0m\n"
+            f"\x1b[36m{_tr(self.lang, 'wrk_start', task=task_name, count=key_count)}\x1b[0m\n"
         )
 
         original_stdout = sys.stdout
@@ -248,15 +272,17 @@ class TranslationWorker(QThread):
                             self.api_keys[self.current_key_index] if self.api_keys else None
                         )
                         key_display_index = self.current_key_index + 1 if self.api_keys else 0
-                        msg_key = f"키 {key_display_index}/{key_count}"
+                        msg_key = _tr(
+                            self.lang, "wrk_key_label",
+                            index=key_display_index, total=key_count)
 
                         if attempt > 0:
                             self.progress_update.emit(
-                                f"\x1b[33m\n[작업 재시도 ({attempt+1}/{total_attempts}) ({msg_key})] [{target_language}] {base_name} (모델 {profile_model} · 배치 {profile_batch})\x1b[0m\n"
+                                f"\x1b[33m{_tr(self.lang, 'wrk_job_retry', attempt=attempt + 1, total=total_attempts, key=msg_key, lang=target_language, name=base_name, model=profile_model, batch=profile_batch)}\x1b[0m\n"
                             )
                         else:
                             self.progress_update.emit(
-                                f"\x1b[33m\n[작업 시작 ({msg_key})] [{target_language}] {base_name}\x1b[0m\n"
+                                f"\x1b[33m{_tr(self.lang, 'wrk_job_start', key=msg_key, lang=target_language, name=base_name)}\x1b[0m\n"
                             )
 
                         # 라이브러리 로거 초기화는 GstAdapter.run() 내부에서 수행
@@ -343,17 +369,18 @@ class TranslationWorker(QThread):
                                 break
 
                             err_msg = classify_worker_error(
-                                e, msg_key=msg_key, base_name=base_name
+                                e, msg_key=msg_key, base_name=base_name,
+                                lang=self.lang
                             )
                             err_tb = traceback.format_exc()
 
                             last_error_msg = err_msg
                             err_logs = captured_stderr_io_for_lib.getvalue()
                             if err_logs.strip():
-                                self.progress_update.emit(f"\x1b[33m[라이브러리 로그]\n{err_logs}\x1b[0m\n")
-                            self.progress_update.emit(f"\n\x1b[31m[오류] {err_msg}\x1b[0m\n")
+                                self.progress_update.emit(f"\x1b[33m{_tr(self.lang, 'wrk_library_log', logs=err_logs)}\x1b[0m\n")
+                            self.progress_update.emit(f"\x1b[31m{_tr(self.lang, 'wrk_error_line', msg=err_msg)}\x1b[0m\n")
                             # Traceback 상세 로그 (디버그용)
-                            self.progress_update.emit(f"\x1b[33m[디버그 Traceback]\n{err_tb}\x1b[0m\n")
+                            self.progress_update.emit(f"\x1b[33m{_tr(self.lang, 'wrk_traceback', tb=err_tb)}\x1b[0m\n")
 
                         finally:
                             sys.stderr = original_thread_stderr
@@ -378,14 +405,14 @@ class TranslationWorker(QThread):
                                 nxt += 1
                             if nxt < len(plan):
                                 self.progress_update.emit(
-                                    f"\x1b[33m[폴백] {profile_model} 실패({failure_kind_label(kind)}) → {plan[nxt][0]} 모델로 전환합니다.\x1b[0m\n"
+                                    f"\x1b[33m{_tr(self.lang, 'wrk_fallback_switch', model=profile_model, kind=failure_kind_label(kind, self.lang), next=plan[nxt][0])}\x1b[0m\n"
                                 )
                             plan_idx = nxt
                         elif attempt % max_key_attempts == 0:
                             plan_idx += 1
                             if plan_idx < len(plan):
                                 self.progress_update.emit(
-                                    f"\x1b[33m[폴백] 재시도 조건 변경 → 모델 {plan[plan_idx][0]} · 배치 {plan[plan_idx][1]}\x1b[0m\n"
+                                    f"\x1b[33m{_tr(self.lang, 'wrk_fallback_change', model=plan[plan_idx][0], batch=plan[plan_idx][1])}\x1b[0m\n"
                                 )
 
                     if self.isInterruptionRequested():
@@ -397,14 +424,13 @@ class TranslationWorker(QThread):
                         if self.api_keys:
                             self.current_key_index = (self.current_key_index + 1) % len(self.api_keys)
                     else:
-                        self.job_error.emit(last_error_msg or "모든 API 키 시도 실패")
+                        self.job_error.emit(
+                            last_error_msg or _tr(self.lang, "wrk_all_keys_failed"))
                         self._consecutive_failures += 1
 
                         if self._consecutive_failures >= self._max_consecutive_failures:
                             self.progress_update.emit(
-                                f"\n\x1b[31m==== 🛑 연속 실패 {self._consecutive_failures}회 감지 "
-                                f"→ 시스템 보호를 위해 작업을 중단합니다. "
-                                f"(API 키/네트워크/할당량 상태를 확인하세요) ====\x1b[0m\n"
+                                f"\x1b[31m{_tr(self.lang, 'wrk_consecutive_stop', count=self._consecutive_failures)}\x1b[0m\n"
                             )
                             break
 
@@ -413,8 +439,7 @@ class TranslationWorker(QThread):
                             self._max_backoff_seconds,
                         )
                         self.progress_update.emit(
-                            f"\x1b[33m[대기] 연속 실패 {self._consecutive_failures}회 "
-                            f"→ {backoff:.0f}초 대기 후 재시도 (자원 과부하 방지)\x1b[0m\n"
+                            f"\x1b[33m{_tr(self.lang, 'wrk_wait_retry', count=self._consecutive_failures, seconds=f'{backoff:.0f}')}\x1b[0m\n"
                         )
                         try:
                             time.sleep(backoff)
@@ -424,15 +449,15 @@ class TranslationWorker(QThread):
                 except queue.Empty:
                     if not self.isInterruptionRequested():
                         self.progress_update.emit(
-                            "\x1b[32m\n모든 작업 큐가 비워졌습니다.\x1b[0m\n"
+                            f"\x1b[32m{_tr(self.lang, 'wrk_queue_empty')}\x1b[0m\n"
                         )
                     break
                 except Exception as e:
                     if not self.isInterruptionRequested():
                         self.progress_update.emit(
-                            f"\n\x1b[31m[심각] 워커 루프 예외: {e}\x1b[0m\n"
+                            f"\x1b[31m{_tr(self.lang, 'wrk_loop_error', error=e)}\x1b[0m\n"
                         )
-                        self.job_error.emit(f"루프 오류: {e}")
+                        self.job_error.emit(_tr(self.lang, "wrk_loop_error_msg", error=e))
                     break
                 finally:
                     # 작업 1건당 task_done() 정확히 1회: get_nowait() 성공
@@ -445,8 +470,8 @@ class TranslationWorker(QThread):
             sys.stderr = original_stderr
             time.sleep = original_sleep
 
-            msg = f"\n\x1b[36m==== {task_name} 워커 스레드 종료 ====\x1b[0m\n"
+            msg = f"\x1b[36m{_tr(self.lang, 'wrk_end', task=task_name)}\x1b[0m\n"
             if self.isInterruptionRequested():
-                msg += "\x1b[33m(사용자 수동 중단 요청에 의해 멈춤)\x1b[0m\n"
+                msg += f"\x1b[33m{_tr(self.lang, 'wrk_stopped_by_user')}\x1b[0m\n"
             self.progress_update.emit(msg)
             self.finished_signal.emit()

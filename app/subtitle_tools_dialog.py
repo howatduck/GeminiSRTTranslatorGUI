@@ -18,11 +18,23 @@ from PyQt6.QtWidgets import (
     QAbstractItemView, QRadioButton, QButtonGroup,
 )
 
+from app.i18n import I18N
 from core import subtitle_tools as st
 
 STEP_RENAME = "rename"
 STEP_SYNC = "sync"
 STEP_BOTH = "both"
+
+
+def _tr(ui_lang, tkey, **kwargs):
+    template = I18N.get(ui_lang, I18N["ko"]).get(
+        tkey, I18N["ko"].get(tkey, tkey))
+    if kwargs:
+        try:
+            return template.format(**kwargs)
+        except Exception:
+            return template
+    return template
 
 
 class IlassDownloadWorker(QThread):
@@ -54,8 +66,9 @@ class SubtitleToolsWorker(QThread):
     finished_signal = pyqtSignal(dict)
     error_signal = pyqtSignal(str)
 
-    def __init__(self, folder, mode, step, sync_opts):
+    def __init__(self, folder, mode, step, sync_opts, lang="ko"):
         super().__init__()
+        self.lang = lang
         self.folder = folder
         self.mode = mode
         self.step = step
@@ -68,19 +81,20 @@ class SubtitleToolsWorker(QThread):
         try:
             summary = {}
             if self.step in (STEP_RENAME, STEP_BOTH):
-                self._log("=== 자막 리네임 시작 ===")
+                self._log(_tr(self.lang, "subtools_log_rename_start"))
                 plan, unmatched = st.plan_rename(self.folder, self.mode)
                 if not plan:
-                    self._log("리네임 대상이 없습니다.")
+                    self._log(_tr(self.lang, "subtools_log_no_target"))
                 applied, skipped = st.apply_rename(plan, log=self._log)
                 for u in unmatched:
-                    self._log(f"[매칭 실패] {u} (수동 확인 필요)")
+                    self._log(_tr(self.lang, "subtools_log_unmatched", name=u))
                 summary["rename"] = {"applied": applied, "skipped": skipped,
                                      "unmatched": len(unmatched)}
-                self._log(f"리네임 완료: 적용 {applied} / 건너뜀 {skipped} / "
-                          f"매칭실패 {len(unmatched)}")
+                self._log(_tr(self.lang, "subtools_log_rename_done",
+                              applied=applied, skipped=skipped,
+                              unmatched=len(unmatched)))
             if self.step in (STEP_SYNC, STEP_BOTH):
-                self._log("=== ilass 자막 싱크 시작 ===")
+                self._log(_tr(self.lang, "subtools_log_sync_start"))
                 summary["sync"] = st.run_sync(
                     self.folder,
                     log=self._log,
@@ -91,7 +105,8 @@ class SubtitleToolsWorker(QThread):
         except st.SubtitleToolsError as e:
             self.error_signal.emit(str(e))
         except Exception as e:  # noqa: BLE001
-            self.error_signal.emit(f"예상치 못한 오류: {e}")
+            self.error_signal.emit(
+                _tr(self.lang, "subtools_log_unexpected", error=e))
 
 
 class SubtitleToolsDialog(QDialog):
@@ -278,7 +293,7 @@ class SubtitleToolsDialog(QDialog):
         self._dl_worker = None
 
     def _on_ilass_dl_error(self, msg):
-        self._log(f"[오류] {msg}")
+        self._log(self._t("log_error_prefix") + msg)
         QMessageBox.warning(self, self._t("subtools_dialog_title"), msg)
         self.btn_ilass_dl.setEnabled(True)
         self._dl_worker = None
@@ -313,7 +328,7 @@ class SubtitleToolsDialog(QDialog):
             try:
                 plan, unmatched = st.plan_rename(folder, mode)
             except st.SubtitleToolsError as e:
-                self._log(f"[오류] {e}")
+                self._log(self._t("log_error_prefix") + str(e))
                 return
             for old, new in plan:
                 r = self.tbl_preview.rowCount()
@@ -426,6 +441,7 @@ class SubtitleToolsDialog(QDialog):
         self._set_running(True)
         self._worker = SubtitleToolsWorker(
             folder, self.cmb_mode.currentData(), step, sync_opts,
+            lang=getattr(self._parent, "app_lang", "ko"),
         )
         self._worker.log_signal.connect(self._log)
         self._worker.progress_signal.connect(self._on_progress)
@@ -445,6 +461,6 @@ class SubtitleToolsDialog(QDialog):
 
     def _on_error(self, msg):
         self._set_running(False)
-        self._log(f"[오류] {msg}")
+        self._log(self._t("log_error_prefix") + msg)
         QMessageBox.warning(self, self._t("subtools_dialog_title"), msg)
         self._worker = None

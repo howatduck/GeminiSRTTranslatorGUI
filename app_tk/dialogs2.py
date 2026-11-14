@@ -230,8 +230,10 @@ class SubtitlePreviewDialogTk(_DialogBase):
                 set_enabled(self.btn_save, True)
                 self._populate()
 
-        ttk.Button(row, text="취소", command=dlg.destroy).pack(side="right")
-        ttk.Button(row, text="확인", command=ok).pack(side="right", padx=(0, 6))
+        ttk.Button(row, text=self._t("btn_cancel"),
+                   command=dlg.destroy).pack(side="right")
+        ttk.Button(row, text=self._t("btn_ok"),
+                   command=ok).pack(side="right", padx=(0, 6))
 
     def _confirm_discard(self):
         if not self._dirty:
@@ -341,10 +343,8 @@ def run_install(target, is_global, folder=None):
         return install_extra_skill(target, is_global=is_global,
                                    cwd=folder), []
     if install_skill is None:
-        raise RuntimeError(
-            "라이브러리의 install_skill을 사용할 수 없습니다. "
-            "gemini-srt-translator를 최신 버전으로 업데이트하세요."
-        )
+        # 메시지는 i18n 키로 던지고 다이얼로그에서 번역해 표시한다
+        raise RuntimeError("skill_install_unavailable")
     if is_global:
         return _as_paths(install_skill(target=target, is_global=True)), []
     return _as_paths(install_skill(target=target, is_global=False,
@@ -436,7 +436,10 @@ class SkillInstallDialogTk(_DialogBase):
         try:
             paths, errors = run_install(target, is_global, folder)
         except Exception as e:
-            self._set_result(self._t("skill_install_failed", err=str(e)))
+            err = (self._t(e.args[0])
+                   if e.args and e.args[0] == "skill_install_unavailable"
+                   else str(e))
+            self._set_result(self._t("skill_install_failed", err=err))
             return
         lines = []
         if paths:
@@ -859,7 +862,7 @@ class SubtitleToolsDialogTk(_DialogBase):
         self._dl_worker = None
 
     def _on_ilass_dl_error(self, msg):
-        self._log(f"[오류] {msg}")
+        self._log(self._t("log_error_prefix") + msg)
         messagebox.showwarning(self._t("subtools_dialog_title"), msg,
                                parent=self.dlg)
         set_enabled(self.btn_ilass_dl, True)
@@ -900,7 +903,7 @@ class SubtitleToolsDialogTk(_DialogBase):
             try:
                 plan, unmatched = st.plan_rename(folder, self._mode())
             except st.SubtitleToolsError as e:
-                self._log(f"[오류] {e}")
+                self._log(self._t("log_error_prefix") + str(e))
                 return
             for old, new in plan:
                 self.tree.insert("", "end", values=(
@@ -991,24 +994,28 @@ class SubtitleToolsDialogTk(_DialogBase):
             try:
                 summary = {}
                 if step in (STEP_RENAME, STEP_BOTH):
-                    self._call(lambda: self._log("=== 자막 리네임 시작 ==="))
+                    self._call(lambda: self._log(
+                        self._t("subtools_log_rename_start")))
                     plan, unmatched = st.plan_rename(folder, mode)
                     if not plan:
-                        self._call(lambda: self._log("리네임 대상이 없습니다."))
+                        self._call(lambda: self._log(
+                            self._t("subtools_log_no_target")))
                     applied, skipped = st.apply_rename(
                         plan, log=lambda m: self._call(
                             lambda m=m: self._log(m)))
                     for u in unmatched:
                         self._call(lambda u=u: self._log(
-                            f"[매칭 실패] {u} (수동 확인 필요)"))
+                            self._t("subtools_log_unmatched", name=u)))
                     summary["rename"] = {
                         "applied": applied, "skipped": skipped,
                         "unmatched": len(unmatched)}
                     self._call(lambda: self._log(
-                        f"리네임 완료: 적용 {applied} / 건너뜀 {skipped} / "
-                        f"매칭실패 {len(unmatched)}"))
+                        self._t("subtools_log_rename_done",
+                                applied=applied, skipped=skipped,
+                                unmatched=len(unmatched))))
                 if step in (STEP_SYNC, STEP_BOTH):
-                    self._call(lambda: self._log("=== ilass 자막 싱크 시작 ==="))
+                    self._call(lambda: self._log(
+                        self._t("subtools_log_sync_start")))
                     summary["sync"] = st.run_sync(
                         folder,
                         log=lambda m: self._call(lambda m=m: self._log(m)),
@@ -1019,7 +1026,8 @@ class SubtitleToolsDialogTk(_DialogBase):
             except st.SubtitleToolsError as e:
                 self._call(lambda e=e: self._on_error(str(e)))
             except Exception as e:  # noqa: BLE001
-                self._call(lambda e=e: self._on_error(f"예상치 못한 오류: {e}"))
+                self._call(lambda e=e: self._on_error(
+                    self._t("subtools_log_unexpected", error=e)))
 
         self._worker = threading.Thread(target=work, daemon=True)
         self._worker.start()
@@ -1036,7 +1044,7 @@ class SubtitleToolsDialogTk(_DialogBase):
 
     def _on_error(self, msg):
         self._set_running(False)
-        self._log(f"[오류] {msg}")
+        self._log(self._t("log_error_prefix") + msg)
         messagebox.showwarning(self._t("subtools_dialog_title"), msg,
                                parent=self.dlg)
         self._worker = None

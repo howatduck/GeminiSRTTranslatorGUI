@@ -26,23 +26,21 @@ class ModelPriorityDialog:
     결과: 확인 시 (order, disabled) 튜플, 취소 시 None.
     """
 
-    def __init__(self, parent, ordered_models, disabled_models):
+    def __init__(self, parent, ordered_models, disabled_models, lang="ko"):
         self.result = None
         self._models = list(ordered_models)
         self._disabled = set(disabled_models or [])
+        self._lang = lang
 
         dlg = tk.Toplevel(parent)
         self._dlg = dlg
-        dlg.title("모델 폴백 우선순위")
+        dlg.title(_tr(lang, "mp_title"))
         dlg.transient(parent)
         dlg.grab_set()
         dlg.geometry("420x430")
 
         ttk.Label(
-            dlg,
-            text="위에서부터 순서대로 시도합니다. 작업이 실패하면 다음 모델로\n"
-                 "자동 전환됩니다. 항목을 드래그해서 순서를 바꾸고, 앞의 체크를\n"
-                 "클릭해 끄면 그 모델은 건너뜁니다 (목록에는 남아 순서가 유지됩니다).",
+            dlg, text=_tr(lang, "mp_desc"),
             justify="left").pack(anchor="w", padx=10, pady=(10, 6))
 
         frame = ttk.Frame(dlg)
@@ -62,10 +60,12 @@ class ModelPriorityDialog:
 
         btn_row = ttk.Frame(dlg)
         btn_row.pack(fill="x", padx=10, pady=8)
-        ttk.Button(btn_row, text="선택 제외",
+        ttk.Button(btn_row, text=_tr(lang, "btn_remove_selected"),
                    command=self._remove_selected).pack(side="left")
-        ttk.Button(btn_row, text="취소", command=self._cancel).pack(side="right")
-        ttk.Button(btn_row, text="확인", command=self._ok).pack(side="right", padx=(0, 6))
+        ttk.Button(btn_row, text=_tr(lang, "btn_cancel"),
+                   command=self._cancel).pack(side="right")
+        ttk.Button(btn_row, text=_tr(lang, "btn_ok"),
+                   command=self._ok).pack(side="right", padx=(0, 6))
         dlg.protocol("WM_DELETE_WINDOW", self._cancel)
         parent.wait_window(dlg)
 

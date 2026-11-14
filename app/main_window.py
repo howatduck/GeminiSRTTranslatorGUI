@@ -90,7 +90,7 @@ def _output_base_name(src_path):
     return stem
 
 
-def _skipped_videos_notice(videos_without_subs):
+def _skipped_videos_notice(videos_without_subs, lang="ko"):
     """자막이 없어 건너뛴 영상을 알리는 로그 문구. 없으면 None.
 
     추출된 자막이 있어 번역으로 진행하는 분기에서는 자막 없는 영상이
@@ -99,10 +99,9 @@ def _skipped_videos_notice(videos_without_subs):
     if not videos_without_subs:
         return None
     names = ", ".join(os.path.basename(v) for v in videos_without_subs)
-    return (
-        f"  → 내장 자막이 없어 건너뛴 영상 {len(videos_without_subs)}개: {names} "
-        f"(전사 모드로 따로 실행하세요)"
-    )
+    template = I18N.get(lang, I18N["ko"]).get(
+        "ext_skipped_notice", I18N["ko"]["ext_skipped_notice"])
+    return template.format(count=len(videos_without_subs), names=names)
 
 
 # =====================================================================
@@ -144,16 +143,12 @@ class TranslatorApp(QWidget):
         if GST_IMPORT_ERROR or GENAI_IMPORT_ERROR:
             msg = ""
             if GST_IMPORT_ERROR:
-                msg += (
-                    "gemini-srt-translator 로드 실패 → '작업 시작' 버튼이 비활성화됩니다.\n"
-                    f"오류 내용: {GST_IMPORT_ERROR}\n\n"
-                )
+                msg += self.tr_str(
+                    "warn_gst_failed", error=GST_IMPORT_ERROR) + "\n\n"
             if GENAI_IMPORT_ERROR:
-                msg += (
-                    "google-genai 로드 실패 → '모델 가져오기' 버튼이 비활성화됩니다.\n"
-                    f"오류 내용: {GENAI_IMPORT_ERROR}\n"
-                )
-            QMessageBox.warning(self, "라이브러리 로드 경고", msg)
+                msg += self.tr_str(
+                    "warn_genai_failed", error=GENAI_IMPORT_ERROR) + "\n"
+            QMessageBox.warning(self, self.tr_str("warn_library_title"), msg)
 
     def tr_str(self, key, **kwargs):
         lang = getattr(self, "app_lang", "ko")
@@ -169,6 +164,15 @@ class TranslatorApp(QWidget):
         self.app_lang = "ko" if index == 0 else "en"
         self.update_ui_language()
         self.save_settings()
+
+    def _form_caption(self, key, form_layout):
+        """addRow가 만든 캡션 라벨을 언어 전환 재적용 대상으로 등록."""
+        if not hasattr(self, "_form_captions"):
+            self._form_captions = {}
+        item = form_layout.itemAt(
+            form_layout.rowCount() - 1, QFormLayout.ItemRole.LabelRole)
+        if item is not None and item.widget() is not None:
+            self._form_captions[key] = item.widget()
 
     def update_ui_language(self):
         self.setWindowTitle(self.tr_str("app_title"))
@@ -360,6 +364,40 @@ class TranslatorApp(QWidget):
         if hasattr(self, 'cmb_signature_pos'):
             self.cmb_signature_pos.setItemText(0, self.tr_str("sig_pos_start"))
             self.cmb_signature_pos.setItemText(1, self.tr_str("sig_pos_end"))
+        if hasattr(self, 'chk_model_fallback'):
+            self.chk_model_fallback.setToolTip(
+                self.tr_str("chk_model_fallback_tt"))
+        if hasattr(self, 'btn_model_order'):
+            self.btn_model_order.setToolTip(self.tr_str("btn_model_order_tt"))
+        if hasattr(self, 'chk_show_all_models'):
+            self.chk_show_all_models.setText(self.tr_str("chk_show_all_models"))
+            self.chk_show_all_models.setToolTip(
+                self.tr_str("chk_show_all_models_tt"))
+        if hasattr(self, 'lbl_batch_step_down'):
+            self.lbl_batch_step_down.setText(self.tr_str("lbl_batch_step_down"))
+        if hasattr(self, 'lbl_batch_floor'):
+            self.lbl_batch_floor.setText(self.tr_str("lbl_batch_floor"))
+        if hasattr(self, 'lbl_fallback_help'):
+            self.lbl_fallback_help.setText(
+                self.tr_str("lbl_fallback_retry_help"))
+        if hasattr(self, 'spin_batch_step_down'):
+            self.spin_batch_step_down.setSpecialValueText(
+                self.tr_str("spin_step_down_off"))
+            self.spin_batch_step_down.setToolTip(
+                self.tr_str("spin_step_down_tt"))
+        if hasattr(self, 'spin_batch_floor'):
+            self.spin_batch_floor.setToolTip(
+                self.tr_str("spin_batch_floor_tt"))
+        if hasattr(self, 'chk_show_failure_help'):
+            self.chk_show_failure_help.setToolTip(
+                self.tr_str("chk_show_failure_help_tt"))
+        if hasattr(self, 'chk_signature'):
+            self.chk_signature.setToolTip(self.tr_str("chk_signature_tt"))
+        if hasattr(self, 'txt_signature'):
+            self.txt_signature.setPlaceholderText(
+                self.tr_str("signature_template_ph"))
+        for _cap_key, _cap_lbl in getattr(self, '_form_captions', {}).items():
+            _cap_lbl.setText(self.tr_str(_cap_key))
         if hasattr(self, 'btn_adv_close'):
             self.btn_adv_close.setText(self.tr_str("btn_close"))
 
@@ -921,6 +959,7 @@ class TranslatorApp(QWidget):
         adaptive_layout.addWidget(self.lbl_adaptive_help)
         adaptive_layout.addStretch()
         main_form_layout.addRow("적응형 복구:", adaptive_layout)
+        self._form_caption("lbl_adaptive_section", main_form_layout)
 
         fallback_layout = QHBoxLayout()
         self.lbl_batch_step_down = QLabel("배치 감소폭:")
@@ -948,6 +987,7 @@ class TranslatorApp(QWidget):
         fallback_layout.addWidget(self.lbl_fallback_help)
         fallback_layout.addStretch()
         main_form_layout.addRow("작업 폴백:", fallback_layout)
+        self._form_caption("lbl_job_fallback_section", main_form_layout)
 
         model_list_layout = QHBoxLayout()
         self.chk_show_all_models = QCheckBox("모든 모델 표시 (번역 불가 모델 포함)")
@@ -959,6 +999,7 @@ class TranslatorApp(QWidget):
         model_list_layout.addWidget(self.chk_show_all_models)
         model_list_layout.addStretch()
         main_form_layout.addRow("모델 목록:", model_list_layout)
+        self._form_caption("lbl_model_list_section", main_form_layout)
 
         box1 = QHBoxLayout()
         self.chk_streaming = QCheckBox("스트리밍")
@@ -1057,6 +1098,7 @@ class TranslatorApp(QWidget):
             lambda text: self._sync_signature_config())
         sig_layout.addWidget(self.txt_signature, 1)
         main_form_layout.addRow("자막 서명:", sig_layout)
+        self._form_caption("lbl_signature_section", main_form_layout)
 
         dialog_layout.addLayout(main_form_layout)
         self._align_advanced_dialog(main_form_layout, tuning_grid_layout)
@@ -1200,12 +1242,9 @@ class TranslatorApp(QWidget):
                     and (is_text_model(m) or self._all_models_allowed())):
                 ordered.append(m)
         dlg = QDialog(self)
-        dlg.setWindowTitle("모델 폴백 우선순위")
+        dlg.setWindowTitle(self.tr_str("mp_title"))
         layout = QVBoxLayout(dlg)
-        layout.addWidget(QLabel(
-            "위에서부터 순서대로 시도합니다. 작업이 실패하면 다음 모델로\n"
-            "자동 전환됩니다. 항목을 드래그해서 순서를 바꾸고, 체크를 끄면\n"
-            "그 모델은 건너뜁니다 (목록에는 남아 순서가 유지됩니다)."))
+        layout.addWidget(QLabel(self.tr_str("mp_desc")))
         lst = QListWidget()
         lst.setDragDropMode(QAbstractItemView.DragDropMode.InternalMove)
         disabled = set(getattr(self, 'model_fallback_disabled', []) or [])
@@ -1227,11 +1266,11 @@ class TranslatorApp(QWidget):
         lst.itemChanged.connect(_restyle)
         layout.addWidget(lst)
         btn_row = QHBoxLayout()
-        btn_remove = QPushButton("선택 제외")
+        btn_remove = QPushButton(self.tr_str("btn_remove_selected"))
         btn_row.addWidget(btn_remove)
         btn_row.addStretch()
-        btn_ok = QPushButton("확인")
-        btn_cancel = QPushButton("취소")
+        btn_ok = QPushButton(self.tr_str("btn_ok"))
+        btn_cancel = QPushButton(self.tr_str("btn_cancel"))
         btn_row.addWidget(btn_ok)
         btn_row.addWidget(btn_cancel)
         layout.addLayout(btn_row)
@@ -1317,7 +1356,7 @@ class TranslatorApp(QWidget):
 
     def select_video_file(self):
         files, _ = QFileDialog.getOpenFileNames(
-            self, "비디오 파일 선택 (다중 선택 가능)",
+            self, self.tr_str("fd_select_video_multi"),
             self.settings.value("last_media_dir", self.output_dir),
             "Video Files (*.mp4 *.mkv *.avi *.mov *.webm *.flv *.wmv);;All Files (*)"
         )
@@ -1332,7 +1371,7 @@ class TranslatorApp(QWidget):
 
     def select_audio_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
-            self, "오디오 파일 선택",
+            self, self.tr_str("fd_select_audio"),
             self.settings.value("last_media_dir", self.output_dir),
             "Audio Files (*.mp3 *.wav *.aac *.m4a *.ogg *.flac *.wma);;All Files (*)"
         )
@@ -1345,7 +1384,7 @@ class TranslatorApp(QWidget):
     def select_input_files(self):
         last_input_dir = self.settings.value("last_input_dir", self.output_dir)
         files, _ = QFileDialog.getOpenFileNames(
-            self, "SRT/ASS 파일 선택", last_input_dir,
+            self, self.tr_str("fd_select_subtitle"), last_input_dir,
             "Subtitle Files (*.srt *.ass);;All Files (*)"
         )
         if files:
@@ -1359,7 +1398,8 @@ class TranslatorApp(QWidget):
             self.settings.setValue("last_input_dir", os.path.dirname(files[0]))
 
     def select_output_directory(self):
-        directory = QFileDialog.getExistingDirectory(self, "출력 폴더 선택", self.output_dir)
+        directory = QFileDialog.getExistingDirectory(
+            self, self.tr_str("fd_select_output"), self.output_dir)
         if directory:
             self.output_dir = directory
             self.lbl_out.setText(directory)
@@ -1690,9 +1730,8 @@ class TranslatorApp(QWidget):
 
         if self.translation_worker and self.translation_worker.isRunning():
             reply = QMessageBox.question(
-                self, '종료 확인',
-                "작업이 진행 중입니다. 프로그램을 종료하시겠습니까?\n\n"
-                "(현재 작업은 중단되며, 재개 기능으로 나중에 이어서 할 수 있습니다.)",
+                self, self.tr_str("dlg_exit_title"),
+                self.tr_str("dlg_exit_msg"),
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                 QMessageBox.StandardButton.No
             )
@@ -1712,11 +1751,15 @@ class TranslatorApp(QWidget):
 
     def fetch_models(self):
         if not genai:
-            QMessageBox.critical(self, "오류", "'google-genai' 필요")
+            QMessageBox.critical(
+                self, self.tr_str("dlg_error_title"),
+                self.tr_str("msg_genai_required"))
             return
         api_key = self.api_key_inputs[0].text().strip()
         if not api_key:
-            QMessageBox.warning(self, "API 키 필요", "기본 API 키(1)가 필요합니다.")
+            QMessageBox.warning(
+                self, self.tr_str("dlg_need_api_key_title"),
+                self.tr_str("dlg_need_api_key_msg"))
             return
 
         if self.model_fetcher_thread and self.model_fetcher_thread.isRunning():
@@ -1724,11 +1767,11 @@ class TranslatorApp(QWidget):
 
         self.log_output.clear_screen()
         QApplication.processEvents()
-        self.append_log("모델 목록 가져오는 중...")
+        self.append_log(self.tr_str("log_fetching_models"))
         self.btn_fetch.setEnabled(False)
 
         self.model_fetcher_thread = ModelFetcherThread(
-            api_key=api_key, include_all=self._all_models_allowed())
+            api_key=api_key, include_all=self._all_models_allowed(), lang=self.app_lang)
         self.model_fetcher_thread.models_fetched.connect(self.update_model_list)
         self.model_fetcher_thread.error_occurred.connect(self.handle_fetch_error)
         self.model_fetcher_thread.finished.connect(self._on_fetch_finished)
@@ -1825,8 +1868,7 @@ class TranslatorApp(QWidget):
                             f"{hashlib.sha1(os.path.abspath(src_file_path).encode('utf-8')).hexdigest()[:8]}"
                         )
                         self.append_log(
-                            f"\x1b[33m  ⚠ 동일 파일명 충돌: '{os.path.basename(src_file_path)}' → "
-                            f"출력 파일명을 '{out_base}'로 구분합니다\x1b[0m"
+                            f"\x1b[33m{self.tr_str('ext_collision', name=os.path.basename(src_file_path), out=out_base)}\x1b[0m"
                         )
                     tag = "_transcribed" if is_transcribe_mode else ""
                     if append_lang or len(target_languages) > 1:
@@ -1854,8 +1896,7 @@ class TranslatorApp(QWidget):
                     ):
                         self.skipped_completed_jobs += 1
                         self.append_log(
-                            f"\x1b[32m  ✔ [스킵] '{os.path.basename(output_filepath)}' "
-                            f"이미 번역 완료 → 생략\x1b[0m"
+                            f"\x1b[32m{self.tr_str('ext_skip_done', name=os.path.basename(output_filepath))}\x1b[0m"
                         )
                         continue
 
@@ -1867,9 +1908,9 @@ class TranslatorApp(QWidget):
     def start_translation(self):
         if not gst:
             QMessageBox.critical(
-                self, "오류",
-                "'gemini-srt-translator' 라이브러리를 불러올 수 없습니다.\n"
-                f"{GST_IMPORT_ERROR or ''}"
+                self, self.tr_str("dlg_error_title"),
+                self.tr_str("msg_library_unavailable")
+                + f"{GST_IMPORT_ERROR or ''}"
             )
             return
 
@@ -1877,7 +1918,9 @@ class TranslatorApp(QWidget):
             k.text().strip() for k in self.api_key_inputs if k.text().strip()
         ]
         if not valid_api_keys_from_ui:
-            QMessageBox.warning(self, "API 키", "API 키를 하나 이상 입력해야 합니다.")
+            QMessageBox.warning(
+                self, self.tr_str("msg_api_key_title"),
+                self.tr_str("msg_api_key_required"))
             return
 
         # 새 작업 시작 전 이전 로그 및 터미널 화면 초기화
@@ -1901,7 +1944,9 @@ class TranslatorApp(QWidget):
 
         selected_languages = self.cmb_langs.checked_items()
         if not selected_languages:
-            QMessageBox.warning(self, "언어 선택", "대상 언어를 하나 이상 선택하세요.")
+            QMessageBox.warning(
+                self, self.tr_str("dlg_need_lang_title"),
+                self.tr_str("dlg_need_lang_msg"))
             return
 
         if not self.output_dir or not os.path.isdir(self.output_dir):
@@ -1909,7 +1954,8 @@ class TranslatorApp(QWidget):
                 os.makedirs(self.output_dir, exist_ok=True)
             except OSError as e:
                 QMessageBox.critical(
-                    self, "출력 폴더 오류", f"출력 폴더를 생성할 수 없습니다:\n{e}"
+                    self, self.tr_str("dlg_need_output_err_title"),
+                    self.tr_str("dlg_need_output_err_msg", err=e)
                 )
                 return
 
@@ -1924,7 +1970,8 @@ class TranslatorApp(QWidget):
                 media_type_for_jobs = 'audio'
             else:
                 QMessageBox.warning(
-                    self, "미디어 필요", "전사(Transcribe)할 대상 비디오/오디오 파일을 선택하세요."
+                    self, self.tr_str("dlg_need_media_title"),
+                    self.tr_str("dlg_need_media_msg")
                 )
                 return
         else:
@@ -1955,7 +2002,7 @@ class TranslatorApp(QWidget):
 
                 self.progress_bar.setRange(0, 100)
                 self.progress_bar.setValue(0)
-                self.progress_bar.setFormat("자막 트랙 검사 중... (0%)")
+                self.progress_bar.setFormat(self.tr_str("ext_inspecting"))
                 QApplication.processEvents()
 
                 for v_idx, vpath in enumerate(valid_video_paths):
@@ -1964,16 +2011,16 @@ class TranslatorApp(QWidget):
                     plain_stem = os.path.splitext(os.path.basename(vpath))[0]
                     save_stem = (v_basename if _plain_stem_counts.get(
                         plain_stem.lower(), 0) > 1 else plain_stem)
-                    self.append_log(f"\x1b[34m[자막 트랙 검사 ({v_idx+1}/{total_vids})] '{os.path.basename(vpath)}' 분석 중...\x1b[0m")
+                    self.append_log(f"\x1b[34m{self.tr_str('ext_inspect_header', idx=v_idx + 1, total=total_vids, name=os.path.basename(vpath))}\x1b[0m")
                     QApplication.processEvents()
                     streams = _get_video_subtitle_streams(vpath)
 
                     if not streams:
-                        self.append_log(f"\x1b[33m  → 내장 자막 트랙 없음\x1b[0m")
+                        self.append_log(f"\x1b[33m{self.tr_str('ext_no_tracks')}\x1b[0m")
                         videos_without_subs.append(vpath)
                         overall_pct = int(((v_idx + 1) / total_vids) * 100)
                         self.progress_bar.setValue(overall_pct)
-                        self.progress_bar.setFormat(f"자막 트랙 검사 중... ({v_idx+1}/{total_vids}) ({overall_pct}%)")
+                        self.progress_bar.setFormat(self.tr_str("ext_inspect_progress", idx=v_idx + 1, total=total_vids, pct=overall_pct))
                         QApplication.processEvents()
                         continue
 
@@ -1986,7 +2033,7 @@ class TranslatorApp(QWidget):
                                 vid_prog = (video_index + (pct / 100.0)) / total_vids
                                 overall_pct = int(min(100.0, max(0.0, vid_prog * 100.0)))
                                 self.progress_bar.setValue(overall_pct)
-                                self.progress_bar.setFormat(f"[{video_index+1}/{total_vids}] 자막 추출 중: {pct:.1f}% ({overall_pct}%)")
+                                self.progress_bar.setFormat(self.tr_str("ext_extract_progress", idx=video_index + 1, total=total_vids, pct=f"{pct:.1f}", overall=overall_pct))
                                 QApplication.processEvents()
                         return _cb
 
@@ -2004,27 +2051,27 @@ class TranslatorApp(QWidget):
                         if reuse_extracted and os.path.exists(out_direct) and os.path.getsize(out_direct) > 0:
                             saved_direct_count += 1
                             self.append_log(
-                                f"\x1b[32m  ✔ [재사용] 목표 언어({target_matched_lang}) 자막 '{os.path.basename(out_direct)}' 이미 존재 → 추출 생략\x1b[0m"
+                                f"\x1b[32m{self.tr_str('ext_reuse_target', lang=target_matched_lang, name=os.path.basename(out_direct))}\x1b[0m"
                             )
                         else:
-                            self.append_log(f"\x1b[36m  → 목표 언어({target_matched_lang}) 트랙 #{stream_idx} 발견!{' [SDH]' if _is_sdh_stream(same_lang_stream) else ''} 추출 중...\x1b[0m")
+                            self.append_log(f"\x1b[36m{self.tr_str('ext_target_found', lang=target_matched_lang, idx=stream_idx, sdh=' [SDH]' if _is_sdh_stream(same_lang_stream) else '')}\x1b[0m")
                             QApplication.processEvents()
                             cb = make_progress_cb(v_idx, os.path.basename(vpath))
                             if _extract_subtitle_track(vpath, stream_idx, out_direct, progress_callback=cb):
                                 saved_direct_count += 1
                                 self.append_log(
-                                    f"\x1b[32m  ✔ [추출 완료] 번역 불필요: '{os.path.basename(out_direct)}' 저장됨\x1b[0m"
+                                    f"\x1b[32m{self.tr_str('ext_extracted_direct', name=os.path.basename(out_direct))}\x1b[0m"
                                 )
                             else:
                                 # 번역용 분기(2번)와 달리 실패 시 아무 처리도 없어
                                 # 영상이 조용히 누락됐었다. 전사 질의 대상으로 넘긴다.
                                 self.append_log(
-                                    f"\x1b[31m  ✘ [추출 실패] 목표 언어({target_matched_lang}) 자막 추출 실패 → 전사 질의 대상으로 이동\x1b[0m"
+                                    f"\x1b[31m{self.tr_str('ext_extract_failed', lang=target_matched_lang)}\x1b[0m"
                                 )
                                 videos_without_subs.append(vpath)
                         overall_pct = int(((v_idx + 1) / total_vids) * 100)
                         self.progress_bar.setValue(overall_pct)
-                        self.progress_bar.setFormat(f"자막 트랙 검사/추출 완료 ({v_idx+1}/{total_vids}) ({overall_pct}%)")
+                        self.progress_bar.setFormat(self.tr_str("ext_done_progress", idx=v_idx + 1, total=total_vids, pct=overall_pct))
                         QApplication.processEvents()
                         continue
 
@@ -2036,45 +2083,45 @@ class TranslatorApp(QWidget):
                     temp_srt_path = os.path.join(self.output_dir, f"{v_basename}_extracted.srt")
                     reuse_extracted = self.chk_reuse_extracted.isChecked()
                     if reuse_extracted and os.path.exists(temp_srt_path) and os.path.getsize(temp_srt_path) > 0:
-                        self.append_log(f"\x1b[32m  ✔ [재사용] '{os.path.basename(temp_srt_path)}' 이미 존재 → 재추출 생략\x1b[0m")
+                        self.append_log(f"\x1b[32m{self.tr_str('ext_reuse', name=os.path.basename(temp_srt_path))}\x1b[0m")
                         extracted_sub_files.append((temp_srt_path, vpath))
                     else:
-                        self.append_log(f"\x1b[36m  → 자막 트랙 #{stream_idx} 추출 중: '{os.path.basename(temp_srt_path)}'{' [SDH]' if _is_sdh_stream(best_stream) else ''}...\x1b[0m")
+                        self.append_log(f"\x1b[36m{self.tr_str('ext_extracting', idx=stream_idx, name=os.path.basename(temp_srt_path), sdh=' [SDH]' if _is_sdh_stream(best_stream) else '')}\x1b[0m")
                         QApplication.processEvents()
                         cb = make_progress_cb(v_idx, os.path.basename(vpath))
                         if _extract_subtitle_track(vpath, stream_idx, temp_srt_path, progress_callback=cb):
                             extracted_sub_files.append((temp_srt_path, vpath))
                             self.append_log(
-                                f"\x1b[32m  ✔ [추출 완료] '{os.path.basename(temp_srt_path)}' 추출 완료 → 번역 대상으로 등록됨\x1b[0m"
+                                f"\x1b[32m{self.tr_str('ext_extracted', name=os.path.basename(temp_srt_path))}\x1b[0m"
                             )
                         else:
                             videos_without_subs.append(vpath)
 
                     overall_pct = int(((v_idx + 1) / total_vids) * 100)
                     self.progress_bar.setValue(overall_pct)
-                    self.progress_bar.setFormat(f"자막 트랙 검사/추출 완료 ({v_idx+1}/{total_vids}) ({overall_pct}%)")
+                    self.progress_bar.setFormat(self.tr_str("ext_done_progress", idx=v_idx + 1, total=total_vids, pct=overall_pct))
                     QApplication.processEvents()
 
                 if extracted_sub_files:
                     primary_input_source_for_jobs = [item[0] for item in extracted_sub_files]
                     valid_video_paths = [item[1] for item in extracted_sub_files]
                     self.extracted_temp_files = [item[0] for item in extracted_sub_files]
-                    notice = _skipped_videos_notice(videos_without_subs)
+                    notice = _skipped_videos_notice(
+                        videos_without_subs, self.app_lang)
                     if notice:
                         self.append_log(f"\x1b[33m{notice}\x1b[0m")
                 elif saved_direct_count > 0 and not videos_without_subs:
                     QMessageBox.information(
-                        self, "완료",
-                        f"선택한 영상의 내장 자막({saved_direct_count}개)이 목표 언어와 일치하여 번역 없이 바로 추출/저장되었습니다."
+                        self, self.tr_str("msg_all_done_title"),
+                        self.tr_str("ext_direct_saved_body", count=saved_direct_count)
                     )
                     return
                 else:
                     # 내장 자막이 없는 경우 -> 오디오 전사 여부 질의
                     ret = QMessageBox.question(
                         self,
-                        "오디오 전사(Transcribe) 확인",
-                        "선택한 비디오 파일에 추출 가능한 내장 자막 트랙이 없습니다.\n\n"
-                        "비디오에서 오디오를 추출하여 [전사(Transcribe)] 방식으로 자막을 생성할까요?",
+                        self.tr_str("dlg_transcribe_title"),
+                        self.tr_str("msg_no_embedded_tracks"),
                         QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                         QMessageBox.StandardButton.Yes
                     )
@@ -2089,22 +2136,29 @@ class TranslatorApp(QWidget):
                         return
             else:
                 QMessageBox.warning(
-                    self, "파일 필요", "번역할 SRT/ASS 자막 파일 또는 비디오 파일을 선택하세요."
+                    self, self.tr_str("dlg_need_file_title"),
+                    self.tr_str("dlg_need_file_msg")
                 )
                 return
 
         selected_model = self.cmb_model.currentText()
         if not selected_model:
-            QMessageBox.warning(self, "모델 선택", "사용할 모델을 선택하세요.")
+            QMessageBox.warning(
+                self, self.tr_str("dlg_need_model_title"),
+                self.tr_str("dlg_need_model_msg"))
             return
 
         selected_languages = self.cmb_langs.checked_items()
         if not selected_languages:
-            QMessageBox.warning(self, "언어 선택", "대상 언어를 하나 이상 선택하세요.")
+            QMessageBox.warning(
+                self, self.tr_str("dlg_need_lang_title"),
+                self.tr_str("dlg_need_lang_msg"))
             return
 
         if self.translation_worker and self.translation_worker.isRunning():
-            QMessageBox.information(self, "작업 중", "이미 작업이 진행 중입니다.")
+            QMessageBox.information(
+                self, self.tr_str("dlg_in_progress_title"),
+                self.tr_str("dlg_in_progress_msg"))
             return
 
         self.save_settings()
@@ -2117,12 +2171,13 @@ class TranslatorApp(QWidget):
         if not jobs:
             if skipped_count:
                 QMessageBox.information(
-                    self, "완료",
-                    f"선택한 작업 {skipped_count}개가 모두 이미 번역 완료 상태입니다.\n"
-                    "새로 실행할 작업이 없습니다."
+                    self, self.tr_str("msg_all_done_title"),
+                    self.tr_str("msg_all_done_body", count=skipped_count)
                 )
             else:
-                QMessageBox.warning(self, "작업 생성 실패", "생성된 작업이 없습니다.")
+                QMessageBox.warning(
+                    self, self.tr_str("dlg_job_failed_title"),
+                    self.tr_str("dlg_job_failed_msg"))
             return
 
         self.job_queue = queue.Queue()
@@ -2219,7 +2274,8 @@ class TranslatorApp(QWidget):
         self._stop_requested = False
 
         self.translation_worker = TranslationWorker(
-            valid_api_keys_from_ui, self.job_queue, base_config
+            valid_api_keys_from_ui, self.job_queue, base_config,
+            lang=self.app_lang
         )
         self.translation_worker.progress_update.connect(self.log_output.feed)
         self.translation_worker.raw_output_update.connect(self.log_output.feed)
@@ -2311,7 +2367,7 @@ class TranslatorApp(QWidget):
             return
         self.btn_update_check.setEnabled(False)
         self.btn_update_check.setText(self.tr_str("btn_update_checking"))
-        self.update_check_thread = UpdateCheckThread()
+        self.update_check_thread = UpdateCheckThread(lang=self.app_lang)
         self.update_check_thread.check_done.connect(self._on_update_check_done)
         self.update_check_thread.error_occurred.connect(self._on_update_check_error)
         self.update_check_thread.finished.connect(self._on_update_check_finished)
@@ -2485,9 +2541,10 @@ class TranslatorApp(QWidget):
         failed_count = getattr(self, 'failed_jobs', 0)
         translated_count = max(
             0, self.completed_jobs - skipped_count - failed_count)
-        summary = f"  요약: 번역 {translated_count}개 · 스킵 {skipped_count}개"
+        summary = self.tr_str(
+            "log_summary_counts", done=translated_count, skipped=skipped_count)
         if failed_count:
-            summary += f" · 실패 {failed_count}개"
+            summary += self.tr_str("log_summary_failed", failed=failed_count)
         self.append_log(summary)
 
         # 실패가 있으면 원인 추정과 해결 안내를 남기고, 종료 정리 뒤에
@@ -2496,9 +2553,9 @@ class TranslatorApp(QWidget):
         if failed_count and not self._stop_requested:
             try:
                 label, advice = failure_advice(
-                    getattr(self, 'last_job_errors', []))
+                    getattr(self, 'last_job_errors', []), lang=self.app_lang)
                 self.append_log(
-                    f"\x1b[33m  실패 {failed_count}개 — 원인 추정: {label}\x1b[0m")
+                    f"\x1b[33m{self.tr_str('log_failed_detail', count=failed_count, label=label)}\x1b[0m")
                 for line in advice:
                     self.append_log(f"\x1b[33m  · {line}\x1b[0m")
                 self._failure_help_pending = failed_count
@@ -2568,17 +2625,18 @@ class TranslatorApp(QWidget):
 
         재시작하면 완료된 작업은 자동 스킵되고 실패분만 이어서 진행된다.
         """
-        label, advice = failure_advice(getattr(self, 'last_job_errors', []))
+        label, advice = failure_advice(
+            getattr(self, 'last_job_errors', []), lang=self.app_lang)
         box = QMessageBox(self)
         box.setIcon(QMessageBox.Icon.Warning)
-        box.setWindowTitle("작업 실패 안내")
+        box.setWindowTitle(self.tr_str("fail_title"))
         box.setText(
-            f"{failed_count}개 작업이 실패했습니다. (원인 추정: {label})")
+            self.tr_str("fail_summary", count=failed_count, label=label))
         box.setInformativeText(
             "\n".join(f"• {line}" for line in advice)
-            + "\n\n다시 시도하면 완료된 작업은 건너뛰고 실패한 작업만 이어서 진행됩니다.")
+            + self.tr_str("fail_retry_note"))
         btn_retry = box.addButton(
-            "다시 시도", QMessageBox.ButtonRole.AcceptRole)
+            self.tr_str("btn_retry"), QMessageBox.ButtonRole.AcceptRole)
         # 모델 변경 후보: lite가 아닌 다른 모델을 우선 고른다
         btn_model = None
         model_idx = -1
@@ -2599,14 +2657,17 @@ class TranslatorApp(QWidget):
                 model_idx = fallback_idx
             if model_idx >= 0:
                 btn_model = box.addButton(
-                    "모델 변경 후 재시도", QMessageBox.ButtonRole.ActionRole)
+                    self.tr_str("btn_retry_model"),
+                    QMessageBox.ButtonRole.ActionRole)
         # 배치 축소 후보: 현재 값의 절반 (최소 10)
         btn_batch = None
         spin = getattr(self, 'spin_batch', None)
         if spin is not None and spin.value() > 10:
             btn_batch = box.addButton(
-                "배치 크기 절반으로 재시도", QMessageBox.ButtonRole.ActionRole)
-        box.addButton("닫기", QMessageBox.ButtonRole.RejectRole)
+                self.tr_str("btn_retry_half"),
+                QMessageBox.ButtonRole.ActionRole)
+        box.addButton(self.tr_str("btn_close"),
+                      QMessageBox.ButtonRole.RejectRole)
         box.exec()
         clicked = box.clickedButton()
         if clicked is btn_retry:
@@ -2614,11 +2675,11 @@ class TranslatorApp(QWidget):
         elif btn_model is not None and clicked is btn_model:
             combo.setCurrentIndex(model_idx)
             self.append_log(
-                f"\x1b[33m모델을 {combo.itemText(model_idx)}로 변경해 다시 시작합니다.\x1b[0m")
+                f"\x1b[33m{self.tr_str('log_restart_model', model=combo.itemText(model_idx))}\x1b[0m")
             self.start_translation()
         elif btn_batch is not None and clicked is btn_batch:
             new_size = max(10, spin.value() // 2)
             spin.setValue(new_size)
             self.append_log(
-                f"\x1b[33m배치 크기를 {new_size}으로 줄여 다시 시작합니다.\x1b[0m")
+                f"\x1b[33m{self.tr_str('log_restart_batch', size=new_size)}\x1b[0m")
             self.start_translation()

@@ -17,6 +17,13 @@ pytest.importorskip("PyQt6")
 
 from PyQt6.QtWidgets import QApplication
 
+from app.i18n import I18N
+
+
+def _real_tr(key, **kw):
+    text = I18N["ko"].get(key, key)
+    return text.format(**kw) if kw else text
+
 
 @pytest.fixture(scope="module")
 def qapp():
@@ -66,7 +73,8 @@ def _window(qapp, monkeypatch, total=1, skipped=0):
     win.extracted_temp_files = []
     win.chk_keep_extracted = _Check(True)
     win.chk_reuse_extracted = _Check(True)
-    win.tr_str = lambda key, **kw: key
+    win.app_lang = "ko"
+    win.tr_str = _real_tr
     win.logs = []
     win.append_log = lambda msg: win.logs.append(msg)
     win.set_ui_enabled = lambda enabled: None

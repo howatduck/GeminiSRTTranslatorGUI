@@ -22,41 +22,63 @@ def _unwrap(exc: BaseException) -> BaseException:
     return cur
 
 
-def classify_worker_error(exc: BaseException, *, msg_key: str, base_name: str) -> str:
-    """번역/전사 작업 중 발생한 예외를 사용자용 한국어 메시지로 분류한다.
+def classify_worker_error(exc: BaseException, *, msg_key: str, base_name: str,
+                          lang: str = "ko") -> str:
+    """번역/전사 작업 중 발생한 예외를 사용자용 메시지로 분류한다.
 
     순수 함수이므로 I/O나 스레드 상태에 의존하지 않아 단위 테스트가 가능하다.
     분류 규칙은 기존 TranslationWorker의 인라인 체인과 동일하다.
+    영어 메시지도 failure_kind의 판정 키워드(overloaded/429/403/deadline/
+    blocked/schema 등)를 유지해 원인 추정이 언어와 무관하게 동작한다.
     """
     exc = _unwrap(exc)
     err_str = str(exc).lower()
     err_type = type(exc).__name__.lower()
-    err_base = f"작업 실패 ({msg_key}): '{base_name}'"
+    en = lang == "en"
+    err_base = (f"Job failed ({msg_key}): '{base_name}'" if en
+                else f"작업 실패 ({msg_key}): '{base_name}'")
 
     if isinstance(exc, WorkerLibraryExit):
-        return f"{err_base} - AI 모델 과부하(Overloaded 3회) 또는 라이브러리 종료 요청으로 중단됨."
+        return f"{err_base} - " + (
+            "Stopped: model overloaded (Overloaded x3) or library exit requested."
+            if en else
+            "AI 모델 과부하(Overloaded 3회) 또는 라이브러리 종료 요청으로 중단됨.")
     if "blocked" in err_type or "blocked" in err_str:
-        return f"{err_base} - AI 안전 설정 차단."
+        return f"{err_base} - " + (
+            "Blocked by AI safety settings." if en else "AI 안전 설정 차단.")
     if "stop" in err_type and "candidate" in err_type:
-        return f"{err_base} - AI 응답 생성 중단."
+        return f"{err_base} - " + (
+            "AI response generation stopped." if en else "AI 응답 생성 중단.")
     if err_type in ("attributeerror", "typeerror", "indexerror") and (
         "content" in err_str or "candidates" in err_str or "parts" in err_str
     ):
         # 라이브러리 내부 스트림 청크 None 접근 오류 (google-genai SDK 호환성 문제)
-        return f"{err_base} - API 스트림 응답 오류 ({type(exc).__name__}: {exc})"
+        return f"{err_base} - " + (
+            f"API stream response error ({type(exc).__name__}: {exc})" if en else
+            f"API 스트림 응답 오류 ({type(exc).__name__}: {exc})")
     if err_type in ("attributeerror", "typeerror", "indexerror", "keyerror"):
         # 기타 Python 런타임 오류 - 실제 내용을 표시
-        return f"{err_base} - 라이브러리 내부 오류 ({type(exc).__name__}: {exc})"
+        return f"{err_base} - " + (
+            f"Library internal error ({type(exc).__name__}: {exc})" if en else
+            f"라이브러리 내부 오류 ({type(exc).__name__}: {exc})")
     if "content" in err_str or "text" in err_str:
         # ValueError 등 라이브러리의 Schema/응답 검증 실패
-        return f"{err_base} - API 응답 데이터(Schema) 오류 ({exc})"
+        return f"{err_base} - " + (
+            f"API response data (Schema) error ({exc})" if en else
+            f"API 응답 데이터(Schema) 오류 ({exc})")
     if "deadline" in err_str or "504" in err_str:
-        return f"{err_base} - 서버 응답 시간 초과."
+        return f"{err_base} - " + (
+            "Server response deadline exceeded (504)." if en else
+            "서버 응답 시간 초과.")
     if "quota" in err_str or "429" in err_str:
-        return f"{err_base} - API 할당량 고갈 (429)."
+        return f"{err_base} - " + (
+            "API quota exhausted (429)." if en else "API 할당량 고갈 (429).")
     if "permission" in err_str or "403" in err_str:
-        return f"{err_base} - 권한 없음 (API 인증 오류)."
-    return f"{err_base} - 라이브러리 예외: {exc}"
+        return f"{err_base} - " + (
+            "No permission (API authentication error, 403)." if en else
+            "권한 없음 (API 인증 오류).")
+    return f"{err_base} - " + (
+        f"Library exception: {exc}" if en else f"라이브러리 예외: {exc}")
 
 
 # --- 실패 후 안내: 원인 추정 + 해결 가능성 있는 다음 행동 제시 ---
@@ -74,8 +96,17 @@ _FAILURE_KINDS = (
     ("safety", "AI 안전 설정 차단",
      ("안전 설정 차단", "blocked")),
     ("response", "API 응답 처리 오류",
-     ("schema", "스트림 응답 오류", "내부 오류")),
+     ("schema", "스트림 응답 오류", "내부 오류", "stream", "internal error")),
 )
+
+_FAILURE_LABELS_EN = {
+    "overload": "Model server overloaded",
+    "quota": "API quota exhausted",
+    "auth": "API key authentication error",
+    "timeout": "Server response timeout",
+    "safety": "Blocked by AI safety settings",
+    "response": "API response processing error",
+}
 
 _FAILURE_ADVICE = {
     "overload": [
@@ -109,6 +140,38 @@ _FAILURE_ADVICE = {
     ],
 }
 
+_FAILURE_ADVICE_EN = {
+    "overload": [
+        "Please try again in a moment. Server overload is usually temporary.",
+        "Switching the model can help (e.g. flash-lite → flash).",
+        "With a smaller batch size, only the failed segment is retried.",
+    ],
+    "quota": [
+        "Adding more API keys rotates them automatically.",
+        "Try again after the quota resets (usually around midnight).",
+    ],
+    "auth": [
+        "Check that the API key is correct and has access to the model.",
+        "Save the key again and retry.",
+    ],
+    "timeout": [
+        "Please try again in a moment.",
+        "A smaller batch size processes less at once, so timeouts are rarer.",
+    ],
+    "safety": [
+        "That segment appears to have tripped the safety filter.",
+        "Another model may let it through.",
+    ],
+    "response": [
+        "Please retry. If it repeats, changing the model can help.",
+        "If it repeats on the same file, reduce the batch size.",
+    ],
+    "unknown": [
+        "Please retry. Completed jobs are skipped automatically.",
+        "If it repeats, change the model or reduce the batch size.",
+    ],
+}
+
 
 def failure_kind(message):
     """실패 메시지 1건 → 종류 키 (overload/quota/auth/timeout/safety/response/unknown)."""
@@ -119,7 +182,9 @@ def failure_kind(message):
     return "unknown"
 
 
-def failure_kind_label(kind):
+def failure_kind_label(kind, lang="ko"):
+    if lang == "en":
+        return _FAILURE_LABELS_EN.get(kind, "Temporary error")
     for name, label, _keywords in _FAILURE_KINDS:
         if name == kind:
             return label
@@ -131,7 +196,7 @@ def failure_kind_label(kind):
 MODEL_SWITCH_KINDS = frozenset({"overload", "quota", "safety"})
 
 
-def failure_advice(messages):
+def failure_advice(messages, lang="ko"):
     """실패 메시지 목록 → (원인 라벨, 안내 문구 목록).
 
     classify_worker_error가 만든 사용자용 문구를 키워드로 되짚어 대표
@@ -148,4 +213,5 @@ def failure_advice(messages):
         kind = "unknown"
     else:
         kind = max(counts, key=lambda k: (counts[k], last_seen[k]))
-    return failure_kind_label(kind), list(_FAILURE_ADVICE[kind])
+    advice = _FAILURE_ADVICE_EN if lang == "en" else _FAILURE_ADVICE
+    return failure_kind_label(kind, lang), list(advice[kind])

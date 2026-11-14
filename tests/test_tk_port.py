@@ -507,6 +507,86 @@ def _make_tk_app(tmp_path, name="tk-lang.json"):
 
 
 @pytest.mark.skipif(not os.environ.get("DISPLAY"), reason="DISPLAY 없음 (xvfb-run 필요)")
+def test_i18n_key_parity():
+    from app.i18n import I18N
+    assert set(I18N["ko"]) == set(I18N["en"])
+
+
+def test_errors_bilingual_classify_and_advice():
+    from core.errors import classify_worker_error, failure_advice, failure_kind
+
+    class QuotaError(Exception):
+        pass
+
+    en_msg = classify_worker_error(
+        QuotaError("429 quota exceeded"), msg_key="Key 1/2",
+        base_name="a.srt", lang="en")
+    assert en_msg.startswith("Job failed")
+    assert "quota" in en_msg.lower()
+    # 영어 메시지도 종류 판정 키워드를 유지한다
+    assert failure_kind(en_msg) == "quota"
+    label, advice = failure_advice([en_msg], lang="en")
+    assert label == "API quota exhausted"
+    assert advice and all("가" not in line[:1] for line in advice)
+
+    ko_msg = classify_worker_error(
+        QuotaError("429 quota exceeded"), msg_key="키 1/2",
+        base_name="a.srt")
+    assert ko_msg.startswith("작업 실패")
+    label_ko, _ = failure_advice([ko_msg])
+    assert label_ko == "API 할당량 고갈"
+
+
+def test_worker_tr_english():
+    from app.workers import _tr as qt_tr
+    from app_tk.workers import TranslationWorker as TkWorker
+
+    assert qt_tr("en", "wrk_no_genai") == \
+        "The google-genai library is not available."
+    assert qt_tr("ko", "wrk_no_genai") == "google-genai 라이브러리가 없습니다."
+    assert qt_tr("en", "wrk_start", task="Translate", count=2) == \
+        "==== Translate worker started (API keys: 2) ===="
+
+    import queue as _queue
+    worker = TkWorker([], _queue.Queue(), {}, lang="en")
+    assert worker._tr("wrk_job_translate") == "Translate"
+    assert worker._tr("wrk_key_label", index=1, total=3) == "Key 1/3"
+
+
+def test_tk_worker_job_messages_bilingual():
+    """Tk 워커 실행 경로: {key}/{lang} 플레이스홀더 충돌 없이 영어로 찍힌다."""
+    import queue as _queue
+
+    import app_tk.workers as tk_workers
+
+    class _FakeBackend:
+        def __init__(self):
+            self.seen = []
+
+        def run(self, args, mode=None, cancel_token=None):
+            self.seen.append(args["model_name"])
+
+    backend = _FakeBackend()
+    orig = tk_workers.GstAdapter
+    tk_workers.GstAdapter = lambda: backend
+    try:
+        jobs = _queue.Queue()
+        jobs.put(("in.srt", "Korean", "out.ko.srt", False, None, None))
+        worker = tk_workers.TranslationWorker(
+            ["key1"], jobs, {"model_chain": ["m1"], "batch_size": 100},
+            lang="en")
+        logs, oks = [], []
+        worker.progress_update.connect(logs.append)
+        worker.job_translated.connect(lambda p, lang: oks.append(p))
+        worker.run()
+    finally:
+        tk_workers.GstAdapter = orig
+    assert backend.seen == ["m1"]
+    assert oks == ["out.ko.srt"]
+    assert any("worker started" in line for line in logs)
+    assert any("Job start" in line for line in logs)
+
+
 def test_tk_language_switch_retexts_main_window(tmp_path):
     from app.i18n import I18N
     root, app = _make_tk_app(tmp_path)

@@ -16,7 +16,13 @@ pytest.importorskip("PyQt6")
 
 from PyQt6.QtWidgets import QApplication
 
+from app.i18n import I18N
 from app.main_window import _output_base_name
+
+
+def _real_tr(key, **kw):
+    text = I18N["ko"].get(key, key)
+    return text.format(**kw) if kw else text
 
 
 @pytest.fixture(scope="module")
@@ -66,6 +72,8 @@ def _window(qapp, tmp_path):
     import app.main_window as mw
 
     win = mw.TranslatorApp.__new__(mw.TranslatorApp)
+    win.app_lang = "ko"
+    win.tr_str = _real_tr
     win.output_dir = str(tmp_path)
     win.chk_append_lang = _Check(True)
     win.chk_force_retranslate = _Check(False)
