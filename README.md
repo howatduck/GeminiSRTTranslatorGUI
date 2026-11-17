@@ -129,11 +129,13 @@ pyinstaller --clean --noconfirm GeminiSRTTranslator.spec
 ```
 GeminiSRTTranslatorGUI/
 ├── main.py                 # 얇은 진입점
+├── main_tk.py              # Tkinter 진입점 (경량판)
 ├── requirements.txt        # 실행용 의존성
 ├── requirements-dev.txt    # 개발용 의존성
 ├── build_win.bat / .ps1    # Windows 빌드 스크립트
 ├── gen_version_info.py     # 빌드용 버전 리소스 생성
 ├── GeminiSRTTranslator.spec# PyInstaller 스펙
+├── GeminiSRTTranslatorTk.spec# PyInstaller 스펙 (Tkinter·onefile)
 ├── README.md               # 이 문서
 ├── core/                   # 순수 로직
 │   ├── safety.py         # 프로세스 안전 패치
@@ -159,6 +161,15 @@ GeminiSRTTranslatorGUI/
 │   ├── agent_exchange_dialog.py  # 에이전트 파일 교환 다이얼로그
 │   ├── subtitle_tools_dialog.py  # 자막 정리 도구 다이얼로그
 │   └── custom_preset_dialog.py  # 커스텀 프리셋 편집 다이얼로그
+├── app_tk/                 # Tkinter GUI (경량판)
+│   ├── main_window.py      # 메인 윈도우
+│   ├── workers.py          # 번역 워커 스레드
+│   ├── settings.py         # 설정 저장
+│   ├── theme.py            # 테마·스타일
+│   ├── widgets.py          # 공용 위젯
+│   ├── splash.py           # 스플래시 화면
+│   ├── dialogs.py          # 다이얼로그
+│   └── dialogs2.py         # 자막 도구·스킬·에이전트 다이얼로그
 └── tests/                  # pytest 테스트 스위트
 ```
 
@@ -356,11 +367,13 @@ Output: `dist\GeminiSRTTranslator.exe`
 ```
 GeminiSRTTranslatorGUI/
 ├── main.py                 # Thin entry point
+├── main_tk.py              # Tkinter entry point (lightweight build)
 ├── requirements.txt        # Runtime dependencies
 ├── requirements-dev.txt    # Dev dependencies
 ├── build_win.bat / .ps1    # Windows build scripts
 ├── gen_version_info.py     # Version resource generator for builds
 ├── GeminiSRTTranslator.spec# PyInstaller build spec
+├── GeminiSRTTranslatorTk.spec# PyInstaller build spec (Tkinter, onefile)
 ├── README.md               # This document
 ├── core/                   # Pure logic
 │   ├── safety.py         # Process-safety patches
@@ -386,6 +399,15 @@ GeminiSRTTranslatorGUI/
 │   ├── agent_exchange_dialog.py  # Agent file exchange dialog
 │   ├── subtitle_tools_dialog.py  # Subtitle tools dialog
 │   └── custom_preset_dialog.py  # Custom preset edit dialog
+├── app_tk/                 # Tkinter GUI (lightweight build)
+│   ├── main_window.py      # Main window
+│   ├── workers.py          # Translation worker threads
+│   ├── settings.py         # Settings persistence
+│   ├── theme.py            # Theme and styles
+│   ├── widgets.py          # Shared widgets
+│   ├── splash.py           # Splash screen
+│   ├── dialogs.py          # Dialogs
+│   └── dialogs2.py         # Subtitle-tools, skill & agent dialogs
 └── tests/                  # pytest test suite
 ```
 
