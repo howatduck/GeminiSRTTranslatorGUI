@@ -735,6 +735,50 @@ def test_checkable_dropdown_close_button_follows_language(tmp_path):
 
 
 @pytest.mark.skipif(not os.environ.get("DISPLAY"), reason="DISPLAY 없음 (xvfb-run 필요)")
+def test_saved_language_applies_at_startup(tmp_path):
+    """저장된 언어(en)로 시작하면 빌드된 UI가 영어로 뜬다
+    (load_settings가 app_lang만 복원하고 문구를 갱신하지 않던 회귀 방지).
+    설정 파일이 이미 있으면 QSettings 마이그레이션을 타지 않아 결정적이다."""
+    import json
+    from app.i18n import I18N
+    (tmp_path / "tk-saved-en.json").write_text(
+        json.dumps({"app_lang": "en"}), encoding="utf-8")
+    root, app = _make_tk_app(tmp_path, "tk-saved-en.json")
+    try:
+        # 수동 언어 전환 호출 없이, 생성 직후부터 영어 UI여야 한다
+        assert app.btn_start.cget("text") == "🚀 Start Task"
+        assert app.api_group.cget("text") == I18N["en"]["api_group_title"]
+        assert app.vars["app_lang"].get() == "English"
+    finally:
+        root.destroy()
+
+
+@pytest.mark.skipif(not os.environ.get("DISPLAY"), reason="DISPLAY 없음 (xvfb-run 필요)")
+def test_checkable_dropdown_close_button_updates_while_open(tmp_path):
+    """팝업이 열린 채로 언어를 바꾸면 열린 닫기 버튼 문구도 즉시 바뀐다."""
+    import tkinter as tk
+    from tkinter import ttk
+    root, app = _make_tk_app(tmp_path, "tk-close-open.json")
+    try:
+        _fix_start_language(app, "한국어")
+        app.cmb_langs._toggle_popup()
+        root.update_idletasks()
+        try:
+            btns = [w for w in _all_children(app.cmb_langs._popup)
+                    if isinstance(w, ttk.Button)]
+            assert [b.cget("text") for b in btns] == ["닫기"]
+            _fix_start_language(app, "English")
+            root.update_idletasks()
+            btns = [w for w in _all_children(app.cmb_langs._popup)
+                    if isinstance(w, ttk.Button)]
+            assert [b.cget("text") for b in btns] == ["Close"]
+        finally:
+            app.cmb_langs._close_popup()
+    finally:
+        root.destroy()
+
+
+@pytest.mark.skipif(not os.environ.get("DISPLAY"), reason="DISPLAY 없음 (xvfb-run 필요)")
 def test_on_close_skips_wait_when_fetcher_idle(tmp_path):
     """가져오기 스레드가 없으면 대기 없이 바로 닫힌다."""
     root, app = _make_tk_app(tmp_path, "tk-close-idle.json")

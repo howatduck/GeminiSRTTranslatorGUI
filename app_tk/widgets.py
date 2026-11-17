@@ -265,6 +265,7 @@ class CheckableDropdown(ttk.Frame):
         self._placeholder = ""
         self._close_text = ""
         self._popup = None
+        self._close_btn = None
         self._label_var = tk.StringVar(value="")
         self._button = ttk.Button(
             self, textvariable=self._label_var, command=self._toggle_popup)
@@ -291,8 +292,15 @@ class CheckableDropdown(ttk.Frame):
         self._update_text()
 
     def set_close_text(self, text):
-        """팝업 닫기 버튼 문구 (언어 전환 시 호출자가 갱신)."""
+        """팝업 닫기 버튼 문구 (언어 전환 시 호출자가 갱신).
+        팝업이 열려 있으면 열린 버튼 문구도 즉시 갱신한다."""
         self._close_text = text
+        if self._close_btn is not None:
+            try:
+                if self._close_btn.winfo_exists():
+                    self._close_btn.configure(text=text)
+            except Exception:
+                pass
 
     def clear(self):
         self._items.clear()
@@ -356,9 +364,10 @@ class CheckableDropdown(ttk.Frame):
         listbox.bind("<ButtonRelease-1>", on_click)
         btn_row = ttk.Frame(frame)
         btn_row.grid(row=1, column=0, columnspan=2, sticky="ew")
-        ttk.Button(btn_row, text=self._close_text or "닫기",
-                   command=self._close_popup).pack(
-            side="right", padx=4, pady=4)
+        self._close_btn = ttk.Button(
+            btn_row, text=self._close_text or "닫기",
+            command=self._close_popup)
+        self._close_btn.pack(side="right", padx=4, pady=4)
         popup.bind("<Escape>", lambda e: self._close_popup())
         popup.focus_set()
 
@@ -369,6 +378,7 @@ class CheckableDropdown(ttk.Frame):
             except Exception:
                 pass
             self._popup = None
+            self._close_btn = None
 
 
 def enable_file_drop(widget, callback):
