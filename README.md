@@ -162,6 +162,7 @@ GeminiSRTTranslatorGUI/
 │   ├── subtitle_tools_dialog.py  # 자막 정리 도구 다이얼로그
 │   └── custom_preset_dialog.py  # 커스텀 프리셋 편집 다이얼로그
 ├── app_tk/                 # Tkinter GUI (경량판)
+│   ├── __init__.py          # 패키지 docstring
 │   ├── main_window.py      # 메인 윈도우
 │   ├── workers.py          # 번역 워커 스레드
 │   ├── settings.py         # 설정 저장
@@ -400,6 +401,7 @@ GeminiSRTTranslatorGUI/
 │   ├── subtitle_tools_dialog.py  # Subtitle tools dialog
 │   └── custom_preset_dialog.py  # Custom preset edit dialog
 ├── app_tk/                 # Tkinter GUI (lightweight build)
+│   ├── __init__.py          # Package docstring
 │   ├── main_window.py      # Main window
 │   ├── workers.py          # Translation worker threads
 │   ├── settings.py         # Settings persistence
