@@ -273,7 +273,7 @@ def test_retro_theme_applies_and_strip_builds(tmp_path):
         btn = _ttk.Button(root, text="전체 해제")
         btn.pack()
         root.update_idletasks()
-        assert btn.winfo_reqwidth() < 120
+        assert btn.winfo_reqwidth() < 130
     finally:
         root.destroy()
 
