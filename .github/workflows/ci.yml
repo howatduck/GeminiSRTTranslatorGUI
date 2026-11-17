@@ -18,7 +18,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install system libs (Qt)
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq libegl1
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq libegl1 xvfb
 
       - name: Install dependencies
         run: |
@@ -32,4 +32,4 @@ jobs:
       - name: Run tests
         env:
           QT_QPA_PLATFORM: offscreen
-        run: python -m pytest tests/ -q
+        run: xvfb-run -a python -m pytest tests/ -q
