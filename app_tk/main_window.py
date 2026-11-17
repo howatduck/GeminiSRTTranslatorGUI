@@ -580,6 +580,7 @@ class TranslatorAppTk:
         for lang in TARGET_LANGUAGES:
             self.cmb_langs.addItem(lang)
         self.cmb_langs.set_placeholder_text(self.tr_str("cmb_langs_ph"))
+        self.cmb_langs.set_close_text(self.tr_str("btn_close"))
         self._track(self.cmb_langs._button)
 
         row = ttk.Frame(group)
@@ -1012,7 +1013,8 @@ class TranslatorAppTk:
     # ------------------------------------------------------------------
     # 언어 전환 (PyQt판 update_ui_language의 주요 항목)
     # ------------------------------------------------------------------
-    def _on_app_lang_changed(self, event=None):
+    def _apply_app_language(self):
+        """현재 app_lang을 UI 문구에 재적용 (저장 없음 — 로드 시에도 사용)."""
         self.app_lang = "ko" if self.vars["app_lang"].get() == "한국어" else "en"
         self.root.title(self.tr_str("app_title"))
         self._set_task_mode_items()
@@ -1020,8 +1022,12 @@ class TranslatorAppTk:
         self._update_api_keys_summary()
         self._update_ui_language()
         self.cmb_langs.set_placeholder_text(self.tr_str("cmb_langs_ph"))
+        self.cmb_langs.set_close_text(self.tr_str("btn_close"))
         if getattr(self, "_custom_lang_ph", None) is not None:
             self._custom_lang_ph.configure(text=self.tr_str("custom_lang_ph"))
+
+    def _on_app_lang_changed(self, event=None):
+        self._apply_app_language()
         self.save_settings()
 
     # ------------------------------------------------------------------
@@ -1291,6 +1297,8 @@ class TranslatorAppTk:
 
             self.root.title(self.tr_str("app_title"))
             self.append_log(f"\x1b[32m{self.tr_str('log_settings_loaded')}\x1b[0m")
+            # 저장된 언어로 지어진 UI 문구를 재적용 (미적용 시 초기 한글 잔존)
+            self._apply_app_language()
         except Exception as e:
             self.append_log(f"\x1b[33m[Warning] Settings load error: {e}\x1b[0m")
 
@@ -1367,6 +1375,12 @@ class TranslatorAppTk:
             pass
 
     def _on_close(self):
+        # Qt판 closeEvent 패리티: 모델 가져오기 중이면 최대 2초 대기
+        # (requestInterruption은 플래그만 세우고 차단 중인 list() 호출은
+        # 취소하지 못하므로 best-effort 대기 — 닫기 지연 상한 2초)
+        if self.model_fetcher_thread and self.model_fetcher_thread.isRunning():
+            self.model_fetcher_thread.requestInterruption()
+            self.model_fetcher_thread.wait(2000)
         if self.translation_worker and self.translation_worker.isRunning():
             if not messagebox.askyesno(
                     self.tr_str("dlg_exit_title"),

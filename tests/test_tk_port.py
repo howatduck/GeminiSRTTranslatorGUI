@@ -493,6 +493,29 @@ def _registered(app, key):
     return next(w for w, k, _kw in app._i18n_texts if k == key)
 
 
+def _all_children(widget):
+    """위젯 서브트리 전수 순회 (팝업 내부 버튼 탐색용)."""
+    yield widget
+    for child in widget.winfo_children():
+        yield from _all_children(child)
+
+
+def _fix_start_language(app, lang="한국어"):
+    """테스트 시작 언어 고정 — 마이그레이션된 QSettings가 시작 언어에
+    영향을 주지 않게 명시적으로 설정한다."""
+    app.vars["app_lang"].set(lang)
+    app._on_app_lang_changed()
+
+
+def _root_alive(root):
+    """파괴된 Tk 인터프리터에서는 winfo_exists() 자체가 TclError라 감싼다."""
+    import tkinter as tk
+    try:
+        return bool(root.winfo_exists())
+    except tk.TclError:
+        return False
+
+
 def _make_tk_app(tmp_path, name="tk-lang.json"):
     """언어 전환 테스트용 앱 생성 (기존 창 테스트와 같은 가드 패턴)."""
     tk = pytest.importorskip("tkinter")
@@ -591,6 +614,7 @@ def test_tk_language_switch_retexts_main_window(tmp_path):
     from app.i18n import I18N
     root, app = _make_tk_app(tmp_path)
     try:
+        _fix_start_language(app, "한국어")
         assert app.btn_start.cget("text") == "🚀 작업 시작"
         assert app.api_group.cget("text") == "API 키 설정"
         assert app.advanced_dialog.title() == "고급 설정 및 튜닝 (v3.8.3 기능)"
@@ -649,6 +673,7 @@ def test_tk_dialogs_follow_app_language(tmp_path):
     root, app = _make_tk_app(tmp_path, "tk-lang2.json")
     try:
         # 한글 모드 제목부터 (제목 키가 그대로 노출되는 버그 회귀 방지)
+        _fix_start_language(app, "한국어")
         skill_ko = SkillInstallDialogTk(app.root, app)
         try:
             assert skill_ko.dlg.title() == I18N["ko"]["skill_dialog_title"]
@@ -677,3 +702,75 @@ def test_tk_dialogs_follow_app_language(tmp_path):
             preview._request_close()
     finally:
         root.destroy()
+
+
+@pytest.mark.skipif(not os.environ.get("DISPLAY"), reason="DISPLAY 없음 (xvfb-run 필요)")
+def test_checkable_dropdown_close_button_follows_language(tmp_path):
+    """드롭다운 팝업 닫기 버튼이 앱 언어를 따른다 (하드코딩 '닫기' 회귀 방지)."""
+    import tkinter as tk
+    from tkinter import ttk
+    root, app = _make_tk_app(tmp_path, "tk-close-btn.json")
+    try:
+        _fix_start_language(app, "한국어")
+        app.cmb_langs._toggle_popup()
+        root.update_idletasks()
+        try:
+            btns = [w for w in _all_children(app.cmb_langs._popup)
+                    if isinstance(w, ttk.Button)]
+            assert [b.cget("text") for b in btns] == ["닫기"]
+        finally:
+            app.cmb_langs._close_popup()
+
+        _fix_start_language(app, "English")
+        app.cmb_langs._toggle_popup()
+        root.update_idletasks()
+        try:
+            btns = [w for w in _all_children(app.cmb_langs._popup)
+                    if isinstance(w, ttk.Button)]
+            assert [b.cget("text") for b in btns] == ["Close"]
+        finally:
+            app.cmb_langs._close_popup()
+    finally:
+        root.destroy()
+
+
+@pytest.mark.skipif(not os.environ.get("DISPLAY"), reason="DISPLAY 없음 (xvfb-run 필요)")
+def test_on_close_waits_for_model_fetcher(tmp_path):
+    """종료 시 모델 가져오기 스레드를 최대 2초 대기한다 (Qt closeEvent 패리티)."""
+    root, app = _make_tk_app(tmp_path, "tk-close-fetch.json")
+    try:
+        calls = []
+
+        class _FakeFetcher:
+            def isRunning(self):
+                return True
+
+            def requestInterruption(self):
+                calls.append("interrupt")
+
+            def wait(self, timeout_ms=None):
+                calls.append(("wait", timeout_ms))
+                return True
+
+        app.translation_worker = None
+        app.model_fetcher_thread = _FakeFetcher()
+        app._on_close()
+        assert calls == ["interrupt", ("wait", 2000)]
+        assert not _root_alive(root)
+    finally:
+        if _root_alive(root):
+            root.destroy()
+
+
+@pytest.mark.skipif(not os.environ.get("DISPLAY"), reason="DISPLAY 없음 (xvfb-run 필요)")
+def test_on_close_skips_wait_when_fetcher_idle(tmp_path):
+    """가져오기 스레드가 없으면 대기 없이 바로 닫힌다."""
+    root, app = _make_tk_app(tmp_path, "tk-close-idle.json")
+    try:
+        app.translation_worker = None
+        app.model_fetcher_thread = None
+        app._on_close()
+        assert not _root_alive(root)
+    finally:
+        if _root_alive(root):
+            root.destroy()
