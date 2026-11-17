@@ -1375,12 +1375,6 @@ class TranslatorAppTk:
             pass
 
     def _on_close(self):
-        # Qt판 closeEvent 패리티: 모델 가져오기 중이면 최대 2초 대기
-        # (requestInterruption은 플래그만 세우고 차단 중인 list() 호출은
-        # 취소하지 못하므로 best-effort 대기 — 닫기 지연 상한 2초)
-        if self.model_fetcher_thread and self.model_fetcher_thread.isRunning():
-            self.model_fetcher_thread.requestInterruption()
-            self.model_fetcher_thread.wait(2000)
         if self.translation_worker and self.translation_worker.isRunning():
             if not messagebox.askyesno(
                     self.tr_str("dlg_exit_title"),

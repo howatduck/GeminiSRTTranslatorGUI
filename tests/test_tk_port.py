@@ -735,34 +735,6 @@ def test_checkable_dropdown_close_button_follows_language(tmp_path):
 
 
 @pytest.mark.skipif(not os.environ.get("DISPLAY"), reason="DISPLAY 없음 (xvfb-run 필요)")
-def test_on_close_waits_for_model_fetcher(tmp_path):
-    """종료 시 모델 가져오기 스레드를 최대 2초 대기한다 (Qt closeEvent 패리티)."""
-    root, app = _make_tk_app(tmp_path, "tk-close-fetch.json")
-    try:
-        calls = []
-
-        class _FakeFetcher:
-            def isRunning(self):
-                return True
-
-            def requestInterruption(self):
-                calls.append("interrupt")
-
-            def wait(self, timeout_ms=None):
-                calls.append(("wait", timeout_ms))
-                return True
-
-        app.translation_worker = None
-        app.model_fetcher_thread = _FakeFetcher()
-        app._on_close()
-        assert calls == ["interrupt", ("wait", 2000)]
-        assert not _root_alive(root)
-    finally:
-        if _root_alive(root):
-            root.destroy()
-
-
-@pytest.mark.skipif(not os.environ.get("DISPLAY"), reason="DISPLAY 없음 (xvfb-run 필요)")
 def test_on_close_skips_wait_when_fetcher_idle(tmp_path):
     """가져오기 스레드가 없으면 대기 없이 바로 닫힌다."""
     root, app = _make_tk_app(tmp_path, "tk-close-idle.json")
