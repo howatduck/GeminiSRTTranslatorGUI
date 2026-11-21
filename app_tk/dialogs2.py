@@ -215,11 +215,11 @@ class SubtitlePreviewDialogTk(_DialogBase):
         dlg.geometry("600x300")
         dlg.transient(self.dlg)
         dlg.grab_set()
-        text = tk.Text(dlg, wrap="word", **TEXT_STYLE)
-        text.pack(fill="both", expand=True, padx=8, pady=8)
+        text = tk.Text(dlg, wrap="word", height=8, **TEXT_STYLE)
         text.insert("1.0", entry["text"])
         row = ttk.Frame(dlg)
-        row.pack(fill="x", padx=8, pady=(0, 8))
+        row.pack(side="bottom", fill="x", padx=8, pady=(0, 8))
+        text.pack(fill="both", expand=True, padx=8, pady=8)
 
         def ok():
             new_text = text.get("1.0", "end-1c").strip()
@@ -389,10 +389,10 @@ class SkillInstallDialogTk(_DialogBase):
         self._on_scope_changed()
 
         self.result = tk.Text(dlg, wrap="word", height=8, **TEXT_STYLE)
-        self.result.pack(fill="both", expand=True, padx=8, pady=6)
 
         row = ttk.Frame(dlg)
-        row.pack(fill="x", padx=8, pady=(0, 8))
+        row.pack(side="bottom", fill="x", padx=8, pady=(0, 8))
+        self.result.pack(fill="both", expand=True, padx=8, pady=6)
         self.btn_install = ttk.Button(row, text=self._t("skill_btn_install"),
                                       command=self._do_install)
         self.btn_install.pack(side="right")
@@ -515,13 +515,13 @@ class AgentExchangeDialogTk(_DialogBase):
                   self.btn_reset):
             b.pack(side="left", padx=(0, 4))
 
-        self.result = tk.Text(dlg, wrap="word", **TEXT_STYLE)
-        self.result.pack(fill="both", expand=True, padx=8, pady=6)
+        self.result = tk.Text(dlg, wrap="word", height=8, **TEXT_STYLE)
 
         row = ttk.Frame(dlg)
-        row.pack(fill="x", padx=8, pady=(0, 8))
+        row.pack(side="bottom", fill="x", padx=8, pady=(0, 8))
         ttk.Button(row, text=self._t("btn_close"),
                    command=self._close).pack(side="right")
+        self.result.pack(fill="both", expand=True, padx=8, pady=6)
 
         if agent_bridge.SubtitleSession is None:
             for b in (self.btn_export, self.btn_import, self.btn_status,
@@ -788,17 +788,19 @@ class SubtitleToolsDialogTk(_DialogBase):
                               self.chk_backup]
 
         self.progress = ttk.Progressbar(dlg, maximum=100)
-        self.log = tk.Text(dlg, wrap="word", **TEXT_STYLE)
-        self.log.pack(fill="both", expand=True, padx=8, pady=6)
+        self.log = tk.Text(dlg, wrap="word", height=6, **TEXT_STYLE)
 
+        # 버튼 행을 먼저 하단에 고정한다 — Text 기본 높이(24줄)가 창을
+        # 다 먹어 실행 버튼이 화면 밖으로 밀리던 문제 방지.
         row = ttk.Frame(dlg)
-        row.pack(fill="x", padx=8, pady=(0, 8))
+        row.pack(side="bottom", fill="x", padx=8, pady=(0, 8))
         self.btn_run = ttk.Button(row, text=self._t("subtools_btn_run"),
                                   command=self._run)
         self.btn_run.pack(side="right")
         self.btn_close = ttk.Button(row, text=self._t("btn_close"),
                                     command=self._request_close)
         self.btn_close.pack(side="right", padx=(0, 6))
+        self.log.pack(fill="both", expand=True, padx=8, pady=6)
         self._on_step_changed()
 
     # -- 상태 -------------------------------------------------------------
