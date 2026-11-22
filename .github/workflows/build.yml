@@ -113,6 +113,7 @@ jobs:
           Write-Host "Created $zipNameTk"
 
       - name: Upload artifact
+        if: ${{ !startsWith(github.ref, refs/tags/) }}
         uses: actions/upload-artifact@v7
         with:
           name: GeminiSRTTranslator-Windows-${{ github.ref_name }}
@@ -121,6 +122,7 @@ jobs:
           retention-days: 7
 
       - name: Upload Tk artifact
+        if: ${{ !startsWith(github.ref, refs/tags/) }}
         uses: actions/upload-artifact@v7
         with:
           name: GeminiSRTTranslator-Windows-Tk-${{ github.ref_name }}
