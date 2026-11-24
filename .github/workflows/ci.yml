@@ -27,7 +27,7 @@ jobs:
           pip install -r requirements-dev.txt
 
       - name: Compile check
-        run: python -m py_compile main.py core/*.py app/*.py
+        run: python -m py_compile main.py core/*.py app/*.py app_tk/*.py
 
       - name: Run tests
         env:

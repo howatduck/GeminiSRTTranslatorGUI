@@ -400,6 +400,55 @@ def test_dialog_bottom_buttons_not_clipped(tmp_path, monkeypatch):
 
 
 @pytest.mark.skipif(not os.environ.get("DISPLAY"), reason="DISPLAY 없음 (xvfb-run 필요)")
+def test_dialog_bottom_buttons_not_clipped_more_dialogs(tmp_path, monkeypatch):
+    """SkillInstall 버튼 행과 Preview 편집창 버튼 행도 클리핑되면 안 된다."""
+    tk = pytest.importorskip("tkinter")
+    from tkinter import ttk
+    _no_modal(monkeypatch)
+    from app_tk.dialogs2 import SkillInstallDialogTk, SubtitlePreviewDialogTk
+
+    root = tk.Tk()  # withdraw하면 transient 다이얼로그도 따라 숨는다
+
+    def _settle(widget):
+        for _ in range(40):
+            root.update()
+            if widget.winfo_height() > 1:
+                return
+            time.sleep(0.05)
+        root.update()
+
+    def _buttons(widget):
+        return [w for w in _all_children(widget) if isinstance(w, ttk.Button)]
+
+    try:
+        skill = SkillInstallDialogTk(root, _StubApp())
+        _settle(skill.btn_install)
+        assert skill.btn_install.winfo_height() > 10
+        for btn in _buttons(skill.dlg):
+            assert btn.winfo_height() > 10
+        skill._close()
+
+        srt = tmp_path / "sample.srt"
+        srt.write_text("1\n00:00:01,000 --> 00:00:02,000\n안녕하세요\n\n",
+                       encoding="utf-8")
+        preview = SubtitlePreviewDialogTk(root, _StubApp(), str(srt))
+        assert len(preview.trans_entries) == 1
+        _settle(preview.btn_save)
+        preview._edit_entry(0)
+        edit_dlg = next(w for w in _all_children(preview.dlg)
+                        if isinstance(w, tk.Toplevel) and w is not preview.dlg)
+        btns = _buttons(edit_dlg)
+        assert len(btns) == 2  # 확인/취소
+        _settle(btns[0])
+        for btn in btns:
+            assert btn.winfo_height() > 10
+        edit_dlg.destroy()
+        preview._close()
+    finally:
+        root.destroy()
+
+
+@pytest.mark.skipif(not os.environ.get("DISPLAY"), reason="DISPLAY 없음 (xvfb-run 필요)")
 def test_enable_file_drop_degrades_gracefully():
     tk = pytest.importorskip("tkinter")
     from app_tk.widgets import enable_file_drop
